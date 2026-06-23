@@ -1,0 +1,5 @@
+.build/
+.swiftpm/
+.xcb-cache.json
+*.xcodeproj
+.DS_Store
