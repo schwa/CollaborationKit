@@ -106,8 +106,7 @@ public struct AnthropicOAuth: Sendable {
         let body: [String: String] = [
             "grant_type": "refresh_token",
             "client_id": Self.clientID,
-            "refresh_token": credentials.refresh,
-            "scope": Self.scopes
+            "refresh_token": credentials.refresh
         ]
         return try await exchange(body: body, fallbackRefresh: credentials.refresh)
     }
