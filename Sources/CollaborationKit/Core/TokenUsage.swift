@@ -10,10 +10,23 @@ public struct TokenUsage: Sendable, Equatable {
     public var inputTokens: Int
     /// Tokens generated in the response.
     public var outputTokens: Int
+    /// Tokens written to the prompt cache this turn (Anthropic only; billed at a
+    /// premium). Zero when caching is unused or unreported.
+    public var cacheCreationInputTokens: Int
+    /// Tokens read from the prompt cache this turn (Anthropic only; billed at a
+    /// discount). Zero when caching is unused or unreported.
+    public var cacheReadInputTokens: Int
 
-    public init(inputTokens: Int = 0, outputTokens: Int = 0) {
+    public init(
+        inputTokens: Int = 0,
+        outputTokens: Int = 0,
+        cacheCreationInputTokens: Int = 0,
+        cacheReadInputTokens: Int = 0
+    ) {
         self.inputTokens = inputTokens
         self.outputTokens = outputTokens
+        self.cacheCreationInputTokens = cacheCreationInputTokens
+        self.cacheReadInputTokens = cacheReadInputTokens
     }
 
     /// The sum of input and output tokens.
@@ -25,7 +38,9 @@ public struct TokenUsage: Sendable, Equatable {
     public static func + (lhs: Self, rhs: Self) -> Self {
         Self(
             inputTokens: lhs.inputTokens + rhs.inputTokens,
-            outputTokens: lhs.outputTokens + rhs.outputTokens
+            outputTokens: lhs.outputTokens + rhs.outputTokens,
+            cacheCreationInputTokens: lhs.cacheCreationInputTokens + rhs.cacheCreationInputTokens,
+            cacheReadInputTokens: lhs.cacheReadInputTokens + rhs.cacheReadInputTokens
         )
     }
 

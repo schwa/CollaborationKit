@@ -31,19 +31,26 @@ public struct AnthropicConfig: Sendable {
     public var baseURL: URL
     /// The Anthropic API version header value.
     public var apiVersion: String
+    /// Whether to add `cache_control` breakpoints to the stable request prefix
+    /// (system prompt and tools) so Anthropic caches and reuses it across
+    /// requests. Cache hits cost ~10% of normal input price; writes cost ~25%
+    /// more. Defaults to `true`.
+    public var promptCaching: Bool
 
     public init(
         auth: AnthropicAuth,
         model: String = "claude-sonnet-4-5",
         maxTokens: Int = 4_096,
         baseURL: URL = URL(string: "https://api.anthropic.com")!,
-        apiVersion: String = "2023-06-01"
+        apiVersion: String = "2023-06-01",
+        promptCaching: Bool = true
     ) {
         self.auth = auth
         self.model = model
         self.maxTokens = maxTokens
         self.baseURL = baseURL
         self.apiVersion = apiVersion
+        self.promptCaching = promptCaching
     }
 
     /// Convenience initializer for API-key authentication.
@@ -52,9 +59,10 @@ public struct AnthropicConfig: Sendable {
         model: String = "claude-sonnet-4-5",
         maxTokens: Int = 4_096,
         baseURL: URL = URL(string: "https://api.anthropic.com")!,
-        apiVersion: String = "2023-06-01"
+        apiVersion: String = "2023-06-01",
+        promptCaching: Bool = true
     ) {
-        self.init(auth: .apiKey(apiKey), model: model, maxTokens: maxTokens, baseURL: baseURL, apiVersion: apiVersion)
+        self.init(auth: .apiKey(apiKey), model: model, maxTokens: maxTokens, baseURL: baseURL, apiVersion: apiVersion, promptCaching: promptCaching)
     }
 
     var isOAuth: Bool {

@@ -39,7 +39,8 @@ public struct AnthropicProvider: ModelProvider {
             system: system,
             messages: messages,
             tools: tools,
-            oauth: config.isOAuth
+            oauth: config.isOAuth,
+            cacheControl: config.promptCaching
         )
         var request = URLRequest(url: config.baseURL.appendingPathComponent("v1/messages"))
         request.httpMethod = "POST"
@@ -79,6 +80,8 @@ struct StreamAccumulator: ServerSentEventSink {
 
     private var blocks: [Int: Block] = [:]
     private var inputTokens = 0
+    private var cacheCreationInputTokens = 0
+    private var cacheReadInputTokens = 0
 
     mutating func consume(_ payload: String) throws -> [ProviderStreamEvent] {
         let data = Data(payload.utf8)
@@ -180,15 +183,27 @@ struct StreamAccumulator: ServerSentEventSink {
 
     private mutating func captureInputTokens(_ root: [String: JSONValue]) {
         guard case .object(let message)? = root["message"],
-              case .object(let usage)? = message["usage"],
-              case .number(let input)? = usage["input_tokens"] else { return }
-        inputTokens = Int(input)
+              case .object(let usage)? = message["usage"] else { return }
+        if case .number(let input)? = usage["input_tokens"] {
+            inputTokens = Int(input)
+        }
+        if case .number(let created)? = usage["cache_creation_input_tokens"] {
+            cacheCreationInputTokens = Int(created)
+        }
+        if case .number(let read)? = usage["cache_read_input_tokens"] {
+            cacheReadInputTokens = Int(read)
+        }
     }
 
     private func handleMessageDelta(_ root: [String: JSONValue]) -> [ProviderStreamEvent] {
         var events: [ProviderStreamEvent] = []
         if case .object(let usage)? = root["usage"], case .number(let output)? = usage["output_tokens"] {
-            events.append(.usage(TokenUsage(inputTokens: inputTokens, outputTokens: Int(output))))
+            events.append(.usage(TokenUsage(
+                inputTokens: inputTokens,
+                outputTokens: Int(output),
+                cacheCreationInputTokens: cacheCreationInputTokens,
+                cacheReadInputTokens: cacheReadInputTokens
+            )))
         }
         if case .object(let delta)? = root["delta"], case .string(let stopReason)? = delta["stop_reason"] {
             events.append(.messageComplete(stopReason: stopReason))
