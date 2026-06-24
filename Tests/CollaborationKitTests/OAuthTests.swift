@@ -80,8 +80,13 @@ func apiKeyRequestBodyUsesStringSystem() {
 @Test
 func cacheControlMarksSystemAsStructuredBlock() {
     let body = AnthropicWire.requestBody(
-        model: "m", maxTokens: 10, system: "Be helpful.", messages: [], tools: [],
-        oauth: false, cacheControl: true
+        model: "m",
+        maxTokens: 10,
+        system: "Be helpful.",
+        messages: [],
+        tools: [],
+        oauth: false,
+        cacheControl: true
     )
     guard case .object(let root) = body,
           case .array(let blocks)? = root["system"],
@@ -98,8 +103,13 @@ func cacheControlMarksLastToolOnly() {
         ToolSpec(name: name, description: "d", inputSchema: .object([:]))
     }
     let body = AnthropicWire.requestBody(
-        model: "m", maxTokens: 10, system: nil, messages: [],
-        tools: [tool("a"), tool("b")], oauth: false, cacheControl: true
+        model: "m",
+        maxTokens: 10,
+        system: nil,
+        messages: [],
+        tools: [tool("a"), tool("b")],
+        oauth: false,
+        cacheControl: true
     )
     guard case .object(let root) = body,
           case .array(let tools)? = root["tools"],
