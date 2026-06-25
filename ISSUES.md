@@ -256,3 +256,23 @@ Acceptance:
 - Output-only models (image generation) are out of scope; this is input only.
 
 ---
+
+## 12: Support disabling parallel tool calls in the OpenAI provider
+
++++
+status: new
+priority: medium
+kind: enhancement
+labels: openai, tools
+created: 2026-06-25T00:09:19Z
++++
+
+The OpenAI provider (Sources/CollaborationKit/OpenAI) always lets the server decide on parallel tool calls. gpt-4o issues multiple tool calls in a single turn, which breaks agentic edit loops: in a real session it emitted writeConfiguration AND a blind 'edit' in the same turn, so the edit's oldText didn't match the (not-yet-updated) source. It recovered via read -> edit, but the parallel/blind call is wasteful and fragile.
+
+Ask:
+- Add a 'parallelToolCalls: Bool' option to OpenAIConfig (default true to preserve current behavior, or expose so callers can turn it off for agentic flows).
+- Emit 'parallel_tool_calls' in the /v1/chat/completions request body (OpenAIWire) when set, so callers can send 'parallel_tool_calls': false.
+
+Context: surfaced while wiring OpenAI into Phosphor's shader-generation tool loop. Anthropic serializes tool calls and works perfectly; OpenAI needs parallel calls disabled to behave the same in an edit/read/compile loop.
+
+---
