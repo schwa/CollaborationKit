@@ -225,10 +225,12 @@ Riskier than the transport extraction (touches session behavior) but strategical
 ## 11: Support image (multimodal) input in messages
 
 +++
-status: new
+status: closed
 priority: low
 kind: none
 created: 2026-06-24T02:38:08Z
+updated: 2026-06-25T03:28:46Z
+closed: 2026-06-25T03:28:46Z
 +++
 
 The content model is text-only: ContentBlock has only .text/.toolUse/.toolResult, and ToolResult.content is a String. Neither provider can send images even though Anthropic and OpenAI both support image input natively.

@@ -137,3 +137,32 @@ func credentialStoreKeepsApiKeyAndOAuthSeparately() throws {
     #expect(try store.apiKey() == "sk-key")
     #expect(try store.oauthCredentials() == creds)
 }
+
+@Test
+func anthropicWireEncodesImageBlock() throws {
+    let messages = [
+        Message.user(text: "describe", images: [
+            ImageContent(mediaType: "image/jpeg", base64Data: "QUJD")
+        ])
+    ]
+    let body = AnthropicWire.requestBody(
+        model: "m", maxTokens: 100, system: nil, messages: messages, tools: []
+    )
+    guard case .object(let root) = body,
+          case .array(let wire)? = root["messages"],
+          case .object(let message) = wire[0],
+          case .array(let blocks)? = message["content"] else {
+        Issue.record("unexpected body shape")
+        return
+    }
+    #expect(blocks.count == 2)
+    #expect(blocks[0] == .object(["type": .string("text"), "text": .string("describe")]))
+    #expect(blocks[1] == .object([
+        "type": .string("image"),
+        "source": .object([
+            "type": .string("base64"),
+            "media_type": .string("image/jpeg"),
+            "data": .string("QUJD")
+        ])
+    ]))
+}

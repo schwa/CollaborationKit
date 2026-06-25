@@ -68,10 +68,19 @@ enum OpenAIWire {
     private static func encodeUser(_ blocks: [ContentBlock]) -> [JSONValue] {
         var out: [JSONValue] = []
         var text = ""
+        var imageParts: [JSONValue] = []
         for block in blocks {
             switch block {
             case .text(let value):
                 text += value
+
+            case .image(let image):
+                imageParts.append(.object([
+                    "type": "image_url",
+                    "image_url": .object([
+                        "url": .string("data:\(image.mediaType);base64,\(image.base64Data)")
+                    ])
+                ]))
 
             case .toolResult(let result):
                 out.append(.object([
@@ -84,7 +93,15 @@ enum OpenAIWire {
                 break // tool_use never appears in a user message
             }
         }
-        if !text.isEmpty {
+        // With images present, user content must be a multi-part array.
+        if !imageParts.isEmpty {
+            var parts: [JSONValue] = []
+            if !text.isEmpty {
+                parts.append(.object(["type": "text", "text": .string(text)]))
+            }
+            parts.append(contentsOf: imageParts)
+            out.insert(.object(["role": "user", "content": .array(parts)]), at: 0)
+        } else if !text.isEmpty {
             out.insert(.object(["role": "user", "content": .string(text)]), at: 0)
         }
         return out
@@ -109,8 +126,8 @@ enum OpenAIWire {
                     ])
                 ]))
 
-            case .toolResult:
-                break // tool_result never appears in an assistant message
+            case .toolResult, .image:
+                break // never appears in an assistant message
             }
         }
         var object: [String: JSONValue] = ["role": "assistant"]

@@ -107,6 +107,16 @@ enum AnthropicWire {
                 object["is_error"] = .bool(true)
             }
             return .object(object)
+
+        case .image(let image):
+            return .object([
+                "type": .string("image"),
+                "source": .object([
+                    "type": .string("base64"),
+                    "media_type": .string(image.mediaType),
+                    "data": .string(image.base64Data)
+                ])
+            ])
         }
     }
 }

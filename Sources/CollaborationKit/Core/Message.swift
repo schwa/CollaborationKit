@@ -20,6 +20,32 @@ public enum ContentBlock: Sendable, Equatable {
 
     /// The result of invoking a tool, sent back to the model.
     case toolResult(ToolResult)
+
+    /// Image content supplied as input to the model.
+    case image(ImageContent)
+}
+
+/// Image content supplied as input to a model.
+///
+/// Images are carried as base64-encoded data together with their media type,
+/// which both Anthropic and OpenAI accept natively. This representation stays
+/// provider-agnostic; wire encoders translate it into each provider's shape.
+public struct ImageContent: Sendable, Equatable {
+    /// The IANA media type of the image, e.g. `"image/png"` or `"image/jpeg"`.
+    public let mediaType: String
+    /// The base64-encoded image data (without a data-URL prefix).
+    public let base64Data: String
+
+    public init(mediaType: String, base64Data: String) {
+        self.mediaType = mediaType
+        self.base64Data = base64Data
+    }
+
+    /// Creates image content from raw bytes, base64-encoding them.
+    public init(mediaType: String, data: Data) {
+        self.mediaType = mediaType
+        self.base64Data = data.base64EncodedString()
+    }
 }
 
 /// A request from the model to invoke a tool.
@@ -74,5 +100,15 @@ public struct Message: Sendable, Equatable {
     /// Creates an assistant message containing a single text block.
     public static func assistant(_ text: String) -> Self {
         Self(role: .assistant, content: [.text(text)])
+    }
+
+    /// Creates a user message containing text followed by one or more images.
+    public static func user(text: String, images: [ImageContent]) -> Self {
+        var content: [ContentBlock] = []
+        if !text.isEmpty {
+            content.append(.text(text))
+        }
+        content.append(contentsOf: images.map(ContentBlock.image))
+        return Self(role: .user, content: content)
     }
 }

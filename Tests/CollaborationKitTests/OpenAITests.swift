@@ -161,3 +161,30 @@ func openAIConfigOverrideBeatsHeuristic() throws {
     let other = OpenAIConfig(apiKey: "k", model: "gpt-4o", usesMaxCompletionTokens: true)
     #expect(other.resolvedUsesMaxCompletionTokens == true)
 }
+
+@Test
+func openAIRequestBodyEncodesImageAsMultiPartUserContent() throws {
+    let messages = [
+        Message.user(text: "what is this?", images: [
+            ImageContent(mediaType: "image/png", base64Data: "QUJD")
+        ])
+    ]
+    let body = OpenAIWire.requestBody(
+        model: "m", maxTokens: nil, system: nil, messages: messages, tools: []
+    )
+    guard case .object(let root) = body,
+          case .array(let wire)? = root["messages"],
+          case .object(let userMessage) = wire[0],
+          case .array(let parts)? = userMessage["content"] else {
+        Issue.record("unexpected body shape")
+        return
+    }
+    #expect(wire.count == 1)
+    #expect(userMessage["role"] == .string("user"))
+    #expect(parts.count == 2)
+    #expect(parts[0] == .object(["type": "text", "text": .string("what is this?")]))
+    #expect(parts[1] == .object([
+        "type": "image_url",
+        "image_url": .object(["url": .string("data:image/png;base64,QUJD")])
+    ]))
+}
