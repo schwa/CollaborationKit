@@ -34,7 +34,8 @@ public struct OpenAIProvider: ModelProvider, ModelLister {
             system: system,
             messages: messages,
             tools: tools,
-            parallelToolCalls: config.parallelToolCalls
+            parallelToolCalls: config.parallelToolCalls,
+            usesMaxCompletionTokens: config.resolvedUsesMaxCompletionTokens
         )
         var request = URLRequest(url: config.baseURL.appendingPathComponent("v1/chat/completions"))
         request.httpMethod = "POST"

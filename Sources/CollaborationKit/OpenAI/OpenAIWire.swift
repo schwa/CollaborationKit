@@ -13,7 +13,8 @@ enum OpenAIWire {
         system: String?,
         messages: [Message],
         tools: [ToolSpec],
-        parallelToolCalls: Bool? = nil
+        parallelToolCalls: Bool? = nil,
+        usesMaxCompletionTokens: Bool = false
     ) -> JSONValue {
         var wire: [JSONValue] = []
         if let system {
@@ -30,7 +31,8 @@ enum OpenAIWire {
             "messages": .array(wire)
         ]
         if let maxTokens {
-            root["max_tokens"] = .number(Double(maxTokens))
+            let key = usesMaxCompletionTokens ? "max_completion_tokens" : "max_tokens"
+            root[key] = .number(Double(maxTokens))
         }
         if !tools.isEmpty {
             root["tools"] = .array(tools.map(encode))

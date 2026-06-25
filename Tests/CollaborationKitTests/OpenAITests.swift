@@ -118,3 +118,46 @@ func openAIRequestBodyEmitsParallelToolCallsWhenSet() throws {
     }
     #expect(value == false)
 }
+
+@Test
+func openAIRequestBodyUsesMaxTokensByDefault() throws {
+    let body = OpenAIWire.requestBody(
+        model: "m", maxTokens: 100, system: nil, messages: [], tools: []
+    )
+    guard case .object(let root) = body else { Issue.record("bad shape"); return }
+    #expect(root["max_tokens"] == .number(100))
+    #expect(root["max_completion_tokens"] == nil)
+}
+
+@Test
+func openAIRequestBodyUsesMaxCompletionTokensWhenSet() throws {
+    let body = OpenAIWire.requestBody(
+        model: "m", maxTokens: 100, system: nil, messages: [], tools: [],
+        usesMaxCompletionTokens: true
+    )
+    guard case .object(let root) = body else { Issue.record("bad shape"); return }
+    #expect(root["max_completion_tokens"] == .number(100))
+    #expect(root["max_tokens"] == nil)
+}
+
+@Test
+func openAIModelTokenParamHeuristic() throws {
+    // Newer models require max_completion_tokens.
+    for model in ["gpt-5", "gpt-5.5", "gpt-6", "o1", "o1-mini", "o3", "o4-mini"] {
+        #expect(OpenAIConfig.modelRequiresMaxCompletionTokens(model), "\(model) should require max_completion_tokens")
+    }
+    // Older / local models keep max_tokens.
+    for model in ["gpt-4o", "gpt-4.1", "gpt-3.5-turbo", "llama-3", "openhermes", ""] {
+        #expect(!OpenAIConfig.modelRequiresMaxCompletionTokens(model), "\(model) should keep max_tokens")
+    }
+}
+
+@Test
+func openAIConfigOverrideBeatsHeuristic() throws {
+    // gpt-5 would auto-detect true, but explicit false wins.
+    let config = OpenAIConfig(apiKey: "k", model: "gpt-5", usesMaxCompletionTokens: false)
+    #expect(config.resolvedUsesMaxCompletionTokens == false)
+    // gpt-4o would auto-detect false, but explicit true wins.
+    let other = OpenAIConfig(apiKey: "k", model: "gpt-4o", usesMaxCompletionTokens: true)
+    #expect(other.resolvedUsesMaxCompletionTokens == true)
+}

@@ -20,19 +20,57 @@ public struct OpenAIConfig: Sendable {
     /// tool calls, which is useful for agentic edit/read/compile loops where a
     /// blind tool call alongside another can operate on stale state.
     public var parallelToolCalls: Bool?
+    /// Whether to send the token cap as `max_completion_tokens` instead of the
+    /// legacy `max_tokens`.
+    ///
+    /// `nil` (the default) auto-detects from ``model``: newer OpenAI models
+    /// (gpt-5 and later, plus the o-series reasoning models) reject `max_tokens`
+    /// and require `max_completion_tokens`. Set explicitly to override the guess
+    /// for a server that disagrees.
+    public var usesMaxCompletionTokens: Bool?
 
     public init(
         apiKey: String,
         model: String,
         maxTokens: Int? = nil,
         baseURL: URL = URL(string: "https://api.openai.com")!,
-        parallelToolCalls: Bool? = nil
+        parallelToolCalls: Bool? = nil,
+        usesMaxCompletionTokens: Bool? = nil
     ) {
         self.apiKey = apiKey
         self.model = model
         self.maxTokens = maxTokens
         self.baseURL = baseURL
         self.parallelToolCalls = parallelToolCalls
+        self.usesMaxCompletionTokens = usesMaxCompletionTokens
+    }
+
+    /// Resolves whether to use `max_completion_tokens`, honoring an explicit
+    /// override and otherwise inferring from the model name.
+    var resolvedUsesMaxCompletionTokens: Bool {
+        usesMaxCompletionTokens ?? Self.modelRequiresMaxCompletionTokens(model)
+    }
+
+    /// Heuristic: newer OpenAI models require `max_completion_tokens`.
+    ///
+    /// Matches gpt-5 and later (e.g. `gpt-5.5`, `gpt-6`) and the o-series
+    /// reasoning models (`o1`, `o3`, `o4`, ...). Local/older models keep
+    /// `max_tokens`.
+    static func modelRequiresMaxCompletionTokens(_ model: String) -> Bool {
+        let name = model.lowercased()
+        // o-series reasoning models: o1, o3, o4-mini, etc.
+        if let first = name.first, first == "o", name.dropFirst().first?.isNumber == true {
+            return true
+        }
+        // gpt-N where N >= 5.
+        if name.hasPrefix("gpt-") {
+            let rest = name.dropFirst("gpt-".count)
+            let majorDigits = rest.prefix(while: \.isNumber)
+            if let major = Int(majorDigits), major >= 5 {
+                return true
+            }
+        }
+        return false
     }
 
     /// A configuration pointed at a local LM Studio server.
