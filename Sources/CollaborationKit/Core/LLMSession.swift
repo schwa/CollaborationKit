@@ -80,7 +80,20 @@ public actor LLMSession {
     /// - Throws: ``SessionError`` or any provider/transport error. Tool failures
     ///   are not thrown; they are fed back to the model as error results.
     public func send(_ text: String) async throws -> String {
-        history.append(.user(text))
+        try await send(text: text)
+    }
+
+    /// Sends a user message with optional image attachments and runs the tool
+    /// loop until the model stops.
+    ///
+    /// - Parameters:
+    ///   - text: The user's message.
+    ///   - images: Image attachments to include alongside the text.
+    /// - Returns: The model's final assistant text for the turn.
+    /// - Throws: ``SessionError`` or any provider/transport error. Tool failures
+    ///   are not thrown; they are fed back to the model as error results.
+    public func send(text: String, images: [ImageContent] = []) async throws -> String {
+        history.append(images.isEmpty ? .user(text) : .user(text: text, images: images))
         return try await runLoop()
     }
 
