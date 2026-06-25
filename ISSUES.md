@@ -260,11 +260,13 @@ Acceptance:
 ## 12: Support disabling parallel tool calls in the OpenAI provider
 
 +++
-status: new
+status: closed
 priority: medium
 kind: enhancement
 labels: openai, tools
 created: 2026-06-25T00:09:19Z
+updated: 2026-06-25T00:12:09Z
+closed: 2026-06-25T00:12:09Z
 +++
 
 The OpenAI provider (Sources/CollaborationKit/OpenAI) always lets the server decide on parallel tool calls. gpt-4o issues multiple tool calls in a single turn, which breaks agentic edit loops: in a real session it emitted writeConfiguration AND a blind 'edit' in the same turn, so the edit's oldText didn't match the (not-yet-updated) source. It recovered via read -> edit, but the parallel/blind call is wasteful and fragile.

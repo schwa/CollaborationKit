@@ -12,7 +12,8 @@ enum OpenAIWire {
         maxTokens: Int?,
         system: String?,
         messages: [Message],
-        tools: [ToolSpec]
+        tools: [ToolSpec],
+        parallelToolCalls: Bool? = nil
     ) -> JSONValue {
         var wire: [JSONValue] = []
         if let system {
@@ -33,6 +34,9 @@ enum OpenAIWire {
         }
         if !tools.isEmpty {
             root["tools"] = .array(tools.map(encode))
+        }
+        if let parallelToolCalls {
+            root["parallel_tool_calls"] = .bool(parallelToolCalls)
         }
         return .object(root)
     }

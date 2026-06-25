@@ -92,3 +92,29 @@ func openAIWireFlattensToolResultIntoToolMessage() {
     #expect(role == "tool")
     #expect(callID == "call_1")
 }
+
+@Test
+func openAIRequestBodyOmitsParallelToolCallsByDefault() throws {
+    let body = OpenAIWire.requestBody(
+        model: "m", maxTokens: nil, system: nil, messages: [], tools: []
+    )
+    guard case .object(let root) = body else {
+        Issue.record("unexpected body shape")
+        return
+    }
+    #expect(root["parallel_tool_calls"] == nil)
+}
+
+@Test
+func openAIRequestBodyEmitsParallelToolCallsWhenSet() throws {
+    let body = OpenAIWire.requestBody(
+        model: "m", maxTokens: nil, system: nil, messages: [], tools: [],
+        parallelToolCalls: false
+    )
+    guard case .object(let root) = body,
+          case .bool(let value)? = root["parallel_tool_calls"] else {
+        Issue.record("expected parallel_tool_calls bool")
+        return
+    }
+    #expect(value == false)
+}

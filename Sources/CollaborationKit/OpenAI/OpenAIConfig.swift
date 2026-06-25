@@ -14,17 +14,25 @@ public struct OpenAIConfig: Sendable {
     public var maxTokens: Int?
     /// The API base URL (no trailing `/v1`). Defaults to OpenAI's endpoint.
     public var baseURL: URL
+    /// Whether the server may emit multiple tool calls in a single turn.
+    ///
+    /// `nil` (the default) lets the server decide. Set to `false` to serialize
+    /// tool calls, which is useful for agentic edit/read/compile loops where a
+    /// blind tool call alongside another can operate on stale state.
+    public var parallelToolCalls: Bool?
 
     public init(
         apiKey: String,
         model: String,
         maxTokens: Int? = nil,
-        baseURL: URL = URL(string: "https://api.openai.com")!
+        baseURL: URL = URL(string: "https://api.openai.com")!,
+        parallelToolCalls: Bool? = nil
     ) {
         self.apiKey = apiKey
         self.model = model
         self.maxTokens = maxTokens
         self.baseURL = baseURL
+        self.parallelToolCalls = parallelToolCalls
     }
 
     /// A configuration pointed at a local LM Studio server.
@@ -36,9 +44,10 @@ public struct OpenAIConfig: Sendable {
     public static func lmStudio(
         model: String,
         baseURL: URL = URL(string: "http://localhost:1234")!,
-        maxTokens: Int? = nil
+        maxTokens: Int? = nil,
+        parallelToolCalls: Bool? = nil
     ) -> Self {
-        Self(apiKey: "lm-studio", model: model, maxTokens: maxTokens, baseURL: baseURL)
+        Self(apiKey: "lm-studio", model: model, maxTokens: maxTokens, baseURL: baseURL, parallelToolCalls: parallelToolCalls)
     }
 }
 
