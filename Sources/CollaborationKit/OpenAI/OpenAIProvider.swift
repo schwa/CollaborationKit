@@ -5,7 +5,7 @@ import Foundation
 ///
 /// Works with the OpenAI API and local servers such as LM Studio and Ollama.
 /// Tool calling requires a model the server reports as tool-capable.
-public struct OpenAIProvider: ModelProvider {
+public struct OpenAIProvider: ModelProvider, ModelLister {
     private let config: OpenAIConfig
     private let urlSession: URLSession
 
@@ -41,6 +41,42 @@ public struct OpenAIProvider: ModelProvider {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization")
         request.httpBody = try JSONEncoder().encode(body)
+        return request
+    }
+
+    /// Fetches available models from `GET /v1/models`.
+    ///
+    /// Works with the OpenAI API and local servers (LM Studio, Ollama) that
+    /// implement the same endpoint.
+    public func listModels() async throws -> [ModelInfo] {
+        let mapError: @Sendable (Int, String) -> Error = { status, body in
+            OpenAIError.httpError(status: status, body: body)
+        }
+        let json = try await StreamingTransport.fetchJSON(
+            request: { makeModelsRequest() },
+            urlSession: urlSession,
+            httpError: mapError
+        )
+        guard case .object(let root) = json, case .array(let data)? = root["data"] else {
+            return []
+        }
+        return data.compactMap { entry in
+            guard case .object(let object) = entry,
+                  case .string(let id)? = object["id"] else { return nil }
+            var ownedBy: String?
+            if case .string(let owner)? = object["owned_by"] { ownedBy = owner }
+            var created: Date?
+            if case .number(let seconds)? = object["created"] {
+                created = Date(timeIntervalSince1970: seconds)
+            }
+            return ModelInfo(id: id, ownedBy: ownedBy, created: created)
+        }
+    }
+
+    private func makeModelsRequest() -> URLRequest {
+        var request = URLRequest(url: config.baseURL.appendingPathComponent("v1/models"))
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization")
         return request
     }
 }

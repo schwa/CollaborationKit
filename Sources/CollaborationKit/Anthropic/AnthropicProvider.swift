@@ -1,7 +1,7 @@
 import Foundation
 
 /// A ``ModelProvider`` backed by the Anthropic Messages API (streaming).
-public struct AnthropicProvider: ModelProvider {
+public struct AnthropicProvider: ModelProvider, ModelLister {
     private let config: AnthropicConfig
     private let urlSession: URLSession
 
@@ -59,6 +59,52 @@ public struct AnthropicProvider: ModelProvider {
             request.setValue("true", forHTTPHeaderField: "anthropic-dangerous-direct-browser-access")
         }
         request.httpBody = try JSONEncoder().encode(body)
+        return request
+    }
+
+    /// Fetches available models from `GET /v1/models`.
+    public func listModels() async throws -> [ModelInfo] {
+        let mapError: @Sendable (Int, String) -> Error = { status, body in
+            AnthropicError.httpError(status: status, body: body)
+        }
+        let json = try await StreamingTransport.fetchJSON(
+            request: { try await makeModelsRequest() },
+            urlSession: urlSession,
+            httpError: mapError
+        )
+        guard case .object(let root) = json, case .array(let data)? = root["data"] else {
+            return []
+        }
+        let formatter = ISO8601DateFormatter()
+        return data.compactMap { entry in
+            guard case .object(let object) = entry,
+                  case .string(let id)? = object["id"] else { return nil }
+            var displayName: String?
+            if case .string(let name)? = object["display_name"] { displayName = name }
+            var created: Date?
+            if case .string(let createdAt)? = object["created_at"] {
+                created = formatter.date(from: createdAt)
+            }
+            return ModelInfo(id: id, displayName: displayName, created: created)
+        }
+    }
+
+    private func makeModelsRequest() async throws -> URLRequest {
+        var request = URLRequest(url: config.baseURL.appendingPathComponent("v1/models"))
+        request.httpMethod = "GET"
+        request.setValue(config.apiVersion, forHTTPHeaderField: "anthropic-version")
+        switch config.auth {
+        case .apiKey(let key):
+            request.setValue(key, forHTTPHeaderField: "x-api-key")
+
+        case .oauth(let tokenProvider):
+            let token = try await tokenProvider()
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.setValue(Self.oauthBetas, forHTTPHeaderField: "anthropic-beta")
+            request.setValue(Self.oauthUserAgent, forHTTPHeaderField: "user-agent")
+            request.setValue("cli", forHTTPHeaderField: "x-app")
+            request.setValue("true", forHTTPHeaderField: "anthropic-dangerous-direct-browser-access")
+        }
         return request
     }
 }

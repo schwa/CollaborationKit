@@ -67,6 +67,28 @@ enum StreamingTransport {
         }
     }
 
+    /// Issues a non-streaming request and decodes the JSON body.
+    ///
+    /// - Parameters:
+    ///   - request: A factory for the request to send. Run lazily so providers
+    ///     can perform async work (e.g. minting an OAuth token).
+    ///   - urlSession: The session used to issue the request.
+    ///   - httpError: Maps a non-2xx `(status, body)` into the provider's error.
+    /// - Returns: The decoded ``JSONValue`` of the response body.
+    static func fetchJSON(
+        request: @Sendable () async throws -> URLRequest,
+        urlSession: URLSession,
+        httpError: @Sendable (Int, String) -> Error
+    ) async throws -> JSONValue {
+        let urlRequest = try await request()
+        let (data, response) = try await urlSession.data(for: urlRequest)
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            let body = String(bytes: data, encoding: .utf8) ?? ""
+            throw httpError(http.statusCode, body)
+        }
+        return try JSONDecoder().decode(JSONValue.self, from: data)
+    }
+
     private static func run(
         request: @Sendable () async throws -> URLRequest,
         urlSession: URLSession,
