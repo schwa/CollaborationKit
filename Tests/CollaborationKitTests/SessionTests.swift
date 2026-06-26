@@ -62,6 +62,32 @@ func toolLoopRunsToolAndContinues() async throws {
 }
 
 @Test
+func truncateHistoryRollsBackToEarlierTurn() async throws {
+    let provider = ScriptedProvider([
+        [.text("First reply."), .messageComplete(stopReason: "end_turn")],
+        [.text("Second reply."), .messageComplete(stopReason: "end_turn")]
+    ])
+    let session = LLMSession(provider: provider)
+
+    _ = try await session.send("One")
+    let afterFirst = await session.messages.count // user + assistant
+    #expect(afterFirst == 2)
+
+    _ = try await session.send("Two")
+    #expect(await session.messages.count == 4)
+
+    // Roll the model's memory back to just after the first turn.
+    await session.truncateHistory(keeping: afterFirst)
+    #expect(await session.messages.count == afterFirst)
+
+    // Out-of-range values are clamped, not crashing.
+    await session.truncateHistory(keeping: 999)
+    #expect(await session.messages.count == afterFirst)
+    await session.truncateHistory(keeping: -5)
+    #expect(await session.messages.isEmpty)
+}
+
+@Test
 func editToolReplacesUniqueText() async throws {
     let doc = InMemoryDocument("The quick brown fox.")
     let provider = ScriptedProvider([

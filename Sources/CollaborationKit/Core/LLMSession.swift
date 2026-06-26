@@ -63,6 +63,21 @@ public actor LLMSession {
         history
     }
 
+    /// Truncates the conversation history to the first `count` messages,
+    /// discarding everything after.
+    ///
+    /// Use this to "roll back" the model's memory to an earlier point: the next
+    /// ``send(_:)`` continues as if the discarded turns never happened. `count`
+    /// is clamped to the current history length, so values larger than
+    /// ``messages``.count leave the history unchanged and negative values clear
+    /// it.
+    ///
+    /// - Parameter count: The number of leading messages to keep.
+    public func truncateHistory(keeping count: Int) {
+        let clamped = max(0, min(count, history.count))
+        history.removeLast(history.count - clamped)
+    }
+
     private var accumulatedUsage = TokenUsage()
 
     /// Cumulative token usage across all turns in this session.
