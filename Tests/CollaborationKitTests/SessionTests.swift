@@ -57,8 +57,12 @@ func toolLoopRunsToolAndContinues() async throws {
     let reply = try await session.send("How many lines?")
     #expect(reply == "The document has two lines.")
     let history = await session.messages
-    // user, assistant(tool_use), user(tool_result), assistant(text)
-    #expect(history.count == 4)
+    // Domain shape: user, assistant(toolCall+result), assistant(text).
+    // The tool result lives inside the assistant message's ToolCall, so there
+    // is no separate tool-result message.
+    #expect(history.count == 3)
+    #expect(history[1].toolCalls.count == 1)
+    #expect(history[1].toolCalls[0].result?.content != nil)
 }
 
 @Test
@@ -125,10 +129,7 @@ func editToolFailsBackToModelOnAmbiguousMatch() async throws {
     // Document unchanged; the failure was reported to the model, not thrown.
     #expect(doc.contents == "ab ab ab")
     let history = await session.messages
-    let toolResults = history.flatMap(\.content).compactMap { block -> ToolResult? in
-        if case .toolResult(let result) = block { return result }
-        return nil
-    }
+    let toolResults = history.flatMap(\.toolCalls).compactMap(\.result)
     // swiftlint:disable:next prefer_key_path - #expect macro mis-types throwing key-path closures
     #expect(toolResults.contains { $0.isError })
 }
@@ -145,9 +146,6 @@ func unknownToolReportsErrorResult() async throws {
     let session = LLMSession(provider: provider)
     _ = try await session.send("go")
     let history = await session.messages
-    let hasError = history.flatMap(\.content).contains { block in
-        if case .toolResult(let result) = block { return result.isError }
-        return false
-    }
+    let hasError = history.flatMap(\.toolCalls).contains { $0.result?.isError == true }
     #expect(hasError)
 }

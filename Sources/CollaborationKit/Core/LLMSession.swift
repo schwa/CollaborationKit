@@ -132,7 +132,9 @@ public actor LLMSession {
                     eventContinuation.yield(.text(block))
 
                 case .toolUse(let use):
-                    assistantBlocks.append(.toolUse(use))
+                    // Domain shape: the call lands in the assistant message now,
+                    // with a pending (nil) result that fills in after execution.
+                    assistantBlocks.append(.toolCall(ToolCall(use: use)))
                     pendingToolUses.append(use)
                     eventContinuation.yield(.toolCall(use))
 
@@ -145,6 +147,7 @@ public actor LLMSession {
                 }
             }
 
+            let assistantIndex = history.count
             history.append(Message(role: .assistant, content: assistantBlocks))
             lastText = turnText
 
@@ -153,16 +156,30 @@ public actor LLMSession {
                 return lastText
             }
 
-            var resultBlocks: [ContentBlock] = []
+            // Run the tools and attach each result to its call in place, so the
+            // history stays domain-shaped (one assistant message owns its tool
+            // calls and their results — no separate tool-result message).
             for use in pendingToolUses {
                 let result = await execute(use)
-                resultBlocks.append(.toolResult(result))
+                attachResult(result, toUse: use.id, inMessageAt: assistantIndex)
                 eventContinuation.yield(.toolResult(result))
             }
-            history.append(Message(role: .user, content: resultBlocks))
         }
 
         throw SessionError.maxIterationsExceeded(maxIterations)
+    }
+
+    /// Attaches a tool result to its pending ``ToolCall`` within the message at
+    /// `index`, matched by tool-use id. Keeps the history domain-shaped.
+    private func attachResult(_ result: ToolResult, toUse useID: String, inMessageAt index: Int) {
+        guard history.indices.contains(index) else { return }
+        for blockIndex in history[index].content.indices {
+            if case .toolCall(var call) = history[index].content[blockIndex], call.use.id == useID {
+                call.result = result
+                history[index].content[blockIndex] = .toolCall(call)
+                return
+            }
+        }
     }
 
     private func execute(_ use: ToolUse) async -> ToolResult {

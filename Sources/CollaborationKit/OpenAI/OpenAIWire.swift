@@ -61,7 +61,7 @@ enum OpenAIWire {
             return encodeUser(message.content)
 
         case .assistant:
-            return [encodeAssistant(message.content)]
+            return encodeAssistant(message.content)
         }
     }
 
@@ -82,15 +82,8 @@ enum OpenAIWire {
                     ])
                 ]))
 
-            case .toolResult(let result):
-                out.append(.object([
-                    "role": "tool",
-                    "tool_call_id": .string(result.toolUseID),
-                    "content": .string(result.content)
-                ]))
-
-            case .toolUse:
-                break // tool_use never appears in a user message
+            case .toolCall:
+                break // tool calls never appear in a user message
             }
         }
         // With images present, user content must be a multi-part array.
@@ -107,26 +100,37 @@ enum OpenAIWire {
         return out
     }
 
-    private static func encodeAssistant(_ blocks: [ContentBlock]) -> JSONValue {
+    /// Encodes an assistant domain message into the assistant wire message plus
+    /// any trailing `role: "tool"` result messages (OpenAI carries tool results
+    /// as their own messages, not inside the assistant turn).
+    private static func encodeAssistant(_ blocks: [ContentBlock]) -> [JSONValue] {
         var text = ""
         var toolCalls: [JSONValue] = []
+        var toolResults: [JSONValue] = []
         for block in blocks {
             switch block {
             case .text(let value):
                 text += value
 
-            case .toolUse(let use):
-                let arguments = encodeArguments(use.input)
+            case .toolCall(let call):
+                let arguments = encodeArguments(call.use.input)
                 toolCalls.append(.object([
-                    "id": .string(use.id),
+                    "id": .string(call.use.id),
                     "type": "function",
                     "function": .object([
-                        "name": .string(use.name),
+                        "name": .string(call.use.name),
                         "arguments": .string(arguments)
                     ])
                 ]))
+                if let result = call.result {
+                    toolResults.append(.object([
+                        "role": "tool",
+                        "tool_call_id": .string(result.toolUseID),
+                        "content": .string(result.content)
+                    ]))
+                }
 
-            case .toolResult, .image:
+            case .image:
                 break // never appears in an assistant message
             }
         }
@@ -135,7 +139,7 @@ enum OpenAIWire {
         if !toolCalls.isEmpty {
             object["tool_calls"] = .array(toolCalls)
         }
-        return .object(object)
+        return [.object(object)] + toolResults
     }
 
     /// OpenAI tool arguments are a JSON *string*, not a nested object.

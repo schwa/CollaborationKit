@@ -9,20 +9,41 @@ public enum Role: String, Codable, Sendable {
 /// A single block of content within a message.
 ///
 /// Conversations are modeled as a sequence of ``Message`` values, each of which
-/// contains one or more content blocks. Blocks may be plain text, a request from
-/// the model to call a tool, or the result of having called a tool.
+/// contains one or more content blocks. Blocks may be plain text, image input,
+/// or a tool call — a single object that pairs the model's request with the
+/// result of running it.
+///
+/// This is the *domain* shape: a tool call and its result live together. On the
+/// wire (Anthropic / OpenAI) a tool result must be sent as a separate following
+/// message; the wire encoders split a ``ToolCall`` apart at encode time, and the
+/// providers re-join the streamed `tool_use` with its later result here.
 public enum ContentBlock: Sendable, Equatable {
     /// Plain text content.
     case text(String)
 
-    /// A request from the model to invoke a tool.
-    case toolUse(ToolUse)
-
-    /// The result of invoking a tool, sent back to the model.
-    case toolResult(ToolResult)
-
     /// Image content supplied as input to the model.
     case image(ImageContent)
+
+    /// A tool call: the model's request plus (once it has run) its result.
+    case toolCall(ToolCall)
+}
+
+/// A tool invocation paired with its result.
+///
+/// `result` is `nil` between the moment the model requests the call and the
+/// moment the tool finishes. The session fills it in; the UI can show a pending
+/// row until then. Keeping the request and result together is what lets callers
+/// render one row per tool instead of correlating two separate messages by id.
+public struct ToolCall: Sendable, Equatable {
+    /// The model's request to invoke a tool.
+    public var use: ToolUse
+    /// The result of running it, or `nil` while still pending.
+    public var result: ToolResult?
+
+    public init(use: ToolUse, result: ToolResult? = nil) {
+        self.use = use
+        self.result = result
+    }
 }
 
 /// Image content supplied as input to a model.
@@ -81,13 +102,26 @@ public struct ToolResult: Sendable, Equatable {
 }
 
 /// A single message in a conversation.
-public struct Message: Sendable, Equatable {
+///
+/// Carries a stable identity and a creation timestamp so UIs can key list rows
+/// and show timing without maintaining a parallel side-table. Both are assigned
+/// at construction and never change.
+public struct Message: Identifiable, Sendable, Equatable {
+    /// Stable identity for the lifetime of this message value.
+    public let id: UUID
+    /// When this message was created.
+    public let timestamp: Date
     /// Who authored the message.
     public let role: Role
     /// The content blocks comprising the message.
     public var content: [ContentBlock]
 
-    public init(role: Role, content: [ContentBlock]) {
+    // id/timestamp are auto-assigned conveniences; role/content stay last to
+    // match the common `Message(role:content:)` call site.
+    // swiftlint:disable:next function_default_parameter_at_end
+    public init(id: UUID = UUID(), timestamp: Date = Date(), role: Role, content: [ContentBlock]) {
+        self.id = id
+        self.timestamp = timestamp
         self.role = role
         self.content = content
     }
@@ -110,5 +144,16 @@ public struct Message: Sendable, Equatable {
         }
         content.append(contentsOf: images.map(ContentBlock.image))
         return Self(role: .user, content: content)
+    }
+}
+
+extension Message {
+    /// The tool calls in this message, in order. Convenience for callers that
+    /// render or inspect tool activity without walking `content`.
+    public var toolCalls: [ToolCall] {
+        content.compactMap { block in
+            guard case .toolCall(let call) = block else { return nil }
+            return call
+        }
     }
 }

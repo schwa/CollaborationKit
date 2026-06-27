@@ -24,7 +24,7 @@ enum AnthropicWire {
             "model": .string(model),
             "max_tokens": .number(Double(maxTokens)),
             "stream": .bool(true),
-            "messages": .array(messages.map(encode))
+            "messages": .array(messages.flatMap(encode))
         ]
         if oauth {
             // OAuth requires the identity block first, as structured system blocks.
@@ -74,49 +74,60 @@ enum AnthropicWire {
         ])
     }
 
-    private static func encode(_ message: Message) -> JSONValue {
-        .object([
-            "role": .string(message.role.rawValue),
-            "content": .array(message.content.map(encode))
-        ])
-    }
+    /// Expands one domain message into one or more Anthropic wire messages.
+    ///
+    /// A ``ToolCall`` is a single domain block, but Anthropic requires the
+    /// `tool_use` in the assistant turn and the `tool_result` in a *following*
+    /// user turn. So an assistant message that carries tool calls encodes as the
+    /// assistant message (text + tool_use blocks) followed by a user message of
+    /// tool_result blocks.
+    private static func encode(_ message: Message) -> [JSONValue] {
+        var primary: [JSONValue] = []
+        var toolResults: [JSONValue] = []
+        for block in message.content {
+            switch block {
+            case .text(let text):
+                primary.append(.object(["type": .string("text"), "text": .string(text)]))
 
-    private static func encode(_ block: ContentBlock) -> JSONValue {
-        switch block {
-        case .text(let text):
-            return .object([
-                "type": .string("text"),
-                "text": .string(text)
-            ])
+            case .image(let image):
+                primary.append(.object([
+                    "type": .string("image"),
+                    "source": .object([
+                        "type": .string("base64"),
+                        "media_type": .string(image.mediaType),
+                        "data": .string(image.base64Data)
+                    ])
+                ]))
 
-        case .toolUse(let use):
-            return .object([
-                "type": .string("tool_use"),
-                "id": .string(use.id),
-                "name": .string(use.name),
-                "input": use.input
-            ])
-
-        case .toolResult(let result):
-            var object: [String: JSONValue] = [
-                "type": .string("tool_result"),
-                "tool_use_id": .string(result.toolUseID),
-                "content": .string(result.content)
-            ]
-            if result.isError {
-                object["is_error"] = .bool(true)
+            case .toolCall(let call):
+                primary.append(.object([
+                    "type": .string("tool_use"),
+                    "id": .string(call.use.id),
+                    "name": .string(call.use.name),
+                    "input": call.use.input
+                ]))
+                if let result = call.result {
+                    var object: [String: JSONValue] = [
+                        "type": .string("tool_result"),
+                        "tool_use_id": .string(result.toolUseID),
+                        "content": .string(result.content)
+                    ]
+                    if result.isError {
+                        object["is_error"] = .bool(true)
+                    }
+                    toolResults.append(.object(object))
+                }
             }
-            return .object(object)
-
-        case .image(let image):
-            return .object([
-                "type": .string("image"),
-                "source": .object([
-                    "type": .string("base64"),
-                    "media_type": .string(image.mediaType),
-                    "data": .string(image.base64Data)
-                ])
-            ])
         }
+
+        var out: [JSONValue] = []
+        if !primary.isEmpty {
+            out.append(.object(["role": .string(message.role.rawValue), "content": .array(primary)]))
+        }
+        if !toolResults.isEmpty {
+            // Tool results always go back to the model as a user turn.
+            out.append(.object(["role": .string("user"), "content": .array(toolResults)]))
+        }
+        return out
     }
 }

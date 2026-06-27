@@ -64,11 +64,12 @@ func openAIAccumulatorThrowsOnError() {
 func openAIWireFlattensToolResultIntoToolMessage() {
     let messages: [Message] = [
         .user("hi"),
+        // Domain shape: one assistant message whose tool call owns its result.
         Message(role: .assistant, content: [
-            .toolUse(ToolUse(id: "call_1", name: "read", input: .object([:])))
-        ]),
-        Message(role: .user, content: [
-            .toolResult(ToolResult(toolUseID: "call_1", content: "file contents"))
+            .toolCall(ToolCall(
+                use: ToolUse(id: "call_1", name: "read", input: .object([:])),
+                result: ToolResult(toolUseID: "call_1", content: "file contents")
+            ))
         ])
     ]
     let body = OpenAIWire.requestBody(
