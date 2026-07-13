@@ -2560,3 +2560,18 @@ Needs:
 - Dispatch that runs the command instead of sending the text to the model.
 
 ---
+
+## 95: Send a notification when a conversation turn finishes
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T16:39:20Z
++++
+
+When the assistant finishes a turn (or errors), post a user notification so the user can leave the window in the background and come back when work is done.
+
+Should probably only fire when the app/window is unfocused.
+
+---
