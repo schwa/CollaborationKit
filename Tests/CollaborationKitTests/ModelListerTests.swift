@@ -50,8 +50,8 @@ private func fixedBaseURL(_ host: String, status: Int, body: String) -> URL {
 func openAIListsModels() async throws {
     let body = """
     {"object":"list","data":[
-      {"id":"gpt-4o","object":"model","created":1715300000,"owned_by":"openai"},
-      {"id":"gpt-3.5-turbo","object":"model","owned_by":"system"}
+        {"id":"gpt-4o","object":"model","created":1715300000,"owned_by":"openai"},
+        {"id":"gpt-3.5-turbo","object":"model","owned_by":"system"}
     ]}
     """
     let baseURL = fixedBaseURL("openai-list.test", status: 200, body: body)
@@ -82,7 +82,7 @@ func openAIListModelsThrowsOnHTTPError() async throws {
 func anthropicListsModels() async throws {
     let body = """
     {"data":[
-      {"type":"model","id":"claude-3-5-sonnet-20241022","display_name":"Claude 3.5 Sonnet","created_at":"2024-10-22T00:00:00Z"}
+        {"type":"model","id":"claude-3-5-sonnet-20241022","display_name":"Claude 3.5 Sonnet","created_at":"2024-10-22T00:00:00Z"}
     ],"has_more":false}
     """
     let baseURL = fixedBaseURL("anthropic-list.test", status: 200, body: body)

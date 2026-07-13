@@ -1,5 +1,5 @@
-import SwiftUI
 import CollaborationKit
+import SwiftUI
 
 #if canImport(AppKit)
 import AppKit
@@ -30,6 +30,7 @@ struct AttachmentThumbnailsView: View {
             Image(nsImage: ns)
                 .resizable()
                 .scaledToFill()
+                .accessibilityLabel("Attached image")
         } else {
             placeholder
         }
@@ -39,6 +40,7 @@ struct AttachmentThumbnailsView: View {
             Image(uiImage: ui)
                 .resizable()
                 .scaledToFill()
+                .accessibilityLabel("Attached image")
         } else {
             placeholder
         }
@@ -50,6 +52,7 @@ struct AttachmentThumbnailsView: View {
     private var placeholder: some View {
         Image(systemName: "photo")
             .foregroundStyle(.secondary)
+            .accessibilityLabel("Image unavailable")
     }
 }
 

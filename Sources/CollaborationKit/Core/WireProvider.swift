@@ -66,7 +66,7 @@ extension WireProvider {
         let json = try await StreamingTransport.fetchJSON(
             request: { request },
             urlSession: urlSession,
-            httpError: { status, body in self.httpError(status: status, body: body) }
+            httpError: { status, body in self.httpError(status: status, body: body) } // swiftlint:disable:this trailing_closure
         )
         return decodeModels(json)
     }

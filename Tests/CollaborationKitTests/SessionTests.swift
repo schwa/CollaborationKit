@@ -152,7 +152,7 @@ func unknownToolReportsErrorResult() async throws {
 
 // MARK: - Tool approval (#31)
 
-private actor RecordingTool: Sendable {
+private actor RecordingTool {
     var callCount = 0
     func bump() { callCount += 1 }
 }
@@ -163,7 +163,7 @@ private struct SpyingTool: Tool {
     var name: String { "spy" }
     var description: String { "records a call" }
     var inputSchema: JSONValue { .object(["type": .string("object"), "properties": .object([:])]) }
-    func call(_ input: Input) async throws -> String {
+    func call(_: Input) async -> String {
         await recorder.bump()
         return "ran"
     }
@@ -199,9 +199,8 @@ func denyReasonReachesTheModelAsErrorResultAndToolDoesNotRun() async throws {
     ])
     let session = LLMSession(
         provider: provider,
-        tools: [SpyingTool(recorder: recorder).eraseToAnyTool()],
-        approval: { _ in .deny(reason: "policy: no side effects during dry run") }
-    )
+        tools: [SpyingTool(recorder: recorder).eraseToAnyTool()]
+    ) { _ in .deny(reason: "policy: no side effects during dry run") }
     _ = try await session.send("go")
 
     // The tool never ran.
@@ -226,9 +225,8 @@ func emptyDenyReasonUsesFallbackMessage() async throws {
     ])
     let session = LLMSession(
         provider: provider,
-        tools: [SpyingTool(recorder: recorder).eraseToAnyTool()],
-        approval: { _ in .deny }
-    )
+        tools: [SpyingTool(recorder: recorder).eraseToAnyTool()]
+    ) { _ in .deny }
     _ = try await session.send("go")
     let history = await session.messages
     let deniedCall = history.flatMap(\.toolCalls).first { $0.use.id == "t2" }
@@ -248,15 +246,14 @@ func perToolApprovalCanAllowSomeAndDenyOthers() async throws {
     ])
     let session = LLMSession(
         provider: provider,
-        tools: [SpyingTool(recorder: recorder).eraseToAnyTool()],
-        approval: { use in
-            if case .object(let fields) = use.input,
-               case .bool(true)? = fields["safe"] {
-                return .allow
-            }
-            return .deny(reason: "unsafe")
+        tools: [SpyingTool(recorder: recorder).eraseToAnyTool()]
+    ) { use in
+        if case .object(let fields) = use.input,
+           case .bool(true)? = fields["safe"] {
+            return .allow
         }
-    )
+        return .deny(reason: "unsafe")
+    }
     _ = try await session.send("go")
 
     #expect(await recorder.callCount == 1)

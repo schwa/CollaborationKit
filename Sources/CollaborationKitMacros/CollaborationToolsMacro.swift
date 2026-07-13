@@ -11,14 +11,14 @@ public enum CollaborationToolsMacro: MemberMacro {
         let ownerInfo = try enclosingTypeInfo(from: declaration, context: context)
         let prefix = prefixArgument(from: attribute)
 
-        let tools = try annotatedMethods(in: declaration, context: context, prefix: prefix)
+        let tools = annotatedMethods(in: declaration, context: context, prefix: prefix)
 
         // Emit even when empty, so the accessor exists and the user's site
         // compiles predictably.
         var decls: [DeclSyntax] = []
 
         for tool in tools {
-            decls.append(contentsOf: try toolStructDecls(
+            decls.append(contentsOf: toolStructDecls(
                 for: tool,
                 ownerTypeName: ownerInfo.name,
                 ownerIsActor: ownerInfo.isActor
@@ -102,11 +102,52 @@ public enum CollaborationToolsMacro: MemberMacro {
 
     // MARK: - Discovery
 
+    /// Decodes the parameter list of one annotated method, or throws
+    /// ``MacroFailure/diagnosed`` after diagnosing when any parameter type
+    /// is unsupported.
+    private static func decodedParameters(
+        of signature: FunctionSignatureSyntax,
+        context: some MacroExpansionContext
+    ) throws -> [DecodedParameter] {
+        var parameters: [DecodedParameter] = []
+        var hadUnsupported = false
+        for param in signature.parameterClause.parameters {
+            do {
+                let type = try parseParamType(param.type)
+                let external: String? = {
+                    let text = param.firstName.text
+                    return text == "_" ? nil : text
+                }()
+                let fieldName: String = {
+                    if let second = param.secondName?.text {
+                        return second
+                    }
+                    return param.firstName.text
+                }()
+                parameters.append(DecodedParameter(
+                    externalLabel: external,
+                    inputFieldName: fieldName,
+                    type: type
+                ))
+            } catch let error as SchemaDerivationError {
+                context.diagnose(Diagnostic(
+                    node: Syntax(param.type),
+                    message: MacroDiagnostic.unsupportedInputType(error.typeName)
+                ))
+                hadUnsupported = true
+            } catch {
+                hadUnsupported = true
+            }
+        }
+        if hadUnsupported { throw MacroFailure.diagnosed }
+        return parameters
+    }
+
     private static func annotatedMethods(
         in declaration: some DeclGroupSyntax,
         context: some MacroExpansionContext,
         prefix: String?
-    ) throws -> [DecodedTool] {
+    ) -> [DecodedTool] {
         var results: [DecodedTool] = []
 
         for member in declaration.memberBlock.members {
@@ -115,35 +156,7 @@ public enum CollaborationToolsMacro: MemberMacro {
 
             let signature = fn.signature
 
-            var parameters: [DecodedParameter] = []
-            var hadUnsupported = false
-            for param in signature.parameterClause.parameters {
-                do {
-                    let type = try parseParamType(param.type)
-                    let external: String? = {
-                        let text = param.firstName.text
-                        return text == "_" ? nil : text
-                    }()
-                    let fieldName: String = {
-                        if let second = param.secondName?.text {
-                            return second
-                        }
-                        return param.firstName.text
-                    }()
-                    parameters.append(DecodedParameter(
-                        externalLabel: external,
-                        inputFieldName: fieldName,
-                        type: type
-                    ))
-                } catch let error as SchemaDerivationError {
-                    context.diagnose(Diagnostic(
-                        node: Syntax(param.type),
-                        message: MacroDiagnostic.unsupportedInputType(error.typeName)
-                    ))
-                    hadUnsupported = true
-                }
-            }
-            if hadUnsupported { continue }
+            guard let parameters = try? decodedParameters(of: signature, context: context) else { continue }
 
             let effects = signature.effectSpecifiers
             let isAsync = effects?.asyncSpecifier != nil
@@ -201,150 +214,6 @@ public enum CollaborationToolsMacro: MemberMacro {
         }
         return nil
     }
-
-    // MARK: - Codegen: tool struct
-
-    private static func toolStructDecls(
-        for tool: DecodedTool,
-        ownerTypeName: String,
-        ownerIsActor: Bool
-    ) throws -> [DeclSyntax] {
-        let structName = "__CKTool_\(tool.methodName)"
-
-        let inputFields = tool.parameters
-            .map { "        let \($0.inputFieldName): \($0.type.swiftTypeSource)" }
-            .joined(separator: "\n")
-
-        let schemaSource = jsonSchemaSource(for: tool.parameters)
-
-        let callArgs = tool.parameters.map { p -> String in
-            if let external = p.externalLabel {
-                return "\(external): input.\(p.inputFieldName)"
-            } else {
-                return "input.\(p.inputFieldName)"
-            }
-        }.joined(separator: ", ")
-
-        let needsAwait = tool.isAsync || ownerIsActor
-        let effectPrefix: String = {
-            switch (tool.isThrows, needsAwait) {
-            case (true, true): return "try await "
-            case (true, false): return "try "
-            case (false, true): return "await "
-            case (false, false): return ""
-            }
-        }()
-
-        let callExpr = "\(effectPrefix)__owner.\(tool.methodName)(\(callArgs))"
-
-        let bodyStmts: String
-        if tool.returnTypeText == nil {
-            bodyStmts = """
-                    \(callExpr)
-                    return "OK"
-            """
-        } else {
-            bodyStmts = """
-                    let __result = \(callExpr)
-                    return try CollaborationKit._ckStringify(__result)
-            """
-        }
-
-        let descriptionLiteral = swiftStringLiteral(tool.description)
-        let toolNameLiteral = swiftStringLiteral(tool.toolName)
-        let approvalLiteral = tool.requiresApproval ? "true" : "false"
-
-        let decl: DeclSyntax = """
-        private struct \(raw: structName): CollaborationKit.Tool {
-            struct Input: Swift.Decodable, Swift.Sendable {
-        \(raw: inputFields)
-            }
-            let __owner: \(raw: ownerTypeName)
-            var name: Swift.String { \(raw: toolNameLiteral) }
-            var description: Swift.String { \(raw: descriptionLiteral) }
-            var inputSchema: CollaborationKit.JSONValue { \(raw: schemaSource) }
-            var requiresApproval: Swift.Bool { \(raw: approvalLiteral) }
-            func call(_ input: Input) async throws -> Swift.String {
-        \(raw: bodyStmts)
-            }
-        }
-        """
-        return [decl]
-    }
-
-    // MARK: - Codegen: accessor
-
-    private static func collaborationToolsAccessor(for tools: [DecodedTool]) -> DeclSyntax {
-        if tools.isEmpty {
-            return """
-            /// Collaboration tools exposed by this type. Empty because no
-            /// members are annotated with `@CollaborationTool`.
-            public var collaborationTools: [CollaborationKit.AnyTool] { [] }
-            """
-        }
-
-        let items = tools.map { tool in
-            "__CKTool_\(tool.methodName)(__owner: self).eraseToAnyTool()"
-        }.joined(separator: ",\n            ")
-
-        return """
-        /// Collaboration tools exposed by this type, one per
-        /// `@CollaborationTool`-annotated member.
-        public var collaborationTools: [CollaborationKit.AnyTool] {
-            [
-                \(raw: items)
-            ]
-        }
-        """
-    }
-
-    // MARK: - JSON schema for parameter list
-
-    private static func jsonSchemaSource(for params: [DecodedParameter]) -> String {
-        if params.isEmpty {
-            return #".object(["type": .string("object"), "properties": .object([:])])"#
-        }
-
-        let propEntries = params.map { p in
-            let key = swiftStringLiteral(p.externalLabel ?? p.inputFieldName)
-            return "\(key): \(p.type.jsonSchemaSource())"
-        }.joined(separator: ", ")
-
-        let required = params.compactMap { p -> String? in
-            guard !p.type.isOptional else { return nil }
-            return swiftStringLiteral(p.externalLabel ?? p.inputFieldName)
-        }
-
-        if required.isEmpty {
-            return #".object(["type": .string("object"), "properties": .object([\#(propEntries)])])"#
-        }
-
-        let requiredList = required.map { ".string(\($0))" }.joined(separator: ", ")
-        return #".object(["type": .string("object"), "properties": .object([\#(propEntries)]), "required": .array([\#(requiredList)])])"#
-    }
-
-    // MARK: - Helpers
-
-    private static func swiftStringLiteral(_ s: String) -> String {
-        var out = "\""
-        for scalar in s.unicodeScalars {
-            switch scalar {
-            case "\\": out += "\\\\"
-            case "\"": out += "\\\""
-            case "\n": out += "\\n"
-            case "\r": out += "\\r"
-            case "\t": out += "\\t"
-            default:
-                if scalar.value < 0x20 {
-                    out += String(format: "\\u{%04x}", scalar.value)
-                } else {
-                    out.unicodeScalars.append(scalar)
-                }
-            }
-        }
-        out += "\""
-        return out
-    }
 }
 
 // MARK: - Diagnostics
@@ -354,14 +223,14 @@ enum MacroFailure: Error {
 }
 
 struct MacroDiagnostic: DiagnosticMessage {
-    static let notAType = MacroDiagnostic(
+    static let notAType = Self(
         message: "@CollaborationTools can only be attached to a class, struct, or actor.",
         diagnosticID: MessageID(domain: "CollaborationKitMacros", id: "notAType"),
         severity: .error
     )
 
-    static func unsupportedType(_ description: String) -> MacroDiagnostic {
-        MacroDiagnostic(
+    static func unsupportedType(_ description: String) -> Self {
+        Self(
             message: description,
             diagnosticID: MessageID(domain: "CollaborationKitMacros", id: "unsupportedType"),
             severity: .error
@@ -371,7 +240,7 @@ struct MacroDiagnostic: DiagnosticMessage {
     /// A tailored diagnostic for an unsupported parameter type, pointing at
     /// the concrete workarounds available today and the follow-up work that
     /// will eventually cover it.
-    static func unsupportedInputType(_ typeName: String) -> MacroDiagnostic {
+    static func unsupportedInputType(_ typeName: String) -> Self {
         let message = """
         Unsupported parameter type '\(typeName)'. \
         Slice 1 supports Bool, Int, Double, Float, String, Optional<T>, Array<T>, and [String: T] where T is one of the same. \
@@ -380,7 +249,7 @@ struct MacroDiagnostic: DiagnosticMessage {
         (2) return types have no such restriction — anything Encodable or CollaborationResultConvertible works today. \
         Follow-ups: #21 (nested @CollaborationTools by id), #24 (schema derivation for enums / tuples / generic wrappers), #25 (CollaborationSchemaConvertible escape hatch), #41 (RawRepresentable typed ids).
         """
-        return MacroDiagnostic(
+        return Self(
             message: message,
             diagnosticID: MessageID(domain: "CollaborationKitMacros", id: "unsupportedInputType"),
             severity: .error

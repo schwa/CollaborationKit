@@ -23,7 +23,7 @@ import Foundation
 /// - **`@CollaborationTool` must be declared inside the same type body as
 ///   the `@CollaborationTools` attribute.** Methods added in an extension
 ///   are silently skipped — Swift attached-member macros only see the
-///   primary declaration's member block, not extensions. See issue #55.
+///   primary declaration's member block, not extensions.
 ///
 /// ## Nested-object rule
 ///
@@ -41,8 +41,8 @@ import Foundation
 /// See RFC 0003.
 @attached(member, names: named(collaborationTools), arbitrary)
 public macro CollaborationTools(prefix: String? = nil) = #externalMacro(
-    module: "CollaborationKitMacros",
-    type: "CollaborationToolsMacro"
+module: "CollaborationKitMacros",
+type: "CollaborationToolsMacro"
 )
 
 /// Marks a method as a collaboration tool.
@@ -64,10 +64,10 @@ public macro CollaborationTools(prefix: String? = nil) = #externalMacro(
 ///     can gate the call. Defaults to `false`.
 @attached(peer)
 public macro CollaborationTool(
-    _ description: String,
-    name: String? = nil,
-    requiresApproval: Bool = false
+_ description: String,
+name: String? = nil,
+requiresApproval: Bool = false
 ) = #externalMacro(
-    module: "CollaborationKitMacros",
-    type: "CollaborationToolMacro"
+module: "CollaborationKitMacros",
+type: "CollaborationToolMacro"
 )

@@ -6,7 +6,6 @@ import Testing
 /// Pure state-machine tests for MessageMirror — no SwiftUI, no @MainActor,
 /// no ConversationStore. Exercises the event handling in isolation.
 struct MessageMirrorTests {
-
     // MARK: - User + streaming basics
 
     @Test
@@ -48,7 +47,7 @@ struct MessageMirrorTests {
     func toolCallAppearsInMessagesAndStampsPresentation() {
         var mirror = MessageMirror()
         let use = ToolUse(id: "t1", name: "list", input: .object([:]))
-        mirror.handle(.toolCall(use), summary: { _ in "listing" })
+        mirror.handle(.toolCall(use)) { _ in "listing" }
         let call = mirror.messages.first?.content.first
         if case .toolCall(let c) = call {
             #expect(c.use.id == "t1")
@@ -105,9 +104,8 @@ struct MessageMirrorTests {
         // A tool call arrives mid-stream: the overlay should close.
         mirror.handle(
             .toolCall(ToolUse(id: "t1", name: "read", input: .object([:]))),
-            at: start.addingTimeInterval(0.3),
-            summary: { $0.name }
-        )
+            at: start.addingTimeInterval(0.3)
+        ) { $0.name }
         #expect(mirror.streamingAssistantText == nil)
     }
 }

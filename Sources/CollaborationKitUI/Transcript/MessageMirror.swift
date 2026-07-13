@@ -1,5 +1,5 @@
-import Foundation
 import CollaborationKit
+import Foundation
 
 /// A pure state machine that mirrors an ``LLMSession``'s event stream into
 /// a projectable form.
@@ -75,7 +75,7 @@ public struct MessageMirror: Sendable {
     public mutating func handle(
         _ event: SessionEvent,
         at date: Date = Date(),
-        summary: (ToolUse) -> String = { $0.name }
+        summary: (ToolUse) -> String = \.name
     ) {
         switch event {
         case .textDelta(let chunk):
@@ -162,7 +162,7 @@ public struct MessageMirror: Sendable {
     private mutating func appendAssistantProseToMirror(_ block: String) -> ItemID {
         if let last = messages.indices.last,
            messages[last].role == .assistant,
-           !messages[last].content.contains(where: { if case .text = $0 { return true } else { return false } }) {
+           !messages[last].content.contains(where: { if case .text = $0 { true } else { false } }) {
             messages[last].content.insert(.text(block), at: 0)
             return .message(messages[last].id)
         }

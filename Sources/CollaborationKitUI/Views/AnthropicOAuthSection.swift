@@ -1,5 +1,5 @@
-import SwiftUI
 import CollaborationKit
+import SwiftUI
 
 /// A `Section` that logs the user in to a Claude subscription via the paste
 /// OAuth flow, or logs them out if already signed in.
@@ -19,7 +19,8 @@ import CollaborationKit
 /// > client. It is unofficial, may violate Anthropic's terms, and may break
 /// > without notice.
 public struct AnthropicOAuthSection: View {
-    @Environment(CollaborationCredentials.self) private var credentials
+    @Environment(CollaborationCredentials.self)
+    private var credentials
 
     @State private var loginRequest: AnthropicOAuth.LoginRequest?
     @State private var pastedCode: String = ""

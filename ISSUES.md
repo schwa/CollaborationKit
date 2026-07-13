@@ -1513,12 +1513,13 @@ Total: 118 → 131 tests. macOS + demo xcb build clean.
 ## 55: @CollaborationTool in extensions: unsupported by Swift macros; document + diagnose
 
 +++
-status: new
+status: closed
 priority: low
 kind: bug
 labels: docs
 created: 2026-07-13T04:04:01Z
-updated: 2026-07-13T04:13:43Z
+updated: 2026-07-13T05:27:39Z
+closed: 2026-07-13T05:27:39Z
 +++
 
 Marking a method with `@CollaborationTool` inside an `extension` of a `@CollaborationTools`-annotated type doesn't produce a working tool.
@@ -1540,6 +1541,8 @@ Reduced to a documentation + diagnostics task:
 - (revisit) Reopen the codegen path if Swift ever gains cross-extension macro visibility.
 
 Kept open at low priority for the docs + optional diagnostic work.
+
+- `2026-07-13T05:27:39Z`: Not fixable: Swift attached-member macros can't see extension members. Documented in the @CollaborationTools doc comment and a new README FAQ section.
 
 ---
 

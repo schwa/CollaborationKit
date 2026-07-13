@@ -4,7 +4,6 @@ import Testing
 
 /// Unit tests for the ``PathPolicy`` allowlist helper (#32).
 struct PathPolicyTests {
-
     // MARK: - Fixtures
 
     /// Creates a fresh temp directory and returns its canonical URL. The

@@ -1,6 +1,6 @@
-import SwiftUI
 import CollaborationKit
 import CollaborationKitUI
+import SwiftUI
 
 @main
 struct CollaborationDemoApp: App {

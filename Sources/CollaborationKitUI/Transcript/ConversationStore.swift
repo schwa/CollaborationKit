@@ -1,6 +1,6 @@
+import CollaborationKit
 import Foundation
 import Observation
-import CollaborationKit
 
 /// Owns an ``LLMSession`` and its ``MessageMirror``, and republishes the
 /// projected transcript as observable ``items``.
@@ -15,6 +15,7 @@ import CollaborationKit
 ///
 /// This store is the thin @Observable @MainActor shell that wires them
 /// together with the session's event pump. See `#54` for the rationale.
+@preconcurrency
 @MainActor
 @Observable
 public final class ConversationStore {
@@ -30,7 +31,7 @@ public final class ConversationStore {
     public private(set) var isGenerating: Bool = false
 
     /// Cumulative token usage across the session.
-    public private(set) var usage: TokenUsage = TokenUsage()
+    public private(set) var usage = TokenUsage()
 
     /// The last harness error surfaced to the user (not a tool error).
     public private(set) var lastError: String?
@@ -48,6 +49,7 @@ public final class ConversationStore {
     private var eventTask: Task<Void, Never>?
     private var sendTask: Task<Void, Never>?
 
+    @preconcurrency
     public init(
         session: LLMSession,
         summarizeTool: @escaping @Sendable (ToolUse) -> String = ConversationStore.defaultSummarize(for:)
@@ -155,7 +157,7 @@ extension ConversationStore {
     /// Handles the built-in `read`/`write`/`edit` file tools shipped in
     /// ``CollaborationKit``. Falls back to the tool's name for unknown
     /// tools; hosts override via `summarizeTool`.
-    public nonisolated static func defaultSummarize(for use: ToolUse) -> String {
+    nonisolated public static func defaultSummarize(for use: ToolUse) -> String {
         switch use.name {
         case "read":
             return "reading the file"

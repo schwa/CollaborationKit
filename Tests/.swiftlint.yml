@@ -1,0 +1,9 @@
+disabled_rules:
+  # Tests interleave `// swiftlint:disable:next` comments between an
+  # attribute (e.g. `@Test`, `@CollaborationTool`) and the func — SwiftLint's
+  # `attributes` rule flags the resulting layout even though the attribute
+  # is already on its own line.
+  - attributes
+  # Test files use top-of-file `///` comments as file-level documentation
+  # for the fixture set, not attached to a specific declaration.
+  - orphaned_doc_comment

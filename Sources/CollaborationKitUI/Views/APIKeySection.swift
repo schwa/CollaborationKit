@@ -1,5 +1,5 @@
-import SwiftUI
 import CollaborationKit
+import SwiftUI
 
 /// A `Section` with a `SecureField` for an API key plus Save/Clear controls,
 /// backed by a slot in ``CollaborationCredentials``. `Footer` is a
@@ -9,7 +9,8 @@ import CollaborationKit
 /// Two convenience wrappers ship (``AnthropicAPIKeySection`` and
 /// ``OpenAIAPIKeySection``); use them unless you're wiring a custom slot.
 public struct APIKeySection<Footer: View>: View {
-    @Environment(CollaborationCredentials.self) private var credentials
+    @Environment(CollaborationCredentials.self)
+    private var credentials
 
     public let title: LocalizedStringKey
     public let placeholder: LocalizedStringKey
@@ -76,9 +77,11 @@ public struct APIKeySection<Footer: View>: View {
         case .found(let value):
             key = value
             readError = nil
+
         case .notFound:
             key = ""
             readError = nil
+
         case .failed(let status):
             readError = "Couldn't read the saved key (\(CredentialReadResult.message(for: status))). Try reopening Settings."
         }
@@ -108,14 +111,15 @@ public struct AnthropicAPIKeySection: View {
             title: "Anthropic API Key",
             placeholder: "sk-ant-…",
             read: { $0.anthropicAPIKey() },
-            write: { $0.saveAnthropicAPIKey($1) }
-        ) {
-            Link(
-                "Get an API key from the Claude Console",
-                destination: URL(string: "https://console.anthropic.com/settings/keys")!
-            )
-            .font(.callout)
-        }
+            write: { $0.saveAnthropicAPIKey($1) },
+            footer: {
+                Link(
+                    "Get an API key from the Claude Console",
+                    destination: URL(string: "https://console.anthropic.com/settings/keys")!
+                )
+                .font(.callout)
+            }
+        )
     }
 }
 
@@ -128,14 +132,15 @@ public struct OpenAIAPIKeySection: View {
             title: "OpenAI API Key",
             placeholder: "sk-…",
             read: { $0.openAIAPIKey() },
-            write: { $0.saveOpenAIAPIKey($1) }
-        ) {
-            Link(
-                "Get an API key from the OpenAI platform",
-                destination: URL(string: "https://platform.openai.com/api-keys")!
-            )
-            .font(.callout)
-        }
+            write: { $0.saveOpenAIAPIKey($1) },
+            footer: {
+                Link(
+                    "Get an API key from the OpenAI platform",
+                    destination: URL(string: "https://platform.openai.com/api-keys")!
+                )
+                .font(.callout)
+            }
+        )
     }
 }
 

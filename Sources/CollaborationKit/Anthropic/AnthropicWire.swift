@@ -137,15 +137,16 @@ enum AnthropicWire {
     /// chunks within a `content_block`; tool use arrives as a `tool_use` block whose
     /// `input` is streamed as concatenated `input_json_delta` fragments. This type
     /// reassembles those fragments and emits completed blocks on `content_block_stop`.
-    struct Accumulator: ServerSentEventSink {
-        private struct Block {
-            var type: String
-            var toolID: String?
-            var toolName: String?
-            var partialJSON: String = ""
-            var text: String = ""
-        }
+    /// One in-flight content block being reassembled by ``Accumulator``.
+    private struct Block {
+        var type: String
+        var toolID: String?
+        var toolName: String?
+        var partialJSON: String = ""
+        var text: String = ""
+    }
 
+    struct Accumulator: ServerSentEventSink {
         private var blocks: [Int: Block] = [:]
         private var inputTokens = 0
         private var cacheCreationInputTokens = 0

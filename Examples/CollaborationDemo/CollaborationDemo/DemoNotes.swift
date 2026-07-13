@@ -1,9 +1,9 @@
+import CollaborationKit
 import Foundation
 import Observation
-import CollaborationKit
 
 struct Note: Identifiable, Sendable, Equatable, Codable {
-    typealias ID = String
+    typealias ID = String // swiftlint:disable:this type_name
     let id: ID
     var title: String
     var body: String
@@ -44,12 +44,12 @@ final class DemoNotes {
     }
 
     @CollaborationTool("List every note, oldest first, as an array.")
-    func list() async -> [Note] {
+    func list() -> [Note] {
         notes
     }
 
     @CollaborationTool("Create a note. Returns the new note's id.")
-    func create(title: String, body: String, tag: Tag?) async -> Note.ID {
+    func create(title: String, body: String, tag: Tag?) -> Note.ID {
         let id: Note.ID = "n\(nextID)"
         nextID += 1
         notes.append(Note(id: id, title: title, body: body, tag: tag, color: nil))
@@ -57,15 +57,15 @@ final class DemoNotes {
     }
 
     @CollaborationTool("Case-insensitive substring search over title and body.")
-    func search(query: String) async -> [Note] {
+    func search(query: String) -> [Note] {
         let needle = query.lowercased()
-        return notes.filter {
-            $0.title.lowercased().contains(needle) || $0.body.lowercased().contains(needle)
+        return notes.filter { note in
+            note.title.lowercased().contains(needle) || note.body.lowercased().contains(needle)
         }
     }
 
     @CollaborationTool("Edit an existing note. Nil fields leave the value unchanged.")
-    func edit(id: Note.ID, title: String?, body: String?) async throws {
+    func edit(id: Note.ID, title: String?, body: String?) throws {
         try mutate(id) { note in
             if let title { note.title = title }
             if let body { note.body = body }
@@ -73,17 +73,17 @@ final class DemoNotes {
     }
 
     @CollaborationTool("Set or clear a note's tag. Pass null to clear.")
-    func setTag(id: Note.ID, tag: Tag?) async throws {
+    func setTag(id: Note.ID, tag: Tag?) throws {
         try mutate(id) { $0.tag = tag }
     }
 
     @CollaborationTool("Set or clear a note's color. Pass null to clear.")
-    func setColor(id: Note.ID, color: NoteColor?) async throws {
+    func setColor(id: Note.ID, color: NoteColor?) throws {
         try mutate(id) { $0.color = color }
     }
 
     @CollaborationTool("Delete the note with the given id.", requiresApproval: true)
-    func delete(id: Note.ID) async throws {
+    func delete(id: Note.ID) throws {
         guard let index = notes.firstIndex(where: { $0.id == id }) else {
             throw ToolError("No note with id \(id).")
         }

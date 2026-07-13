@@ -123,7 +123,7 @@ func cacheControlMarksLastToolOnly() {
 }
 
 @Test
-func anthropicWireEncodesImageBlock() throws {
+func anthropicWireEncodesImageBlock() {
     let messages = [
         Message.user(text: "describe", images: [
             ImageContent(mediaType: "image/jpeg", base64Data: "QUJD")

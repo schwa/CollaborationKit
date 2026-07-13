@@ -4,7 +4,6 @@ import Testing
 
 /// Tests the `_ckStringify` shim the macro emits around tool return values.
 struct CollaborationResultTests {
-
     // MARK: - Fixtures
 
     private struct EncodableRow: Encodable {

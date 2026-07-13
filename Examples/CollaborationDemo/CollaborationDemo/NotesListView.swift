@@ -15,7 +15,9 @@ struct NotesListView: View {
         } else {
             List {
                 ForEach(notes.notes) { note in
-                    Button(action: { onSelect(note.id) }) {
+                    Button {
+                        onSelect(note.id)
+                    } label: {
                         row(for: note)
                     }
                     .buttonStyle(.plain)
@@ -28,7 +30,6 @@ struct NotesListView: View {
                     }
                 }
             }
-            
         }
     }
 
@@ -59,24 +60,48 @@ struct NotesListView: View {
 
     private func color(for color: NoteColor?) -> Color {
         switch color {
-        case .red: .red
-        case .orange: .orange
-        case .yellow: .yellow
-        case .green: .green
-        case .blue: .blue
-        case .purple: .purple
-        case .pink: .pink
-        case nil: .clear
+        case .red:
+            .red
+
+        case .orange:
+            .orange
+
+        case .yellow:
+            .yellow
+
+        case .green:
+            .green
+
+        case .blue:
+            .blue
+
+        case .purple:
+            .purple
+
+        case .pink:
+            .pink
+
+        case nil:
+            .clear
         }
     }
 
     private func icon(for tag: Tag) -> String {
         switch tag {
-        case .idea: "lightbulb"
-        case .todo: "checklist"
-        case .question: "questionmark.circle"
-        case .journal: "book"
-        case .followUp: "arrow.forward.circle"
+        case .idea:
+            "lightbulb"
+
+        case .todo:
+            "checklist"
+
+        case .question:
+            "questionmark.circle"
+
+        case .journal:
+            "book"
+
+        case .followUp:
+            "arrow.forward.circle"
         }
     }
 }

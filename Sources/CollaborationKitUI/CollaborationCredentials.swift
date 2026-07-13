@@ -1,7 +1,7 @@
+import CollaborationKit
 import Foundation
 import Observation
 import SwiftUI
-import CollaborationKit
 
 /// Observable wrapper around a ``CredentialStore`` plus the currently
 /// selected ``Backend``.
@@ -21,6 +21,7 @@ import CollaborationKit
 ///     }
 /// }
 /// ```
+@preconcurrency
 @Observable
 @MainActor
 public final class CollaborationCredentials {
@@ -86,7 +87,7 @@ public final class CollaborationCredentials {
         self.defaultsKey = defaultsKey
 
         let restoredID = defaultsKey.flatMap { UserDefaults.standard.string(forKey: $0) }
-        let restored = restoredID.flatMap { id in backends.first(where: { $0.id == id }) }
+        let restored = restoredID.flatMap { id in backends.first { $0.id == id } }
         let backend = restored ?? initialBackend ?? backends[0]
 
         self.backend = backend

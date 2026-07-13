@@ -1,5 +1,5 @@
-import SwiftUI
 import CollaborationKit
+import SwiftUI
 
 /// Top-level chat view: transcript above the composer. Shows a "Sign in"
 /// placeholder when the environment's ``CollaborationCredentials`` reports no
@@ -21,7 +21,8 @@ public struct CollaborationChatView: View {
     /// Composer border style (plain or glow).
     public let composerBorderStyle: ComposerBorderStyle
 
-    @Environment(CollaborationCredentials.self) private var credentials
+    @Environment(CollaborationCredentials.self)
+    private var credentials
 
     public init(
         store: ConversationStore,

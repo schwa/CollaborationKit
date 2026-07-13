@@ -92,7 +92,8 @@ private func _ckEncodeJSON(_ value: any Encodable) throws -> String {
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.sortedKeys]
     let data = try encoder.encode(_AnyEncodable(value))
-    return String(decoding: data, as: UTF8.self)
+    // JSONEncoder output is always valid UTF-8, so the fallback is unreachable.
+    return String(bytes: data, encoding: .utf8) ?? ""
 }
 
 private struct _AnyEncodable: Encodable {

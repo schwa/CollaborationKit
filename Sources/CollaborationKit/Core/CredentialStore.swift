@@ -86,11 +86,12 @@ public enum AnthropicOAuthTokenError: Error, LocalizedError, Sendable {
 ///     fresh ``AnthropicOAuth``.
 /// - Throws: ``AnthropicOAuthTokenError/notAuthenticated`` if no credentials
 ///   are stored at call time.
+@preconcurrency
 public func anthropicOAuthTokenProvider(
     store: any CredentialStore,
     oauth: AnthropicOAuth = AnthropicOAuth()
 ) -> @Sendable () async throws -> String {
-    return {
+    {
         guard let credentials = store.anthropicOAuthCredentials() else {
             throw AnthropicOAuthTokenError.notAuthenticated
         }

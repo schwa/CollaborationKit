@@ -1,5 +1,5 @@
-import SwiftUI
 import CollaborationKit
+import SwiftUI
 
 /// The message composer: a prompt field, an optional attachment strip, and
 /// send / attach / stop buttons.
@@ -117,22 +117,26 @@ public struct ComposerView: View {
 
             Spacer()
 
-            if store.isGenerating {
-                StopButton { store.stop() }
-                    .accessibilityLabel("Stop")
-                    .accessibilityHint("Cancel the current turn.")
-            } else {
-                Button("Send", systemImage: "arrow.up") {
-                    submit()
-                }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.borderedProminent)
-                .clipShape(.circle)
-                .keyboardShortcut(.defaultAction)
-                .disabled(!canSubmit)
-                .accessibilityLabel("Send message")
-                .accessibilityHint(canSubmit ? "Send your message." : "Type a message first.")
+            sendOrStopButton
+        }
+    }
+
+    @ViewBuilder private var sendOrStopButton: some View {
+        if store.isGenerating {
+            StopButton { store.stop() }
+                .accessibilityLabel("Stop")
+                .accessibilityHint("Cancel the current turn.")
+        } else {
+            Button("Send", systemImage: "arrow.up") {
+                submit()
             }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderedProminent)
+            .clipShape(.circle)
+            .keyboardShortcut(.defaultAction)
+            .disabled(!canSubmit)
+            .accessibilityLabel("Send message")
+            .accessibilityHint(canSubmit ? "Send your message." : "Type a message first.")
         }
     }
 

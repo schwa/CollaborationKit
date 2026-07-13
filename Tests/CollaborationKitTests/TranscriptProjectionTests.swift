@@ -5,7 +5,6 @@ import Testing
 
 /// Pure-function tests for TranscriptProjection: mirror in, items out.
 struct TranscriptProjectionTests {
-
     @Test
     func emptyMirrorProjectsToNoItems() {
         let (items, ids) = TranscriptProjection.project(MessageMirror())
@@ -49,12 +48,12 @@ struct TranscriptProjectionTests {
     func toolCallProjectsWithSummaryAndPendingResult() {
         var mirror = MessageMirror()
         let use = ToolUse(id: "t1", name: "list", input: .object([:]))
-        mirror.handle(.toolCall(use), summary: { _ in "listing rows" })
+        mirror.handle(.toolCall(use)) { _ in "listing rows" }
 
         let (items, _) = TranscriptProjection.project(mirror)
         // Might be one tool row (the tool call became a message).
-        let tool = items.first { if case .tool = $0.kind { return true } else { return false } }
-        if case .tool(_, let summary, let result, let isError) = tool?.kind {
+        let tool = items.first { if case .tool = $0.kind { true } else { false } }
+        if case let .tool(_, summary, result, isError) = tool?.kind {
             #expect(summary == "listing rows")
             #expect(result == nil)
             #expect(!isError)

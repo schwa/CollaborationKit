@@ -29,7 +29,7 @@ public struct OpenAIProvider: WireProvider {
         messages: [Message],
         system: String?,
         tools: [ToolSpec]
-    ) async throws -> URLRequest {
+    ) throws -> URLRequest {
         let body = OpenAIWire.requestBody(
             model: config.model,
             maxTokens: config.maxTokens,
@@ -53,7 +53,7 @@ public struct OpenAIProvider: WireProvider {
         OpenAIError.httpError(status: status, body: body)
     }
 
-    public func makeModelsRequest() async throws -> URLRequest? {
+    public func makeModelsRequest() -> URLRequest? {
         var request = URLRequest(url: config.baseURL.appendingPathComponent("v1/models"))
         request.httpMethod = "GET"
         request.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization")
@@ -75,4 +75,3 @@ public struct OpenAIProvider: WireProvider {
         }
     }
 }
-

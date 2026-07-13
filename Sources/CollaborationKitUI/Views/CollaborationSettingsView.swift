@@ -1,10 +1,11 @@
-import SwiftUI
 import CollaborationKit
+import SwiftUI
 
 /// Drop-in settings view: backend picker plus the credential section for
 /// whichever backend is selected.
 public struct CollaborationSettingsView: View {
-    @Environment(CollaborationCredentials.self) private var credentials
+    @Environment(CollaborationCredentials.self)
+    private var credentials
 
     public init() {}
 
@@ -28,10 +29,13 @@ public struct CollaborationSettingsView: View {
             switch credentials.backend.id {
             case Backend.claudeSubscription.id:
                 AnthropicOAuthSection()
+
             case Backend.anthropicAPI.id:
                 AnthropicAPIKeySection()
+
             case Backend.openAI.id:
                 OpenAIAPIKeySection()
+
             default:
                 Section("Credentials") {
                     Text("This backend doesn't ship a built-in credentials section. Add one for '\(credentials.backend.displayName)' if you want in-app entry.")

@@ -1,7 +1,7 @@
+import CollaborationKit
 import Foundation
 import os
 import Security
-import CollaborationKit
 
 /// A Keychain-backed ``CredentialStore`` for CollaborationKit credentials.
 ///

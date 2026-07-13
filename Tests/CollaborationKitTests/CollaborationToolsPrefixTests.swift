@@ -2,9 +2,9 @@
 import Foundation
 import Testing
 
-/// Tests for tool-name prefixing (`@CollaborationTools(prefix: …)`) and
-/// per-tool name overrides (`@CollaborationTool("…", name: "…")`) — the
-/// collision-handling knobs added by #20.
+// Tests for tool-name prefixing (`@CollaborationTools(prefix: …)`) and
+// per-tool name overrides (`@CollaborationTool("…", name: "…")`) — the
+// collision-handling knobs added by #20.
 
 // MARK: - Fixtures
 
@@ -45,7 +45,6 @@ struct EmptyPrefixIsNil: Sendable {
 
 @Suite("Tool-name prefixing / override (#20)")
 struct CollaborationToolsPrefixTests {
-
     @Test("without prefix, the tool name is the Swift method name")
     func defaultsToBareMethodName() {
         let names = PrefixDefault().collaborationTools.map(\.name).sorted()

@@ -1,7 +1,7 @@
+import CollaborationKit
 import CoreTransferable
 import Foundation
 import UniformTypeIdentifiers
-import CollaborationKit
 
 /// A serialisable snapshot of one ``ConversationStore`` session, suitable for
 /// dumping to disk as JSON for debugging / bug-reporting.
@@ -54,15 +54,16 @@ public struct SessionExport: Codable, Sendable {
 
     /// Encodes to a UTF-8 JSON string.
     public func jsonString() throws -> String {
-        String(decoding: try jsonData(), as: UTF8.self)
+        // JSONEncoder output is always valid UTF-8, so the fallback is unreachable.
+        String(bytes: try jsonData(), encoding: .utf8) ?? ""
     }
 
     /// Decodes a previously-encoded ``SessionExport`` payload. Uses the same
     /// ISO8601 date strategy ``jsonData()`` writes.
-    public static func decode(_ data: Data) throws -> SessionExport {
+    public static func decode(_ data: Data) throws -> Self {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(SessionExport.self, from: data)
+        return try decoder.decode(Self.self, from: data)
     }
 }
 
@@ -73,7 +74,7 @@ extension SessionExport: Transferable {
         DataRepresentation(contentType: .json) { export in
             try export.jsonData()
         } importing: { data in
-            try SessionExport.decode(data)
+            try Self.decode(data)
         }
     }
 }

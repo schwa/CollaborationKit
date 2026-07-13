@@ -95,7 +95,7 @@ func openAIWireFlattensToolResultIntoToolMessage() {
 }
 
 @Test
-func openAIRequestBodyOmitsParallelToolCallsByDefault() throws {
+func openAIRequestBodyOmitsParallelToolCallsByDefault() {
     let body = OpenAIWire.requestBody(
         model: "m", maxTokens: nil, system: nil, messages: [], tools: []
     )
@@ -107,9 +107,13 @@ func openAIRequestBodyOmitsParallelToolCallsByDefault() throws {
 }
 
 @Test
-func openAIRequestBodyEmitsParallelToolCallsWhenSet() throws {
+func openAIRequestBodyEmitsParallelToolCallsWhenSet() {
     let body = OpenAIWire.requestBody(
-        model: "m", maxTokens: nil, system: nil, messages: [], tools: [],
+        model: "m",
+        maxTokens: nil,
+        system: nil,
+        messages: [],
+        tools: [],
         parallelToolCalls: false
     )
     guard case .object(let root) = body,
@@ -121,7 +125,7 @@ func openAIRequestBodyEmitsParallelToolCallsWhenSet() throws {
 }
 
 @Test
-func openAIRequestBodyUsesMaxTokensByDefault() throws {
+func openAIRequestBodyUsesMaxTokensByDefault() {
     let body = OpenAIWire.requestBody(
         model: "m", maxTokens: 100, system: nil, messages: [], tools: []
     )
@@ -131,9 +135,13 @@ func openAIRequestBodyUsesMaxTokensByDefault() throws {
 }
 
 @Test
-func openAIRequestBodyUsesMaxCompletionTokensWhenSet() throws {
+func openAIRequestBodyUsesMaxCompletionTokensWhenSet() {
     let body = OpenAIWire.requestBody(
-        model: "m", maxTokens: 100, system: nil, messages: [], tools: [],
+        model: "m",
+        maxTokens: 100,
+        system: nil,
+        messages: [],
+        tools: [],
         usesMaxCompletionTokens: true
     )
     guard case .object(let root) = body else { Issue.record("bad shape"); return }
@@ -142,7 +150,7 @@ func openAIRequestBodyUsesMaxCompletionTokensWhenSet() throws {
 }
 
 @Test
-func openAIModelTokenParamHeuristic() throws {
+func openAIModelTokenParamHeuristic() {
     // Newer models require max_completion_tokens.
     for model in ["gpt-5", "gpt-5.5", "gpt-6", "o1", "o1-mini", "o3", "o4-mini"] {
         #expect(OpenAIConfig.modelRequiresMaxCompletionTokens(model), "\(model) should require max_completion_tokens")
@@ -154,7 +162,7 @@ func openAIModelTokenParamHeuristic() throws {
 }
 
 @Test
-func openAIConfigOverrideBeatsHeuristic() throws {
+func openAIConfigOverrideBeatsHeuristic() {
     // gpt-5 would auto-detect true, but explicit false wins.
     let config = OpenAIConfig(apiKey: "k", model: "gpt-5", usesMaxCompletionTokens: false)
     #expect(config.resolvedUsesMaxCompletionTokens == false)
@@ -180,11 +188,13 @@ func openAIWireRoundTripsAssistantTurn() throws {
         switch event {
         case .text(let text):
             assistantBlocks.append(.text(text))
+
         case .toolUse(let use):
             assistantBlocks.append(.toolCall(ToolCall(
                 use: use,
                 result: ToolResult(toolUseID: use.id, content: "ok")
             )))
+
         default:
             break
         }
@@ -221,7 +231,7 @@ func openAIWireRoundTripsAssistantTurn() throws {
 }
 
 @Test
-func openAIRequestBodyEncodesImageAsMultiPartUserContent() throws {
+func openAIRequestBodyEncodesImageAsMultiPartUserContent() {
     let messages = [
         Message.user(text: "what is this?", images: [
             ImageContent(mediaType: "image/png", base64Data: "QUJD")

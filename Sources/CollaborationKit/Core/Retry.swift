@@ -21,10 +21,10 @@ public struct RetryPolicy: Sendable, Equatable {
     }
 
     /// A sensible default: 3 attempts, 0.5s → 1s → 2s (capped at 8s).
-    public static let `default` = RetryPolicy(maxAttempts: 3, baseDelay: 0.5, maxDelay: 8)
+    public static let `default` = Self(maxAttempts: 3, baseDelay: 0.5, maxDelay: 8)
 
     /// Disables retry entirely (1 attempt only).
-    public static let none = RetryPolicy(maxAttempts: 1, baseDelay: 0, maxDelay: 0)
+    public static let none = Self(maxAttempts: 1, baseDelay: 0, maxDelay: 0) // swiftlint:disable:this discouraged_none_name
 
     /// Backoff for the given attempt number (1-indexed). Attempt 1 is the
     /// initial call and returns `0`; subsequent attempts get exponential
@@ -50,8 +50,11 @@ enum RetryReason: Sendable, Equatable {
     /// Whether a status code should be considered transient / retryable.
     static func isRetryable(status: Int) -> Bool {
         switch status {
-        case 408, 425, 429, 500, 502, 503, 504, 529: return true
-        default: return false
+        case 408, 425, 429, 500, 502, 503, 504, 529:
+            return true
+
+        default:
+            return false
         }
     }
 
@@ -60,14 +63,15 @@ enum RetryReason: Sendable, Equatable {
     static func isRetryable(urlError: URLError) -> Bool {
         switch urlError.code {
         case .timedOut,
-             .cannotConnectToHost,
-             .networkConnectionLost,
-             .dnsLookupFailed,
-             .notConnectedToInternet,
-             .cannotFindHost,
-             .resourceUnavailable,
-             .secureConnectionFailed:
+            .cannotConnectToHost,
+            .networkConnectionLost,
+            .dnsLookupFailed,
+            .notConnectedToInternet,
+            .cannotFindHost,
+            .resourceUnavailable,
+            .secureConnectionFailed:
             return true
+
         default:
             return false
         }

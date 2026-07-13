@@ -56,6 +56,7 @@ public actor LLMSession {
     ///     the model receives an `is_error` tool result carrying the reason
     ///     and can adapt. Defaults to allow-all.
     ///   - maxIterations: A cap on model/tool round-trips per turn.
+    @preconcurrency
     public init(
         provider: ModelProvider,
         system: String? = nil,
@@ -217,6 +218,7 @@ public actor LLMSession {
         switch await approval(use) {
         case .allow:
             break
+
         case .deny(let reason):
             let message = reason.isEmpty ? "Denied by the host." : "Denied: \(reason)"
             return ToolResult(toolUseID: use.id, content: message, isError: true)

@@ -1,7 +1,7 @@
+import CollaborationKit
 import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
-import CollaborationKit
 
 #if canImport(AppKit)
 import AppKit

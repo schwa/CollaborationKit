@@ -1,6 +1,6 @@
+import CollaborationKitUI
 import CoreTransferable
 import UniformTypeIdentifiers
-import CollaborationKitUI
 
 struct SessionExportPayload: Transferable {
     let export: SessionExport

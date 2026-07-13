@@ -1,7 +1,7 @@
 #if os(macOS)
 
-import Foundation
 import CollaborationKit
+import Foundation
 
 /// A tiny ``CredentialStore`` for the `collab-cli` executable.
 ///
@@ -88,8 +88,10 @@ struct CLICredentialStore: CredentialStore, @unchecked Sendable {
     // Kept present so `CLICredentialStore` satisfies `CredentialStore` in
     // full and can be swapped in wherever the protocol is expected.
     func openAIAPIKey() -> CredentialReadResult { .notFound }
-    @discardableResult func saveOpenAIAPIKey(_ key: String) -> Bool { false }
-    @discardableResult func clearOpenAIAPIKey() -> Bool { true }
+    @discardableResult
+    func saveOpenAIAPIKey(_: String) -> Bool { false }
+    @discardableResult
+    func clearOpenAIAPIKey() -> Bool { true }
 
     func anthropicOAuthCredentials() -> OAuthCredentials? {
         guard let json = defaults.string(forKey: Self.oauthKey),
@@ -124,6 +126,7 @@ enum CLICredentialError: Error, LocalizedError {
         switch self {
         case .notAuthenticated:
             return "No Claude subscription credentials stored. Run `collab-cli login --oauth` first."
+
         case .encodingFailed:
             return "Couldn't encode credentials for storage."
         }

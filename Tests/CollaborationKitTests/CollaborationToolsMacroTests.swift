@@ -2,9 +2,9 @@
 import Foundation
 import Testing
 
-/// End-to-end tests: attach `@CollaborationTools` to a Sendable actor, verify
-/// the generated `collaborationTools` accessor produces `AnyTool`s with the
-/// right names, descriptions, schemas, and runtime behaviour.
+// End-to-end tests: attach `@CollaborationTools` to a Sendable actor, verify
+// the generated `collaborationTools` accessor produces `AnyTool`s with the
+// right names, descriptions, schemas, and runtime behaviour.
 
 // MARK: - Fixtures
 
@@ -72,6 +72,7 @@ actor Counter {
 @CollaborationTools
 struct TypeCoverage: Sendable {
     @CollaborationTool("All supported types in one method.")
+    // swiftlint:disable:next function_parameter_count
     func mix(
         flag: Bool,
         n: Int,
@@ -254,7 +255,7 @@ struct CollaborationToolsMacroTests {
         // The tool result should be attached to the assistant turn that
         // requested it.
         let history = await session.messages
-        let call = history.compactMap { $0.toolCalls.first }.first
+        let call = history.compactMap(\.toolCalls.first).first
         #expect(call?.result?.content == "n1")
         #expect(call?.result?.isError == false)
     }

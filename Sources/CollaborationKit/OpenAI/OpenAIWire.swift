@@ -159,14 +159,15 @@ enum OpenAIWire {
     }
 
     /// Accumulates OpenAI streaming chunks into ``ProviderStreamEvent`` values.
+    /// One in-flight tool call being reassembled by ``Accumulator``.
+    private struct PartialCall {
+        var id: String?
+        var name: String?
+        var arguments: String = ""
+    }
+
     struct Accumulator: ServerSentEventSink {
         let doneSentinel: String? = "[DONE]"
-
-        private struct PartialCall {
-            var id: String?
-            var name: String?
-            var arguments: String = ""
-        }
 
         private var calls: [Int: PartialCall] = [:]
         private var sawText = false

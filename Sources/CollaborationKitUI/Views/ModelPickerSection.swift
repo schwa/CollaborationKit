@@ -1,5 +1,5 @@
-import SwiftUI
 import CollaborationKit
+import SwiftUI
 
 /// A `Section` that shows a Picker of the models the current backend
 /// advertises, filtered to chat / tool-capable ids, sorted by display name,
@@ -8,7 +8,8 @@ import CollaborationKit
 /// Drop it into any `Form` — ``CollaborationSettingsView`` already includes
 /// one so the picker sits under the credentials sections by default.
 public struct ModelPickerSection: View {
-    @Environment(CollaborationCredentials.self) private var credentials
+    @Environment(CollaborationCredentials.self)
+    private var credentials
 
     /// Optional override for the per-model filter. When `nil`, the
     /// current ``Backend/modelFilter`` decides.
@@ -22,6 +23,7 @@ public struct ModelPickerSection: View {
         case idle, loading, loaded, failed(String)
     }
 
+    @preconcurrency
     public init(filterOverride: (@Sendable (String) -> Bool)? = nil) {
         self.filterOverride = filterOverride
     }

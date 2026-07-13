@@ -1,9 +1,8 @@
 [defaults]
 destination = "mac"
-extra_args = []
 
 [defaults.build]
-scheme = "CollaborationKit"
+scheme = "CollaborationDemo"
 
 [defaults.test]
 scheme = "CollaborationKit-Package"
@@ -11,26 +10,3 @@ scheme = "CollaborationKit-Package"
 [defaults.run]
 scheme = "CollaborationDemo"
 
-[output]
-
-[new.blueprint_defaults]
-
-[hooks.build]
-pre = []
-post = []
-
-[hooks.test]
-pre = []
-post = []
-
-[hooks.run]
-pre = []
-post = []
-
-[hooks.install]
-pre = []
-post = []
-
-[hooks.clean]
-pre = []
-post = []

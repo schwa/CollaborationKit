@@ -1,5 +1,5 @@
-import SwiftUI
 import CollaborationKit
+import SwiftUI
 
 #if canImport(AppKit)
 import AppKit
@@ -21,7 +21,7 @@ public struct ConversationRowView: View {
 
     public init(
         item: ConversationItem,
-        iconForTool: @escaping (String) -> String = ConversationRowView.defaultIcon(for:)
+        iconForTool: @escaping (String) -> String = Self.defaultIcon(for:)
     ) {
         self.item = item
         self.iconForTool = iconForTool
@@ -56,7 +56,7 @@ public struct ConversationRowView: View {
         case .assistant:
             return "Assistant reply"
 
-        case .tool(let name, _, _, let isError):
+        case let .tool(name, _, _, isError):
             return isError ? "Tool \(name), errored" : "Tool \(name)"
 
         case .error:
@@ -68,18 +68,18 @@ public struct ConversationRowView: View {
     private var accessibilityValueText: String {
         var parts: [String] = []
         switch item.kind {
-        case .user(let text, let images):
+        case let .user(text, images):
             parts.append(text)
             if !images.isEmpty { parts.append("\(images.count) attached image\(images.count == 1 ? "" : "s")") }
 
-        case .assistant(let text):
+        case let .assistant(text):
             parts.append(text.isEmpty ? "still generating" : text)
 
-        case .tool(_, let summary, let result, _):
+        case let .tool(_, summary, result, _):
             parts.append(summary)
             if let result { parts.append("Result: \(result)") } else { parts.append("pending") }
 
-        case .error(let message):
+        case let .error(message):
             parts.append(message)
         }
         if let latency = item.latency {
@@ -93,6 +93,7 @@ public struct ConversationRowView: View {
     private var header: some View {
         HStack(spacing: 6) {
             Image(systemName: headerIcon)
+                .accessibilityHidden(true)
                 .foregroundStyle(accent)
                 .font(.caption)
                 .frame(width: 14)
@@ -108,38 +109,65 @@ public struct ConversationRowView: View {
 
     private var headerIcon: String {
         switch item.kind {
-        case .user: return "person.crop.circle"
-        case .assistant: return "sparkles"
-        case .tool(let name, _, _, let isError):
+        case .user:
+            return "person.crop.circle"
+
+        case .assistant:
+            return "sparkles"
+
+        case let .tool(name, _, _, isError):
             return isError ? "exclamationmark.triangle" : iconForTool(name)
-        case .error: return "exclamationmark.triangle.fill"
+
+        case .error:
+            return "exclamationmark.triangle.fill"
         }
     }
 
     private var headerLabel: String {
         switch item.kind {
-        case .user: return "You"
-        case .assistant: return "Assistant"
-        case .tool(let name, _, _, _): return "Tool · \(name)"
-        case .error: return "Error"
+        case .user:
+            return "You"
+
+        case .assistant:
+            return "Assistant"
+
+        case let .tool(name, _, _, _):
+            return "Tool · \(name)"
+
+        case .error:
+            return "Error"
         }
     }
 
     private var accent: Color {
         switch item.kind {
-        case .user: return .accentColor
-        case .assistant: return .indigo
-        case .tool(_, _, _, let isError): return isError ? .red : .blue
-        case .error: return .red
+        case .user:
+            return .accentColor
+
+        case .assistant:
+            return .indigo
+
+        case let .tool(_, _, _, isError):
+            return isError ? .red : .blue
+
+        case .error:
+            return .red
         }
     }
 
     private var background: Color {
         switch item.kind {
-        case .user: return Color.accentColor.opacity(0.06)
-        case .assistant: return Color.indigo.opacity(0.05)
-        case .tool(_, _, _, let isError): return (isError ? Color.red : Color.blue).opacity(0.05)
-        case .error: return Color.red.opacity(0.08)
+        case .user:
+            return Color.accentColor.opacity(0.06)
+
+        case .assistant:
+            return Color.indigo.opacity(0.05)
+
+        case let .tool(_, _, _, isError):
+            return (isError ? Color.red : Color.blue).opacity(0.05)
+
+        case .error:
+            return Color.red.opacity(0.08)
         }
     }
 
@@ -149,19 +177,18 @@ public struct ConversationRowView: View {
 
     // MARK: - Content dispatch
 
-    @ViewBuilder
-    private var content: some View {
+    @ViewBuilder private var content: some View {
         switch item.kind {
-        case .user(let text, let images):
+        case let .user(text, images):
             userContent(text: text, images: images)
 
-        case .assistant(let text):
+        case let .assistant(text):
             assistantContent(text: text)
 
-        case .tool(let name, let summary, let result, let isError):
+        case let .tool(name, summary, result, isError):
             toolContent(name: name, summary: summary, result: result, isError: isError)
 
-        case .error(let message):
+        case let .error(message):
             errorContent(message: message)
         }
     }
@@ -227,8 +254,7 @@ public struct ConversationRowView: View {
     // MARK: - Duration
 
     /// The round-trip wait before this item appeared, e.g. "1.2s".
-    @ViewBuilder
-    private var durationLabel: some View {
+    @ViewBuilder private var durationLabel: some View {
         if let latency = item.latency {
             Text(Self.durationText(latency))
                 .font(.caption2.monospacedDigit())
@@ -237,56 +263,69 @@ public struct ConversationRowView: View {
     }
 
     private static func durationText(_ seconds: TimeInterval) -> String {
-        if seconds < 1 { return String(format: "%.0fms", seconds * 1000) }
+        if seconds < 1 { return String(format: "%.0fms", seconds * 1_000) }
         return String(format: "%.1fs", seconds)
     }
 
     /// Only show a tool result when it carries useful detail. For unknown
     /// tools, show when the tool errored or looks like a read.
-    private func resultWorthShowing(name: String, result: String, isError: Bool) -> Bool {
+    private func resultWorthShowing(name: String, result _: String, isError: Bool) -> Bool {
         if isError { return true }
         switch name {
-        case "read": return true
-        default: return false
+        case "read":
+            return true
+
+        default:
+            return false
         }
     }
 
     /// Default SF Symbol for a tool name. Covers the built-in
     /// `read`/`write`/`edit` file tools; unknown tools get a generic wrench.
-    public nonisolated static func defaultIcon(for name: String) -> String {
+    nonisolated public static func defaultIcon(for name: String) -> String {
         switch name {
-        case "read": return "doc.text"
-        case "write": return "square.and.pencil"
-        case "edit": return "pencil"
-        default: return "wrench.and.screwdriver"
+        case "read":
+            return "doc.text"
+
+        case "write":
+            return "square.and.pencil"
+
+        case "edit":
+            return "pencil"
+
+        default:
+            return "wrench.and.screwdriver"
         }
     }
 }
 
+private func previewItem(id: ConversationItem.ID, kind: ConversationItem.Kind, duration: TimeInterval? = nil, latency: TimeInterval? = nil) -> ConversationItem {
+    ConversationItem(id: id, kind: kind, timestamp: .now, duration: duration, latency: latency)
+}
+
 #Preview("Row samples") {
-    let user = ConversationItem(
-        id: .message(UUID()), kind: .user("Add a note titled Groceries with body eggs, milk.", images: []),
-        timestamp: .now, duration: nil, latency: nil
-    )
-    let assistant = ConversationItem(
-        id: .message(UUID()),
-        kind: .assistant("Sure — I'll create it **now**. Try `search(\"eggs\")` next, or read the [docs](https://example.com)."),
-        timestamp: .now, duration: 0.4, latency: 0.9
-    )
-    let tool = ConversationItem(
-        id: .tool("t1"), kind: .tool(name: "create", summary: "creating a note", result: nil, isError: false),
-        timestamp: .now, duration: nil, latency: nil
-    )
-    let error = ConversationItem(
-        id: .error(1), kind: .error("Rate limited (429)."),
-        timestamp: .now, duration: nil, latency: nil
-    )
-    return ScrollView {
+    let samples = [
+        previewItem(
+            id: .message(UUID()),
+            kind: .user("Add a note titled Groceries with body eggs, milk.", images: [])
+        ),
+        previewItem(
+            id: .message(UUID()),
+            kind: .assistant("Sure — I'll create it **now**. Try `search(\"eggs\")` next, or read the [docs](https://example.com)."),
+            duration: 0.4,
+            latency: 0.9
+        ),
+        previewItem(
+            id: .tool("t1"),
+            kind: .tool(name: "create", summary: "creating a note", result: nil, isError: false)
+        ),
+        previewItem(id: .error(1), kind: .error("Rate limited (429)."))
+    ]
+    ScrollView {
         VStack(spacing: 10) {
-            ConversationRowView(item: user)
-            ConversationRowView(item: assistant)
-            ConversationRowView(item: tool)
-            ConversationRowView(item: error)
+            ForEach(samples) { item in
+                ConversationRowView(item: item)
+            }
         }
         .padding()
     }

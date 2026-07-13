@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 @testable import CollaborationKit
 import Foundation
 import Testing

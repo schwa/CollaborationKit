@@ -14,7 +14,8 @@ public struct GlowingPromptBorder: ViewModifier {
 
     @State private var rotation: Angle = .zero
 
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorScheme)
+    private var colorScheme
 
     public init(cornerRadius: CGFloat = 16, active: Bool = false) {
         self.cornerRadius = cornerRadius

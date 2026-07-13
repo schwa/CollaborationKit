@@ -1,5 +1,5 @@
-import Foundation
 import CollaborationKit
+import Foundation
 
 /// A provider the app can talk to.
 ///
@@ -39,6 +39,7 @@ public struct Backend: Sendable, Identifiable, Hashable {
     /// lowercased ids; drop non-chat families (embeddings, audio…) here.
     public let modelFilter: @Sendable (String) -> Bool
 
+    @preconcurrency
     public init(
         id: String,
         displayName: String,
@@ -57,7 +58,7 @@ public struct Backend: Sendable, Identifiable, Hashable {
 
     // MARK: - Hashable
 
-    public static func == (lhs: Backend, rhs: Backend) -> Bool { lhs.id == rhs.id }
+    public static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
     public func hash(into hasher: inout Hasher) { hasher.combine(id) }
 
     // MARK: - UserDefaults keys
@@ -136,9 +137,11 @@ extension Backend {
     /// audio, image, and other non-chat surfaces.
     static let openAIChatFilter: @Sendable (String) -> Bool = { id in
         if Backend.hasDatedSnapshotSuffix(id) { return false }
-        let excluded = ["audio", "image", "realtime", "transcribe", "tts",
-                        "whisper", "embedding", "moderation", "search",
-                        "dall-e", "codex", "computer-use"]
+        let excluded = [
+            "audio", "image", "realtime", "transcribe", "tts",
+            "whisper", "embedding", "moderation", "search",
+            "dall-e", "codex", "computer-use"
+        ]
         if excluded.contains(where: id.contains) { return false }
         return id.hasPrefix("gpt-") || id.hasPrefix("chatgpt")
             || id.hasPrefix("o1") || id.hasPrefix("o3") || id.hasPrefix("o4")
@@ -157,8 +160,10 @@ extension Backend {
         switch result {
         case .found(let value) where !value.isEmpty:
             return value
+
         case .found, .notFound:
             throw CollaborationCredentialsError.missingCredentials(id: id, displayName: displayName)
+
         case .failed(let status):
             throw CollaborationCredentialsError.keychainReadFailed(status)
         }
@@ -182,6 +187,7 @@ public enum CollaborationCredentialsError: Error, LocalizedError, Sendable {
         switch self {
         case .missingCredentials(_, let displayName):
             return "No credentials for \(displayName). Add an API key (or sign in) in Settings."
+
         case .keychainReadFailed(let status):
             return "Couldn't read the credential from the Keychain: \(CredentialReadResult.message(for: status)) (status \(status))."
         }

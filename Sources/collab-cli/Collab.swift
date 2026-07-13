@@ -1,4 +1,5 @@
 import ArgumentParser
+import Foundation
 
 // The CLI uses getpass, readLine, and stdout — macOS-only. On other platforms
 // the executable target still needs an entry point to link, so provide a
@@ -17,9 +18,10 @@ struct Collab: AsyncParsableCommand {
 #else
 
 @main
-struct Collab {
+enum Collab {
     static func main() {
-        fatalError("collab-cli is macOS-only.")
+        FileHandle.standardError.write(Data("collab-cli is macOS-only.\n".utf8))
+        exit(EXIT_FAILURE)
     }
 }
 

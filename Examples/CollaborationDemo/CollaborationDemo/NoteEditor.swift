@@ -42,8 +42,11 @@ struct NoteEditor: View {
 
 #Preview {
     @Previewable @State var note = Note(
-        id: "n1", title: "Groceries", body: "eggs, milk, bread",
-        tag: .todo, color: .green
+        id: "n1",
+        title: "Groceries",
+        body: "eggs, milk, bread",
+        tag: .todo,
+        color: .green
     )
     NoteEditor(note: $note, onDelete: {}, onDismiss: {})
 }

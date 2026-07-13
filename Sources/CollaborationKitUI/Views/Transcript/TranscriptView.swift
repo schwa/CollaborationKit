@@ -1,5 +1,5 @@
-import SwiftUI
 import CollaborationKit
+import SwiftUI
 
 /// The scrolling transcript for a ``ConversationStore``.
 ///
@@ -81,8 +81,7 @@ public struct TranscriptView: View {
         }
     }
 
-    @ViewBuilder
-    private var emptyState: some View {
+    @ViewBuilder private var emptyState: some View {
         if store.isEmpty, !store.isGenerating {
             ContentUnavailableView {
                 Label("Start the Conversation", systemImage: "sparkles")

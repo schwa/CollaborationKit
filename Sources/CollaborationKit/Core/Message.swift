@@ -34,6 +34,7 @@ extension ContentBlock: Codable {
     }
 
     private enum Kind: String, Codable {
+        // swiftlint:disable:next raw_value_for_camel_cased_codable_enum
         case text, image, toolCall
     }
 
@@ -42,8 +43,10 @@ extension ContentBlock: Codable {
         switch try container.decode(Kind.self, forKey: .type) {
         case .text:
             self = .text(try container.decode(String.self, forKey: .text))
+
         case .image:
             self = .image(try container.decode(ImageContent.self, forKey: .image))
+
         case .toolCall:
             self = .toolCall(try container.decode(ToolCall.self, forKey: .toolCall))
         }
@@ -55,9 +58,11 @@ extension ContentBlock: Codable {
         case .text(let value):
             try container.encode(Kind.text, forKey: .type)
             try container.encode(value, forKey: .text)
+
         case .image(let image):
             try container.encode(Kind.image, forKey: .type)
             try container.encode(image, forKey: .image)
+
         case .toolCall(let call):
             try container.encode(Kind.toolCall, forKey: .type)
             try container.encode(call, forKey: .toolCall)

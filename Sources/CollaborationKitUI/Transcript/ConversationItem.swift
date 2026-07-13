@@ -1,5 +1,5 @@
-import Foundation
 import CollaborationKit
+import Foundation
 
 /// Stable identity for a projected transcript row.
 ///
@@ -27,7 +27,11 @@ extension ItemID: Codable {
     }
 
     private enum Kind: String, Codable {
-        case message, tool, streamingAssistant, error
+        case message
+        case tool
+        // swiftlint:disable:next raw_value_for_camel_cased_codable_enum
+        case streamingAssistant
+        case error
     }
 
     public init(from decoder: Decoder) throws {
@@ -35,10 +39,13 @@ extension ItemID: Codable {
         switch try container.decode(Kind.self, forKey: .type) {
         case .message:
             self = .message(try container.decode(UUID.self, forKey: .uuid))
+
         case .tool:
             self = .tool(try container.decode(String.self, forKey: .id))
+
         case .streamingAssistant:
             self = .streamingAssistant
+
         case .error:
             self = .error(try container.decode(Int.self, forKey: .seq))
         }
@@ -50,11 +57,14 @@ extension ItemID: Codable {
         case .message(let uuid):
             try container.encode(Kind.message, forKey: .type)
             try container.encode(uuid, forKey: .uuid)
+
         case .tool(let id):
             try container.encode(Kind.tool, forKey: .type)
             try container.encode(id, forKey: .id)
+
         case .streamingAssistant:
             try container.encode(Kind.streamingAssistant, forKey: .type)
+
         case .error(let seq):
             try container.encode(Kind.error, forKey: .type)
             try container.encode(seq, forKey: .seq)
@@ -117,8 +127,10 @@ extension ConversationItem.Kind: Codable {
             let text = try container.decode(String.self, forKey: .text)
             let images = try container.decodeIfPresent([ImageContent].self, forKey: .images) ?? []
             self = .user(text, images: images)
+
         case .assistant:
             self = .assistant(try container.decode(String.self, forKey: .text))
+
         case .tool:
             self = .tool(
                 name: try container.decode(String.self, forKey: .name),
@@ -126,6 +138,7 @@ extension ConversationItem.Kind: Codable {
                 result: try container.decodeIfPresent(String.self, forKey: .result),
                 isError: try container.decode(Bool.self, forKey: .isError)
             )
+
         case .error:
             self = .error(try container.decode(String.self, forKey: .message))
         }
@@ -134,19 +147,22 @@ extension ConversationItem.Kind: Codable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
-        case .user(let text, let images):
+        case let .user(text, images):
             try container.encode(Tag.user, forKey: .type)
             try container.encode(text, forKey: .text)
             try container.encode(images, forKey: .images)
+
         case .assistant(let text):
             try container.encode(Tag.assistant, forKey: .type)
             try container.encode(text, forKey: .text)
-        case .tool(let name, let summary, let result, let isError):
+
+        case let .tool(name, summary, result, isError):
             try container.encode(Tag.tool, forKey: .type)
             try container.encode(name, forKey: .name)
             try container.encode(summary, forKey: .summary)
             try container.encodeIfPresent(result, forKey: .result)
             try container.encode(isError, forKey: .isError)
+
         case .error(let message):
             try container.encode(Tag.error, forKey: .type)
             try container.encode(message, forKey: .message)

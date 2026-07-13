@@ -5,7 +5,6 @@ import Testing
 /// Unit tests for the retry policy + Retry-After parsing. Behaviour on the
 /// wire (transport / OAuth) is exercised in the transport-specific suites.
 struct RetryTests {
-
     // MARK: RetryPolicy.backoff
 
     @Test
@@ -81,7 +80,7 @@ struct RetryTests {
     @Test
     func retryAfterPastDateClampsToZero() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
-        let past = now.addingTimeInterval(-3600)
+        let past = now.addingTimeInterval(-3_600)
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(identifier: "GMT")

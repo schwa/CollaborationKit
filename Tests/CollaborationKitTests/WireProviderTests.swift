@@ -2,8 +2,8 @@
 import Foundation
 import Testing
 
-/// Tests the WireProvider default implementations by driving a fake wire
-/// through StreamingTransport with a URLProtocol stub.
+// Tests the WireProvider default implementations by driving a fake wire
+// through StreamingTransport with a URLProtocol stub.
 
 // MARK: - URLProtocol stub
 
@@ -11,8 +11,8 @@ private final class WireStubProtocol: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var bodyByPath: [String: (status: Int, body: Data)] = [:]
     static let lock = NSLock()
 
-    override class func canInit(with _: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override static func canInit(with _: URLRequest) -> Bool { true }
+    override static func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
         let path = request.url?.path ?? ""
@@ -20,7 +20,8 @@ private final class WireStubProtocol: URLProtocol, @unchecked Sendable {
             Self.bodyByPath[path] ?? (200, Data())
         }
         let response = HTTPURLResponse(
-            url: request.url!, statusCode: status,
+            url: request.url!,
+            statusCode: status,
             httpVersion: "HTTP/1.1",
             headerFields: ["Content-Type": "text/event-stream"]
         )!
@@ -47,7 +48,7 @@ private struct FakeWireError: Error, Equatable {
 
 private struct FakeAccumulator: ServerSentEventSink {
     let doneSentinel: String? = nil
-    mutating func consume(_ payload: String) throws -> [ProviderStreamEvent] {
+    mutating func consume(_ payload: String) -> [ProviderStreamEvent] {
         [.text(payload)]
     }
 }
@@ -56,14 +57,14 @@ private struct FakeWire: WireProvider {
     let urlSession: URLSession
     let baseURL: URL
 
-    func makeChatRequest(messages _: [Message], system _: String?, tools _: [ToolSpec]) async throws -> URLRequest {
+    func makeChatRequest(messages _: [Message], system _: String?, tools _: [ToolSpec]) -> URLRequest {
         URLRequest(url: baseURL.appendingPathComponent("chat"))
     }
     func makeAccumulator() -> any ServerSentEventSink { FakeAccumulator() }
     func httpError(status: Int, body: String) -> Error {
         FakeWireError(status: status, body: body)
     }
-    func makeModelsRequest() async throws -> URLRequest? {
+    func makeModelsRequest() -> URLRequest? {
         URLRequest(url: baseURL.appendingPathComponent("models"))
     }
     func decodeModels(_ json: JSONValue) -> [ModelInfo] {
@@ -111,13 +112,13 @@ struct WireProviderTests {
     func listModelsReturnsEmptyWhenRequestIsNil() async throws {
         struct NoCatalogWire: WireProvider {
             let urlSession: URLSession = wireStubSession()
-            func makeChatRequest(messages _: [Message], system _: String?, tools _: [ToolSpec]) async throws -> URLRequest {
+            func makeChatRequest(messages _: [Message], system _: String?, tools _: [ToolSpec]) -> URLRequest {
                 URLRequest(url: URL(string: "https://x.test")!)
             }
             func makeAccumulator() -> any ServerSentEventSink { FakeAccumulator() }
             func httpError(status: Int, body: String) -> Error { FakeWireError(status: status, body: body) }
-            func makeModelsRequest() async throws -> URLRequest? { nil }
-            func decodeModels(_ json: JSONValue) -> [ModelInfo] { [] }
+            func makeModelsRequest() -> URLRequest? { nil }
+            func decodeModels(_: JSONValue) -> [ModelInfo] { [] }
         }
         let models = try await NoCatalogWire().listModels()
         #expect(models.isEmpty)

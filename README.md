@@ -170,6 +170,16 @@ struct ContentView: View {
 above a composer (with optional image attachments), and shows a "Sign in"
 placeholder when credentials are missing.
 
+## FAQ
+
+### Why is my `@CollaborationTool` method in an extension ignored?
+
+`@CollaborationTool` must be declared in the same type body as the
+`@CollaborationTools` attribute. Methods annotated in an `extension` are
+silently skipped: Swift attached-member macros only see the primary
+declaration's member block, not extensions, so the macro cannot discover
+them. Move the method into the primary declaration.
+
 ## Demo app
 
 [`Examples/CollaborationDemo`](Examples/CollaborationDemo) is a small

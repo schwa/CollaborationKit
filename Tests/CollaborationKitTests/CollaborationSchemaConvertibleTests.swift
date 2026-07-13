@@ -2,10 +2,10 @@
 import Foundation
 import Testing
 
-/// End-to-end tests for the escape hatch: a user-declared type conforming to
-/// ``CollaborationSchemaConvertible`` can be used as a
-/// ``@CollaborationTool`` parameter, its schema flows through the tool spec,
-/// and JSON input decodes into it at call time.
+// End-to-end tests for the escape hatch: a user-declared type conforming to
+// ``CollaborationSchemaConvertible`` can be used as a
+// ``@CollaborationTool`` parameter, its schema flows through the tool spec,
+// and JSON input decodes into it at call time.
 
 // MARK: - Fixtures
 
@@ -87,7 +87,6 @@ final class EscapeStore: @unchecked Sendable {
 
 @Suite("CollaborationSchemaConvertible escape hatch")
 struct CollaborationSchemaConvertibleTests {
-
     // MARK: Schema
 
     @Test("enum parameter uses the type's collaborationSchema")
@@ -131,10 +130,12 @@ struct CollaborationSchemaConvertibleTests {
     func decodesAndDispatchesStruct() async throws {
         let store = EscapeStore()
         let tool = store.collaborationTools.first { $0.name == "setPoint" }!
-        let out = try await tool.call(.object(["point": .object([
-            "x": .number(3),
-            "y": .number(4)
-        ])]))
+        let out = try await tool.call(.object([
+            "point": .object([
+                "x": .number(3),
+                "y": .number(4)
+            ])
+        ]))
         #expect(out == "3,4")
         #expect(store.lastPoint == EscapePoint(x: 3, y: 4))
     }

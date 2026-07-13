@@ -4,7 +4,6 @@ import Foundation
 import Testing
 
 struct BackendTests {
-
     // MARK: - Built-in values
 
     @Test

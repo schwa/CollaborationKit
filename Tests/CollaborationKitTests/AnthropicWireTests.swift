@@ -144,11 +144,13 @@ func anthropicWireRoundTripsAssistantTurn() throws {
         switch event {
         case .text(let text):
             assistantBlocks.append(.text(text))
+
         case .toolUse(let use):
             assistantBlocks.append(.toolCall(ToolCall(
                 use: use,
                 result: ToolResult(toolUseID: use.id, content: "ok")
             )))
+
         default:
             break
         }

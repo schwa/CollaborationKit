@@ -1,5 +1,5 @@
-import Foundation
 import CollaborationKit
+import Foundation
 
 /// Pure projection from ``MessageMirror`` to renderable ``ConversationItem``s.
 ///

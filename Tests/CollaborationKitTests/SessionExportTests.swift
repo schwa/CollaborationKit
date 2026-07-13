@@ -18,7 +18,6 @@ private actor NullProvider: ModelProvider {
 
 @MainActor
 struct SessionExportTests {
-
     @Test
     func emptyStoreExportRoundTripsAsJSON() throws {
         let store = ConversationStore(session: LLMSession(provider: NullProvider()))
@@ -60,6 +59,7 @@ struct SessionExportTests {
     /// new field is added to any domain type without wiring it into
     /// `Codable`.
     @Test
+    // swiftlint:disable:next function_body_length
     func populatedExportRoundTripsPreservingEveryField() throws {
         let messageID = UUID()
         let messageDate = Date(timeIntervalSince1970: 1_700_000_000)

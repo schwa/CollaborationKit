@@ -1,9 +1,10 @@
-import SwiftUI
 import CollaborationKit
 import CollaborationKitUI
+import SwiftUI
 
 struct ContentView: View {
-    @Environment(CollaborationCredentials.self) private var credentials
+    @Environment(CollaborationCredentials.self)
+    private var credentials
     @State private var notes = DemoNotes()
     @State private var store: ConversationStore?
     @State private var buildError: String?
@@ -63,8 +64,7 @@ struct ContentView: View {
         .task(id: "\(credentials.backend.id)-\(credentials.hasCredentials)") { rebuild() }
     }
 
-    @ViewBuilder
-    private var assistant: some View {
+    @ViewBuilder private var assistant: some View {
         if let store {
             CollaborationChatView(store: store, composerBorderStyle: .glow)
         } else if let buildError {

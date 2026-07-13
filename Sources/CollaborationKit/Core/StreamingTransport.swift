@@ -45,6 +45,7 @@ public enum StreamingTransport {
     ///   - retryPolicy: How to retry transient failures on the initial HTTP
     ///     round-trip. Only applies before the first byte is yielded to the
     ///     consumer — mid-stream failures never retry.
+    @preconcurrency
     public static func stream(
         request: @escaping @Sendable () async throws -> URLRequest,
         urlSession: URLSession,
@@ -80,6 +81,7 @@ public enum StreamingTransport {
     ///   - urlSession: The session used to issue the request.
     ///   - httpError: Maps a non-2xx `(status, body)` into the provider's error.
     /// - Returns: The decoded ``JSONValue`` of the response body.
+    @preconcurrency
     public static func fetchJSON(
         request: @Sendable () async throws -> URLRequest,
         urlSession: URLSession,
@@ -94,6 +96,7 @@ public enum StreamingTransport {
         return try JSONDecoder().decode(JSONValue.self, from: data)
     }
 
+    // swiftlint:disable:next function_parameter_count
     private static func run(
         request: @Sendable () async throws -> URLRequest,
         urlSession: URLSession,

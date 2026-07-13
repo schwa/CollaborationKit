@@ -9,9 +9,9 @@ enum ParamType {
     case double
     case float
     case string
-    indirect case optional(ParamType)
-    indirect case array(ParamType)
-    indirect case stringDictionary(ParamType)
+    indirect case optional(Self)
+    indirect case array(Self)
+    indirect case stringDictionary(Self)
     /// A user-declared type routed through
     /// ``CollaborationSchemaConvertible``. The associated string is the
     /// user's spelling of the type (used verbatim as both the Swift type and
@@ -21,15 +21,32 @@ enum ParamType {
     /// The Swift source spelling to use inside the generated `Input` struct.
     var swiftTypeSource: String {
         switch self {
-        case .bool: return "Swift.Bool"
-        case .int: return "Swift.Int"
-        case .double: return "Swift.Double"
-        case .float: return "Swift.Float"
-        case .string: return "Swift.String"
-        case .optional(let inner): return "\(inner.swiftTypeSource)?"
-        case .array(let inner): return "[\(inner.swiftTypeSource)]"
-        case .stringDictionary(let inner): return "[Swift.String: \(inner.swiftTypeSource)]"
-        case .custom(let name): return name
+        case .bool:
+            return "Swift.Bool"
+
+        case .int:
+            return "Swift.Int"
+
+        case .double:
+            return "Swift.Double"
+
+        case .float:
+            return "Swift.Float"
+
+        case .string:
+            return "Swift.String"
+
+        case .optional(let inner):
+            return "\(inner.swiftTypeSource)?"
+
+        case .array(let inner):
+            return "[\(inner.swiftTypeSource)]"
+
+        case .stringDictionary(let inner):
+            return "[Swift.String: \(inner.swiftTypeSource)]"
+
+        case .custom(let name):
+            return name
         }
     }
 
@@ -42,18 +59,25 @@ enum ParamType {
         switch self {
         case .bool:
             return #".object(["type": .string("boolean")])"#
+
         case .int:
             return #".object(["type": .string("integer")])"#
+
         case .double, .float:
             return #".object(["type": .string("number")])"#
+
         case .string:
             return #".object(["type": .string("string")])"#
+
         case .optional(let inner):
             return inner.jsonSchemaSource()
+
         case .array(let inner):
             return #".object(["type": .string("array"), "items": \#(inner.jsonSchemaSource())])"#
+
         case .stringDictionary(let inner):
             return #".object(["type": .string("object"), "additionalProperties": \#(inner.jsonSchemaSource())])"#
+
         case .custom(let name):
             // Runtime lookup: the type supplies its own schema via
             // `CollaborationSchemaConvertible`. If the type doesn't conform,
@@ -116,47 +140,7 @@ func parseParamType(_ type: TypeSyntax) throws -> ParamType {
     // Identifier, including generic forms like Optional<T>, Array<T>,
     // Dictionary<String, T>.
     if let ident = type.as(IdentifierTypeSyntax.self) {
-        let name = ident.name.text
-        if let generics = ident.genericArgumentClause {
-            let args = generics.arguments.map(\.argument).compactMap { TypeSyntax($0) }
-            switch name {
-            case "Optional":
-                guard args.count == 1 else {
-                    throw SchemaDerivationError.unsupportedType(type.trimmedDescription)
-                }
-                return .optional(try parseParamType(args[0]))
-            case "Array":
-                guard args.count == 1 else {
-                    throw SchemaDerivationError.unsupportedType(type.trimmedDescription)
-                }
-                return .array(try parseParamType(args[0]))
-            case "Dictionary":
-                guard args.count == 2 else {
-                    throw SchemaDerivationError.unsupportedType(type.trimmedDescription)
-                }
-                let key = try parseParamType(args[0])
-                guard case .string = key else {
-                    throw SchemaDerivationError.unsupportedType(type.trimmedDescription)
-                }
-                return .stringDictionary(try parseParamType(args[1]))
-            default:
-                break
-            }
-        }
-
-        switch name {
-        case "Bool", "Swift.Bool": return .bool
-        case "Int", "Swift.Int": return .int
-        case "Double", "Swift.Double": return .double
-        case "Float", "Swift.Float": return .float
-        case "String", "Swift.String": return .string
-        default:
-            // Escape hatch (#25): assume the user's type conforms to
-            // CollaborationSchemaConvertible. If it doesn't, the generated
-            // Tool struct fails to compile at `<Type>.collaborationSchema`
-            // with exactly the error message the user needs to see.
-            return .custom(type.trimmedDescription)
-        }
+        return try parseIdentifierType(ident, full: type)
     }
 
     // Nested / dotted names like `Note.ID`: treat as an opaque custom type
@@ -166,6 +150,74 @@ func parseParamType(_ type: TypeSyntax) throws -> ParamType {
     }
 
     throw SchemaDerivationError.unsupportedType(type.trimmedDescription)
+}
+
+/// Parses a bare or generic identifier type (`Bool`, `Array<T>`, …).
+/// `full` is the enclosing `TypeSyntax`, used for diagnostics.
+private func parseIdentifierType(_ ident: IdentifierTypeSyntax, full type: TypeSyntax) throws -> ParamType {
+    let name = ident.name.text
+    if let generics = ident.genericArgumentClause {
+        let args = generics.arguments.map(\.argument).compactMap { TypeSyntax($0) }
+        if let parsed = try parseGenericSugar(name: name, args: args, full: type) {
+            return parsed
+        }
+    }
+
+    switch name {
+    case "Bool", "Swift.Bool":
+        return .bool
+
+    case "Int", "Swift.Int":
+        return .int
+
+    case "Double", "Swift.Double":
+        return .double
+
+    case "Float", "Swift.Float":
+        return .float
+
+    case "String", "Swift.String":
+        return .string
+
+    default:
+        // Escape hatch (#25): assume the user's type conforms to
+        // CollaborationSchemaConvertible. If it doesn't, the generated
+        // Tool struct fails to compile at `<Type>.collaborationSchema`
+        // with exactly the error message the user needs to see.
+        return .custom(type.trimmedDescription)
+    }
+}
+
+/// Parses the spelled-out generic forms `Optional<T>`, `Array<T>`, and
+/// `Dictionary<String, T>`. Returns `nil` for any other generic name so the
+/// caller can fall through to the custom-type escape hatch.
+private func parseGenericSugar(name: String, args: [TypeSyntax], full type: TypeSyntax) throws -> ParamType? {
+    switch name {
+    case "Optional":
+        guard args.count == 1 else {
+            throw SchemaDerivationError.unsupportedType(type.trimmedDescription)
+        }
+        return .optional(try parseParamType(args[0]))
+
+    case "Array":
+        guard args.count == 1 else {
+            throw SchemaDerivationError.unsupportedType(type.trimmedDescription)
+        }
+        return .array(try parseParamType(args[0]))
+
+    case "Dictionary":
+        guard args.count == 2 else {
+            throw SchemaDerivationError.unsupportedType(type.trimmedDescription)
+        }
+        let key = try parseParamType(args[0])
+        guard case .string = key else {
+            throw SchemaDerivationError.unsupportedType(type.trimmedDescription)
+        }
+        return .stringDictionary(try parseParamType(args[1]))
+
+    default:
+        return nil
+    }
 }
 
 /// One decoded parameter, ready to be lowered into an `Input` field and

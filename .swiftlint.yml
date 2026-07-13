@@ -44,7 +44,7 @@ only_rules:
   - discouraged_direct_init
   - discouraged_none_name
   - discouraged_object_literal
-  - discouraged_optional_boolean
+#  - discouraged_optional_boolean # intentional tri-state API options (nil = server decides)
   - discouraged_optional_collection
   - duplicate_conditions
   - duplicate_enum_cases
