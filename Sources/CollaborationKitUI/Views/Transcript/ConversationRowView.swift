@@ -181,7 +181,15 @@ public struct ConversationRowView: View {
     }
 
     private func assistantContent(text: String) -> some View {
-        Text(text.isEmpty ? "…" : text)
+        // Parse inline markdown (bold, italic, `code`, links, strikethrough).
+        // Whitespace preserved so streaming line breaks don't collapse.
+        // Falls back to plain text if the model emits something that can't
+        // parse mid-stream (e.g. an unclosed backtick).
+        let attributed = (try? AttributedString(
+            markdown: text,
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        )) ?? AttributedString(text)
+        return Text(text.isEmpty ? AttributedString("…") : attributed)
             .fixedSize(horizontal: false, vertical: true)
     }
 
@@ -261,7 +269,8 @@ public struct ConversationRowView: View {
         timestamp: .now, duration: nil, latency: nil
     )
     let assistant = ConversationItem(
-        id: .message(UUID()), kind: .assistant("Sure — I'll create it now."),
+        id: .message(UUID()),
+        kind: .assistant("Sure — I'll create it **now**. Try `search(\"eggs\")` next, or read the [docs](https://example.com)."),
         timestamp: .now, duration: 0.4, latency: 0.9
     )
     let tool = ConversationItem(

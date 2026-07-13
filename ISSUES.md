@@ -1166,11 +1166,13 @@ Remove `AnyTool` and use `any Tool` at the call sites instead.
 ## 47: CollaborationKitUI: render assistant Markdown in the transcript
 
 +++
-status: new
+status: closed
 priority: medium
 kind: feature
 labels: effort:m
 created: 2026-07-13T03:26:28Z
+updated: 2026-07-13T03:51:03Z
+closed: 2026-07-13T03:51:03Z
 +++
 
 ConversationRowView currently renders assistant text as a plain Text view, so Markdown that the model emits (headings, bullet lists, code blocks, bold/italic, links, inline code) shows up as raw `# heading` / ```code``` / `**bold**` syntax rather than formatted output.
@@ -1184,6 +1186,8 @@ Design:
 - Consider selectable behavior — keep textSelection(.enabled).
 
 Related: RFC 0002, #13. Follow-up to the built-in transcript.
+
+- `2026-07-13T03:51:03Z`: Landed inline markdown for assistant text: ConversationRowView.assistantContent now runs the text through AttributedString(markdown:, options: .inlineOnlyPreservingWhitespace) with a plain-text fallback for mid-stream parse failures. Covers bold, italic, `code`, links, strikethrough. Block-level (fenced code, headings, lists) is a separate follow-up when someone hits it — the SwiftUI-native inline path is enough for typical assistant replies.
 
 ---
 
