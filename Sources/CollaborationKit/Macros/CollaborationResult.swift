@@ -58,6 +58,21 @@ public func _ckStringify<T>(_ value: T) throws -> String {
     throw CollaborationResultError.noKnownFormatter(String(describing: T.self))
 }
 
+/// Overload picked when the return type is statically known to be `Encodable`.
+///
+/// Preferred over the unconstrained generic version whenever the compiler can
+/// prove `T: Encodable` at the call site. That lets us encode without a runtime
+/// `as? any Encodable` cast, which is unreliable for generic types like
+/// `Array<Element>` when the conformance was defined in a different module
+/// (Swift issue: dynamic existential casts on conditionally-conforming generic
+/// types can fail across module boundaries).
+public func _ckStringify<T: Encodable>(_ value: T) throws -> String {
+    if let convertible = value as? CollaborationResultConvertible {
+        return try convertible.collaborationResultString()
+    }
+    return try _ckEncodeJSON(value)
+}
+
 /// Errors surfaced when a `@CollaborationTool` return value cannot be
 /// stringified for the model.
 public enum CollaborationResultError: Error, LocalizedError, Sendable {

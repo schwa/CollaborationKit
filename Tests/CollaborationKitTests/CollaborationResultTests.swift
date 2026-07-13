@@ -37,6 +37,17 @@ struct CollaborationResultTests {
         #expect(out == #"{"id":"n1","value":42}"#)
     }
 
+    /// Regression: an array of `Encodable` values would throw
+    /// `noKnownFormatter("Array<Row>")` at runtime because `value as? any
+    /// Encodable` in the unconstrained generic overload can fail across module
+    /// boundaries. The `T: Encodable` overload sidesteps the dynamic cast.
+    @Test
+    func arrayOfEncodableSerialisesAsJSON() throws {
+        let rows = [EncodableRow(id: "n1", value: 1), EncodableRow(id: "n2", value: 2)]
+        let out = try _ckStringify(rows)
+        #expect(out == #"[{"id":"n1","value":1},{"id":"n2","value":2}]"#)
+    }
+
     @Test
     func stringReturnsItself() throws {
         #expect(try _ckStringify("plain") == "plain")
