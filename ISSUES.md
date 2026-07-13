@@ -770,17 +770,35 @@ Add a mechanism for the host to approve (or deny) tool invocations before they r
 ## 32: Path approval
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:m
 created: 2026-07-13T01:34:27Z
-updated: 2026-07-13T01:49:58Z
+updated: 2026-07-13T02:49:53Z
+closed: 2026-07-13T02:49:53Z
 +++
 
 Add a mechanism for the host to approve (or deny) filesystem path access by built-in file tools (read/write/edit).
 
 - `2026-07-13T01:50:12Z`: Related to #31 (general tool-approval mechanism). Filesystem-path gating for read/write/edit is arguably a specialization: consider implementing it as a built-in participant in whatever host-approval hook #31 lands.
+- `2026-07-13T02:49:53Z`: Landed as PathPolicy in Sources/CollaborationKit/FileTools/PathPolicy.swift. The built-in file tools (ReadTool/WriteTool/EditTool) don't take path parameters — they're bound to a TextDocument at construction, so their filesystem reach is already the document the caller passed in. This issue's premise applies to *custom* file tools hosts build themselves: PathPolicy is the helper for that case.
+
+API:
+- PathPolicy(allowedRoots: [URL], allowsSymlinkEscape: Bool = false)
+- policy.check(url) throws PathPolicyError if outside allowed roots
+- policy.allows(url) — bool convenience
+- policy.resolve(path: String) throws — resolves relative-to-first-root, absolute-as-supplied, then checks
+
+Guardrails:
+- Roots canonicalize on init (symlinks + .. resolved) so containment compares like against like.
+- Path-component comparison catches sibling prefix attacks (/a/b vs /a/bar).
+- allowsSymlinkEscape defaults to false, so symlinks inside a root pointing outside are denied.
+- ../.. attacks caught by canonicalization.
+
+Relationship to #31: use ToolApprovalDecision for whole-call gating (rate limit, user confirmation UI) and PathPolicy for per-argument filesystem-scope gating. Different layers.
+
+9 tests: containment, sibling-prefix, symlink escape (both settings), resolve() variants, .. escape, empty-roots.
 
 ---
 
