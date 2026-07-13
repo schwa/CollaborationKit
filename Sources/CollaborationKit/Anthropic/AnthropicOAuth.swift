@@ -56,9 +56,11 @@ public struct AnthropicOAuth: Sendable {
     ].joined(separator: " ")
 
     private let urlSession: URLSession
+    private let retryPolicy: RetryPolicy
 
-    public init(urlSession: URLSession = .shared) {
+    public init(urlSession: URLSession = .shared, retryPolicy: RetryPolicy = .default) {
         self.urlSession = urlSession
+        self.retryPolicy = retryPolicy
     }
 
     /// A PKCE verifier/challenge pair plus the opaque state for one login.
@@ -119,12 +121,38 @@ public struct AnthropicOAuth: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (data, response) = try await urlSession.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
-            throw OAuthError.tokenExchangeFailed(status: status, body: String(data: data, encoding: .utf8) ?? "")
-        }
+        var attempt = 0
+        while true {
+            attempt += 1
+            do {
+                let (data, response) = try await urlSession.data(for: request)
+                let http = response as? HTTPURLResponse
+                let status = http?.statusCode ?? -1
 
+                if let http, (200..<300).contains(status) {
+                    return try Self.decode(data: data, fallbackRefresh: fallbackRefresh)
+                }
+
+                // Non-2xx: retry transient statuses within budget.
+                if attempt < retryPolicy.maxAttempts, RetryReason.isRetryable(status: status) {
+                    let backoff = retryPolicy.backoff(forAttempt: attempt + 1)
+                    let retryAfter = parseRetryAfter(http?.value(forHTTPHeaderField: "Retry-After"))
+                    let delay = max(backoff, retryAfter ?? 0)
+                    try await retryDelay(delay)
+                    continue
+                }
+                throw OAuthError.tokenExchangeFailed(status: status, body: String(data: data, encoding: .utf8) ?? "")
+            } catch let urlError as URLError {
+                if attempt < retryPolicy.maxAttempts, RetryReason.isRetryable(urlError: urlError) {
+                    try await retryDelay(retryPolicy.backoff(forAttempt: attempt + 1))
+                    continue
+                }
+                throw urlError
+            }
+        }
+    }
+
+    private static func decode(data: Data, fallbackRefresh: String?) throws -> OAuthCredentials {
         guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let access = object["access_token"] as? String,
               let expiresIn = (object["expires_in"] as? NSNumber)?.doubleValue else {

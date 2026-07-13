@@ -82,6 +82,55 @@ private struct ThrowingSink: ServerSentEventSink {
     }
 }
 
+// MARK: - Sequenced stub (different response per attempt)
+
+/// A stub that returns a different response on each successive request,
+/// keyed by a shared class-level counter. Used to test the retry loop.
+private final class SequencedURLProtocol: URLProtocol, @unchecked Sendable {
+    // swiftlint:disable:next non_overridable_class_declaration
+    override class func canInit(with _: URLRequest) -> Bool { true }
+    // swiftlint:disable:next non_overridable_class_declaration
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    // Response sequence configured externally: [(status, body)].
+    nonisolated(unsafe) static var sequence: [(status: Int, body: String)] = []
+    nonisolated(unsafe) static var callCount: Int = 0
+    static let lock = NSLock()
+
+    static func reset(_ sequence: [(status: Int, body: String)]) {
+        lock.withLock {
+            self.sequence = sequence
+            self.callCount = 0
+        }
+    }
+
+    override func startLoading() {
+        let (status, body): (Int, String) = Self.lock.withLock {
+            let index = Self.callCount
+            Self.callCount += 1
+            let entry = Self.sequence[min(index, Self.sequence.count - 1)]
+            return (entry.status, entry.body)
+        }
+        let response = HTTPURLResponse(
+            url: request.url!,
+            statusCode: status,
+            httpVersion: "HTTP/1.1",
+            headerFields: ["Content-Type": "text/event-stream"]
+        )!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data(body.utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
+private func sequencedSession() -> URLSession {
+    let config = URLSessionConfiguration.ephemeral
+    config.protocolClasses = [SequencedURLProtocol.self]
+    return URLSession(configuration: config)
+}
+
 // MARK: - Chunked stub (per-call fragmenting)
 
 /// A stub that delivers the body in multiple `didLoad` calls, so tests can
@@ -211,14 +260,16 @@ func transportThrowsProviderErrorWithDrainedBodyOnNon2xx() async throws {
     let body = "data: ignored\nrate limited\n"
     do {
         _ = try await collect(StreamingTransport.stream(
-            request: { request(status: 429, body: body) },
+            request: { request(status: 400, body: body) },
             urlSession: session,
             makeSink: { LineEchoSink() },
             httpError: { status, body in StubError.http(status, body) }
         ))
         Issue.record("expected throw")
     } catch let StubError.http(status, body) {
-        #expect(status == 429)
+        // 400 is a non-retryable client error — the transport should surface
+        // it immediately with the drained body.
+        #expect(status == 400)
         #expect(body.contains("data: ignored"))
         #expect(body.contains("rate limited"))
     }
@@ -313,6 +364,82 @@ func transportHandlesBlankLineSeparators() async throws {
         return nil
     }
     #expect(texts == ["a", "b", "c", "FINISHED"])
+}
+
+/// Retry-loop integration tests share static state on SequencedURLProtocol,
+/// so serialize them.
+@Suite(.serialized)
+struct TransportRetryTests {
+    private let policy = RetryPolicy(maxAttempts: 3, baseDelay: 0.01, maxDelay: 0.05)
+
+    @Test
+    func retriesTransient503ThenSucceeds() async throws {
+        SequencedURLProtocol.reset([
+            (status: 503, body: "backend not ready"),
+            (status: 200, body: "data: hello\n")
+        ])
+        let session = sequencedSession()
+
+        let stream = StreamingTransport.stream(
+            request: { URLRequest(url: URL(string: "https://example.test/retry")!) },
+            urlSession: session,
+            makeSink: { LineEchoSink() },
+            httpError: { status, body in StubError.http(status, body) },
+            retryPolicy: policy
+        )
+        let events = try await collect(stream)
+        let texts = events.compactMap { event -> String? in
+            if case .text(let t) = event { return t }
+            return nil
+        }
+        #expect(texts == ["hello", "FINISHED"])
+        SequencedURLProtocol.lock.withLock { #expect(SequencedURLProtocol.callCount == 2) }
+    }
+
+    @Test
+    func givesUpAfterMaxAttempts() async throws {
+        SequencedURLProtocol.reset([
+            (status: 503, body: "still down")
+        ])
+        let session = sequencedSession()
+
+        do {
+            _ = try await collect(StreamingTransport.stream(
+                request: { URLRequest(url: URL(string: "https://example.test/retry")!) },
+                urlSession: session,
+                makeSink: { LineEchoSink() },
+                httpError: { status, body in StubError.http(status, body) },
+                retryPolicy: policy
+            ))
+            Issue.record("expected throw")
+        } catch let StubError.http(status, _) {
+            #expect(status == 503)
+        }
+        SequencedURLProtocol.lock.withLock { #expect(SequencedURLProtocol.callCount == 3) }
+    }
+
+    @Test
+    func doesNotRetryClientError() async throws {
+        SequencedURLProtocol.reset([
+            (status: 401, body: "bad key"),
+            (status: 200, body: "data: never seen\n")
+        ])
+        let session = sequencedSession()
+
+        do {
+            _ = try await collect(StreamingTransport.stream(
+                request: { URLRequest(url: URL(string: "https://example.test/retry")!) },
+                urlSession: session,
+                makeSink: { LineEchoSink() },
+                httpError: { status, body in StubError.http(status, body) },
+                retryPolicy: policy
+            ))
+            Issue.record("expected throw")
+        } catch let StubError.http(status, _) {
+            #expect(status == 401)
+        }
+        SequencedURLProtocol.lock.withLock { #expect(SequencedURLProtocol.callCount == 1) }
+    }
 }
 
 @Test

@@ -42,11 +42,15 @@ enum StreamingTransport {
     ///   - urlSession: The session used to issue the request.
     ///   - makeSink: Builds the per-call sink that parses payloads.
     ///   - httpError: Maps a non-2xx `(status, body)` into the provider's error.
+    ///   - retryPolicy: How to retry transient failures on the initial HTTP
+    ///     round-trip. Only applies before the first byte is yielded to the
+    ///     consumer — mid-stream failures never retry.
     static func stream(
         request: @escaping @Sendable () async throws -> URLRequest,
         urlSession: URLSession,
         makeSink: @escaping @Sendable () -> ServerSentEventSink,
-        httpError: @escaping @Sendable (Int, String) -> Error
+        httpError: @escaping @Sendable (Int, String) -> Error,
+        retryPolicy: RetryPolicy = .default
     ) -> AsyncThrowingStream<ProviderStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
@@ -56,6 +60,7 @@ enum StreamingTransport {
                         urlSession: urlSession,
                         makeSink: makeSink,
                         httpError: httpError,
+                        retryPolicy: retryPolicy,
                         into: continuation
                     )
                     continuation.finish()
@@ -94,20 +99,23 @@ enum StreamingTransport {
         urlSession: URLSession,
         makeSink: @Sendable () -> ServerSentEventSink,
         httpError: @Sendable (Int, String) -> Error,
+        retryPolicy: RetryPolicy,
         into continuation: AsyncThrowingStream<ProviderStreamEvent, Error>.Continuation
     ) async throws {
-        let urlRequest = try await request()
-        let (bytes, response) = try await urlSession.bytes(for: urlRequest)
-
-        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            var body = ""
-            for try await line in bytes.lines {
-                body += line + "\n"
-            }
-            throw httpError(http.statusCode, body)
-        }
+        // Retry the initial HTTP round-trip only. Once we begin iterating
+        // `bytes.lines`, we're mid-stream; a failure there is not safely
+        // retryable because we may have already yielded events to the
+        // consumer that a re-issued request would duplicate.
+        let (bytes, statusOKResponse) = try await openStream(
+            request: request,
+            urlSession: urlSession,
+            httpError: httpError,
+            retryPolicy: retryPolicy
+        )
+        _ = statusOKResponse
 
         var sink = makeSink()
+
         for try await line in bytes.lines {
             guard line.hasPrefix("data:") else {
                 continue
@@ -132,6 +140,60 @@ enum StreamingTransport {
         if sink.doneSentinel == nil {
             for event in sink.finish() {
                 continuation.yield(event)
+            }
+        }
+    }
+
+    /// Opens the streaming request, retrying transient failures until a 2xx
+    /// response is available or the retry budget is exhausted. Returns the
+    /// live byte stream on success; throws the provider's HTTP error on
+    /// non-retryable failure.
+    private static func openStream(
+        request: @Sendable () async throws -> URLRequest,
+        urlSession: URLSession,
+        httpError: @Sendable (Int, String) -> Error,
+        retryPolicy: RetryPolicy
+    ) async throws -> (URLSession.AsyncBytes, HTTPURLResponse?) {
+        var attempt = 0
+        while true {
+            attempt += 1
+            do {
+                let urlRequest = try await request()
+                let (bytes, response) = try await urlSession.bytes(for: urlRequest)
+                let http = response as? HTTPURLResponse
+                let status = http?.statusCode ?? -1
+
+                if let http, (200..<300).contains(status) {
+                    return (bytes, http)
+                }
+
+                if attempt < retryPolicy.maxAttempts, RetryReason.isRetryable(status: status) {
+                    // Drain the body so the connection can be reused, then
+                    // wait for the greater of the computed backoff and any
+                    // server-supplied Retry-After.
+                    var body = ""
+                    for try await line in bytes.lines {
+                        body += line + "\n"
+                    }
+                    _ = body
+                    let backoff = retryPolicy.backoff(forAttempt: attempt + 1)
+                    let retryAfter = parseRetryAfter(http?.value(forHTTPHeaderField: "Retry-After"))
+                    try await retryDelay(max(backoff, retryAfter ?? 0))
+                    continue
+                }
+
+                // Non-retryable HTTP failure: drain body and throw.
+                var body = ""
+                for try await line in bytes.lines {
+                    body += line + "\n"
+                }
+                throw httpError(status, body)
+            } catch let urlError as URLError {
+                if attempt < retryPolicy.maxAttempts, RetryReason.isRetryable(urlError: urlError) {
+                    try await retryDelay(retryPolicy.backoff(forAttempt: attempt + 1))
+                    continue
+                }
+                throw urlError
             }
         }
     }

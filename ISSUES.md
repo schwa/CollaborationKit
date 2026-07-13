@@ -40,15 +40,28 @@ Both providers parse the SSE stream via bytes.lines, which assumes each 'data:' 
 ## 3: Add bounded retry with backoff for transient API failures
 
 +++
-status: open
+status: closed
 priority: medium
 kind: enhancement
 labels: enhancement, effort:m
 created: 2026-06-23T23:14:06Z
-updated: 2026-07-13T01:49:39Z
+updated: 2026-07-13T02:27:16Z
+closed: 2026-07-13T02:27:16Z
 +++
 
 No retry anywhere. A transient 429 or 5xx (e.g. Anthropic 529 overloaded) kills the whole turn. pi's reference OAuth code retried token exchange on 429/5xx with backoff and honored Retry-After / x-should-retry. Add bounded retry (a few attempts, exponential backoff, respect Retry-After) to: the Anthropic OAuth token exchange/refresh, and the streaming message call for both providers. Must not retry non-idempotent partial streams blindly — only retry before the first byte is yielded.
+
+- `2026-07-13T02:27:16Z`: Landed. New Sources/CollaborationKit/Core/Retry.swift with:
+
+- RetryPolicy (maxAttempts / baseDelay / maxDelay) with a sensible default (3 attempts, 0.5s→1s→2s capped at 8s) and .none for opt-out.
+- RetryReason classifier for standard transient statuses (408, 425, 429, 500, 502, 503, 504, 529) and URLError transport failures.
+- parseRetryAfter for both delta-seconds and HTTP-date Retry-After headers.
+
+Wired into:
+- AnthropicOAuth.exchange — retries 429/5xx and transport failures with backoff, honoring Retry-After (whichever is larger of computed backoff or server-supplied delay).
+- StreamingTransport.stream — retries only the initial HTTP round-trip (before any bytes yield to the consumer), so mid-turn partial streams are never re-issued. Drains body between retries for connection reuse.
+
+Added 7 unit tests (RetryTests) for policy/classifier/header parsing and 3 serialized integration tests (TransportRetryTests) exercising the transport retry loop with a sequenced URLProtocol.
 
 ---
 
