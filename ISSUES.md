@@ -305,6 +305,8 @@ created: 2026-07-13T00:40:29Z
 
 See rfcs/0003-model-object-tool-macro.md.
 
+- `2026-07-13T01:01:38Z`: Slice 1 landed: core `@CollaborationTools` / `@CollaborationTool` macros, primitives + Optional/Array/[String:T], throws/async/actor call-site handling, `CollaborationResultConvertible`. Framework bridges (FoundationModels/SwiftData/AppIntents), `@CollaborationField`, `@CollaborationSchema`, nested-object handling, doc-comment mining, and name prefixing are deferred to later slices.
+
 ---
 
 ## 15: Consolidate credential storage across targets
