@@ -927,12 +927,12 @@ Related: RFC 0003, #14, #21, #25.
 ## 41: RFC 0003: support typed ID wrappers (RawRepresentable) as tool parameters
 
 +++
-status: new
+status: open
 priority: high
 kind: feature
 labels: effort:m
 created: 2026-07-13T01:52:23Z
-updated: 2026-07-13T01:53:09Z
+updated: 2026-07-13T01:57:53Z
 +++
 
 The demo's DemoNotes today has:
