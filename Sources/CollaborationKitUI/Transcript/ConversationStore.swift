@@ -30,6 +30,11 @@ public final class ConversationStore {
     /// True while a turn is in flight.
     public private(set) var isGenerating: Bool = false
 
+    /// Number of prompts queued while the current turn is running. When the
+    /// active turn finishes, the next queued prompt starts automatically.
+    /// UIs can surface this so users know the queue depth.
+    public var pendingPromptCount: Int { pendingPrompts.count }
+
     /// Cumulative token usage across the session.
     public private(set) var usage = TokenUsage()
 
@@ -56,6 +61,17 @@ public final class ConversationStore {
     /// after each rollback so entries for turns that no longer exist are
     /// released.
     private var rollbackSnapshots: [Message.ID: (messageCount: Int, snapshot: RollbackSnapshot)] = [:]
+
+    /// FIFO queue of prompts submitted while a turn was already running.
+    /// Drained automatically after each turn completes.
+    @ObservationIgnored
+    private var pendingPrompts: [PendingPrompt] = []
+
+    private struct PendingPrompt {
+        var text: String
+        var images: [ImageContent]
+        var snapshot: RollbackSnapshot?
+    }
 
     @preconcurrency
     public init(
@@ -90,7 +106,14 @@ public final class ConversationStore {
         snapshot: RollbackSnapshot? = nil
     ) {
         let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !(trimmed.isEmpty && images.isEmpty), !isGenerating else { return }
+        guard !(trimmed.isEmpty && images.isEmpty) else { return }
+
+        // Queue rather than drop when a turn is already running; the next
+        // prompt starts automatically once the current one finishes.
+        if isGenerating {
+            pendingPrompts.append(PendingPrompt(text: trimmed, images: images, snapshot: snapshot))
+            return
+        }
 
         lastError = nil
         // Message count captured *before* the user message is appended, so
@@ -113,10 +136,17 @@ public final class ConversationStore {
 
     /// Cancels the in-flight turn, if any. The tool loop stops at its next
     /// cooperative cancellation point; the transcript keeps whatever has
-    /// already been produced.
+    /// already been produced. Queued prompts are left in place — call
+    /// ``clearPendingPrompts()`` to drop them as well.
     public func stop() {
         guard isGenerating else { return }
         sendTask?.cancel()
+    }
+
+    /// Discards any prompts queued behind the current turn without
+    /// affecting the in-flight turn itself.
+    public func clearPendingPrompts() {
+        pendingPrompts.removeAll()
     }
 
     private func run(_ trimmed: String, images: [ImageContent]) async {
@@ -124,6 +154,7 @@ public final class ConversationStore {
             isGenerating = false
             sendTask = nil
             reproject()
+            drainNextPendingPrompt()
         }
 
         do {
@@ -139,6 +170,15 @@ public final class ConversationStore {
             }
         }
         usage = await session.totalUsage
+    }
+
+    /// Pops the next queued prompt (if any) and re-enters ``send`` so the
+    /// standard flow — rollback snapshot bookkeeping, event pump, error
+    /// handling — stays in one place.
+    private func drainNextPendingPrompt() {
+        guard !pendingPrompts.isEmpty else { return }
+        let next = pendingPrompts.removeFirst()
+        send(next.text, images: next.images, snapshot: next.snapshot)
     }
 
     // MARK: - Rollback

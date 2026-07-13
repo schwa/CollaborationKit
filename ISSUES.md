@@ -1748,12 +1748,13 @@ DemoNotes marks delete as requiresApproval: true, but the demo's LLMSession is c
 ## 64: Composer is disabled while assistant is responding; queue prompts instead
 
 +++
-status: open
+status: closed
 priority: high
 kind: feature
 labels: effort:m
 created: 2026-07-13T05:44:43Z
-updated: 2026-07-13T14:15:19Z
+updated: 2026-07-13T14:29:49Z
+closed: 2026-07-13T14:29:49Z
 +++
 
 During an active conversation turn (assistant streaming, tools running, etc.) the composer input is locked. The user has to wait for the whole turn to finish before typing the next prompt.

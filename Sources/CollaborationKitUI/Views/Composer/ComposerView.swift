@@ -93,7 +93,6 @@ public struct ComposerView<Header: View>: View {
                 .textFieldStyle(.plain)
                 .lineLimit(5...10)
                 .foregroundStyle(.primary)
-                .disabled(store.isGenerating)
                 .focused($promptFocused)
                 .onKeyPress(keys: [.return]) { keyPress in
                     if keyPress.modifiers.contains(.shift) {
@@ -125,41 +124,52 @@ public struct ComposerView<Header: View>: View {
                 }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.borderless)
-                .disabled(store.isGenerating)
                 .accessibilityLabel("Attach image")
                 .accessibilityHint("Add images to your next message.")
             }
 
+            if store.pendingPromptCount > 0 {
+                Label("\(store.pendingPromptCount) queued", systemImage: "list.bullet")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .labelStyle(.titleAndIcon)
+                    .accessibilityLabel("\(store.pendingPromptCount) queued prompt\(store.pendingPromptCount == 1 ? "" : "s")")
+            }
+
             Spacer()
 
-            sendOrStopButton
+            if store.isGenerating {
+                StopButton { store.stop() }
+                    .accessibilityLabel("Stop")
+                    .accessibilityHint("Cancel the current turn.")
+            }
+
+            sendButton
         }
     }
 
-    @ViewBuilder private var sendOrStopButton: some View {
-        if store.isGenerating {
-            StopButton { store.stop() }
-                .accessibilityLabel("Stop")
-                .accessibilityHint("Cancel the current turn.")
-        } else {
-            Button("Send", systemImage: "arrow.up") {
-                submit()
-            }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.borderedProminent)
-            .clipShape(.circle)
-            .keyboardShortcut(.defaultAction)
-            .disabled(!canSubmit)
-            .accessibilityLabel("Send message")
-            .accessibilityHint(canSubmit ? "Send your message." : "Type a message first.")
+    @ViewBuilder private var sendButton: some View {
+        Button(store.isGenerating ? "Queue" : "Send", systemImage: "arrow.up") {
+            submit()
         }
+        .labelStyle(.iconOnly)
+        .buttonStyle(.borderedProminent)
+        .clipShape(.circle)
+        .keyboardShortcut(.defaultAction)
+        .disabled(!canSubmit)
+        .accessibilityLabel(store.isGenerating ? "Queue message" : "Send message")
+        .accessibilityHint(
+            canSubmit
+                ? (store.isGenerating ? "Queue this message to send after the current turn finishes." : "Send your message.")
+                : "Type a message first."
+        )
     }
 
     // MARK: - Actions
 
     private var canSubmit: Bool {
         let hasText = !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        return (hasText || !attachments.isEmpty) && !store.isGenerating
+        return hasText || !attachments.isEmpty
     }
 
     private func submit() {
