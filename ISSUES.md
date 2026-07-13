@@ -1641,3 +1641,73 @@ See the `swift-no-shadow-types` skill.
 - `2026-07-13T04:40:14Z`: Deleted the shadow types in SessionExport (MessageExport, ContentBlockExport, ToolCallExport, ToolResultExport, ItemExport, UsageExport). Added Codable directly to Message, ImageContent, ToolUse, ToolResult, ToolCall, ContentBlock, TokenUsage, ConversationItem, ItemID, and Kind. SessionExport now stores domain types directly (233 -> 92 lines). Added round-trip tests that fail if a new field is added without wiring.
 
 ---
+
+## 59: Credential layer is shallow: fixed-slot CredentialStore protocol undercuts Backend extensibility
+
++++
+status: new
+priority: medium
+kind: none
+labels: architecture
+created: 2026-07-13T05:06:25Z
++++
+
+CredentialStore has 9 methods hard-coding three slots (anthropicKey/openAIKey/anthropicOAuth) as read/save/clear trios. Every new backend requires widening the protocol and all four conformers (InMemoryCredentialStore, KeychainCredentialStore, CLICredentialStore, test fakes), contradicting the Backend docs' claim that adding a backend is 'one value declaration — no library edits'. Seven files co-own 'am I signed in' (CredentialStore, InMemoryCredentialStore, KeychainCredentialStore, CLICredentialStore, CollaborationCredentials, Backend closures, AnthropicOAuth). The KeychainReadResult typealias fossil shows this seam has already shifted once. Keychain and CLI conformers have no tests.
+
+---
+
+## 60: Transcript pipeline duplicates the message-history reducer; risky orchestration in ConversationStore is untested
+
++++
+status: new
+priority: high
+kind: none
+labels: architecture, testing
+created: 2026-07-13T05:06:25Z
++++
+
+LLMSession.history and MessageMirror each independently implement 'append assistant blocks, attach tool result by toolUseID' (LLMSession.attachResult vs MessageMirror.attachResultToMirror/appendToolUseToMirror) with different merge rules — a latent divergence seam. Understanding one model turn requires bouncing across six files (LLMSession → SessionEvent → ConversationStore → MessageMirror → TranscriptProjection → views). The pure parts (MessageMirror, TranscriptProjection) are unit-tested, but the risky logic is untested: ConversationStore event-pump ordering (startPump races vs send appending directly to the mirror), reproject() mutating mirror.compact, cancellation/'Stopped.' overlay handling, and usage apparently accumulated twice (from .usage events in handle() and re-read from session.totalUsage in run()). No test constructs ConversationStore against a fake ModelProvider end-to-end. Related: issue #10 (runLoop decomposition) and #7 (history compaction) will stress this dual-history seam.
+
+---
+
+## 61: Provider construction logic duplicated between Backend (UI target) and collab-cli; OAuth spoofing constants split across three files
+
++++
+status: new
+priority: medium
+kind: none
+labels: architecture
+created: 2026-07-13T05:06:25Z
++++
+
+Backend lives in CollaborationKitUI although it is a provider-registry concept, so collab-cli cannot import it and re-derives makeProvider logic by hand in Chat.run(). Credential errors are split across targets (CollaborationCredentialsError in UI's Backend.swift, AnthropicOAuthTokenError in core). The fragile Anthropic OAuth external contract has three owners: AnthropicWire.claudeCodeIdentity, AnthropicProvider.oauthBetas/oauthUserAgent/x-app headers, and AnthropicOAuth. Backend itself is a struct of 4 public closures exposing its entire implementation strategy; the actual work is in internal helpers (readAPIKey, model filters).
+
+---
+
+## 62: FileTools hand-writes JSON schemas the @CollaborationTools macro automates; tool call() bodies untested
+
++++
+status: new
+priority: low
+kind: none
+labels: architecture, testing
+created: 2026-07-13T05:06:25Z
++++
+
+FileTools.swift predates the @CollaborationTools macro (RFC 0003) and hand-declares name/description/inputSchema/call for each tool, giving an interface/implementation ratio near 1:1. The Read/Write/EditTool call() bodies are untested (e.g. EditTool's uniqueness counting via components(separatedBy:)); only PathPolicy has test coverage.
+
+---
+
+## 63: Demo app doesn't wire up tool approval
+
++++
+status: new
+priority: medium
+kind: none
+created: 2026-07-13T04:58:55Z
+updated: 2026-07-13T05:08:42Z
++++
+
+DemoNotes marks delete as requiresApproval: true, but the demo's LLMSession is created without an approval closure, so the default allow-all applies and approval-gated tools run without any user prompt. The demo has no UI for approving/denying tool calls.
+
+---
