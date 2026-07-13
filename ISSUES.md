@@ -1111,26 +1111,34 @@ Test coverage across CollaborationKit is insufficient. Audit current coverage, i
 ## 43: SwiftUI review
 
 +++
-status: new
+status: closed
 priority: medium
 kind: task
 created: 2026-07-13T02:02:45Z
+updated: 2026-07-13T03:52:58Z
+closed: 2026-07-13T03:52:58Z
 +++
 
 Review SwiftUI code in CollaborationKit and Examples for correctness, modern API usage, and adherence to house rules. Areas to check include view identity, state ownership, ForEach usage, environment values, animations, and use of soft-deprecated APIs.
+
+- `2026-07-13T03:52:58Z`: Superseded — review performed and findings/fixes landed as #48 (SwiftUI review: bugs, anti-patterns, and missing #Previews). Closing as done.
 
 ---
 
 ## 44: Swift concurrency review
 
 +++
-status: new
+status: closed
 priority: medium
 kind: task
 created: 2026-07-13T02:02:45Z
+updated: 2026-07-13T03:52:58Z
+closed: 2026-07-13T03:52:58Z
 +++
 
 Review Swift concurrency usage across CollaborationKit for correctness and modern API usage. Look for actor isolation issues, Sendable violations, task lifetime bugs, unstructured Task usage, MainActor misuse, and other async/await pitfalls.
+
+- `2026-07-13T03:52:59Z`: Superseded — review performed and findings/fixes landed as #50 (Swift concurrency review: LLMSession actor reentrancy + smaller fixes). Closing as done.
 
 ---
 
@@ -1357,5 +1365,122 @@ DemoNotes exposes list / search / create / setTag / setColor / delete. There's n
 Fills in the last obvious CRUD hole and gives the assistant a natural way to iterate on a note without deleting and recreating it (which changes the id and loses any tag/color).
 
 - `2026-07-13T03:43:37Z`: Landed. New DemoNotes tool: `edit(id: Note.ID, title: String?, body: String?)`, nil fields leave the value unchanged. Uses the same `mutate` helper as setTag/setColor. System prompt updated to list edit alongside the other tools.
+
+---
+
+## 52: Architecture: pluggable Backend replacing the CollaborationBackend enum
+
++++
+status: new
+priority: medium
+kind: task
+labels: effort:l
+created: 2026-07-13T03:55:10Z
++++
+
+**Cluster**: CollaborationBackend enum, KeychainCredentialStore.hasCredentials(for:) / makeProvider(for:model:maxTokens:), CollaborationCredentials.selectedModel / selectModel / listAvailableModels / modelDefaultsKey, ModelPickerSection.defaultChatModelFilter, CollaborationCredentialsError.
+
+**Problem**: The three-case enum is a plug-in surface pretending to be an enum. Adding a fourth backend (Ollama, ds4, a custom gateway) requires editing 4–5 files. Backend knowledge is scattered:
+
+- Enum: default model per backend, display name.
+- KeychainCredentialStore extension: which slots to read, how to build the provider.
+- CollaborationCredentials: selectedModel accessor, per-backend UserDefaults key.
+- ModelPickerSection: chat-family filter heuristic per backend.
+
+**Deepening**: A single `Backend` value type that owns its identifier, display name, default model, credential slot bindings (which Keychain accounts, how to construct AnthropicAuth / OpenAIConfig), and its chat-model filter. Hosts register the backends they want; `CollaborationCredentials` iterates them. CollaborationSettingsView / ModelPickerSection consult the registry instead of switching on the enum.
+
+**Dependency category**: Composition / registration.
+
+**Test impact**: One test suite per backend value rather than one big switch. Adding a backend becomes 'declare it and add it to your registry'; no library edits.
+
+**Non-goals**: Doesn't change the wire encoding or the streaming plumbing (that's #53). Doesn't touch the CLI's ProviderKind (its config surface is different).
+
+Ranking: highest AI-navigability payoff among the three architecture candidates. See the improve-codebase-architecture review.
+
+---
+
+## 53: Architecture: unify AnthropicProvider + OpenAIProvider behind a WireProvider port
+
++++
+status: new
+priority: medium
+kind: task
+labels: effort:l
+created: 2026-07-13T03:55:10Z
++++
+
+**Cluster**: AnthropicProvider, AnthropicWire, AnthropicProvider+StreamAccumulator, OpenAIProvider, OpenAIWire, OpenAIProvider+OpenAIStreamAccumulator, AnthropicConfig, OpenAIConfig — roughly 400 lines of parallel plumbing.
+
+**Problem**: The two providers are shallow duplicates. Each owns URLSession + config, calls StreamingTransport.stream(...) with a per-wire accumulator, and builds URLRequests with auth headers. The wire encoding is a pure function per provider; the accumulators do the same job (buffer tool-call argument fragments and emit ProviderStreamEvents).
+
+**Deepening**: A `WireProvider` protocol at the port:
+
+    protocol WireProvider: Sendable {
+        associatedtype Config
+        var config: Config { get }
+        func encodeRequestBody(messages: [Message], system: String?, tools: [ToolSpec]) -> JSONValue
+        func authorizedRequest(url: URL, body: Data) async throws -> URLRequest
+        func makeAccumulator() -> ServerSentEventSink
+        func httpError(status: Int, body: String) -> Error
+        func modelListURL() -> URL?
+        func decodeModelList(_ json: JSONValue) throws -> [ModelInfo]
+    }
+
+Then a single `HTTPStreamingProvider<Wire: WireProvider>: ModelProvider, ModelLister` implements send / listModels once against StreamingTransport. AnthropicWire and OpenAIWire conform to WireProvider; the two Provider classes shrink to typealiases or thin wrappers.
+
+**Dependency category**: Ports & adapters.
+
+**Test impact**: Today's tests are parser-level (StreamAccumulatorTests, OpenAIStreamAccumulatorTests) — internal to each provider, and #1 (mock URLProtocol end-to-end) is still open because the boundary is fuzzy. With a WireProvider protocol, boundary tests can drive HTTPStreamingProvider once with a fake wire and cover both concrete providers through their WireProvider conformance instead.
+
+**Non-goals**: No wire-format changes. Retry policy and StreamingTransport stay as-is.
+
+Ranking: biggest raw duplication kill among the three candidates.
+
+---
+
+## 54: Architecture: split ConversationStore into MessageMirror + TranscriptProjection + Store
+
++++
+status: new
+priority: low
+kind: task
+labels: effort:l
+created: 2026-07-13T03:55:10Z
++++
+
+**Cluster**: ConversationStore (442 lines). Currently owns LLMSession lifecycle, message mirroring, presentation metadata (timing / latency / summaries), streaming assistant overlay, error overlay, and projection to ConversationItems — six concerns fused in one @Observable @MainActor class.
+
+**Problem**: Historical port from Phosphor. All six lived in one class because they all touched the shared `items` and `presentation` state, but the presentation side-table and streaming/error overlays don't have to share a home with the mirror. Result: there are no direct behavior tests for the store because touching one concern means constructing the world for all six.
+
+**Deepening**: Three types.
+
+- `MessageMirror`: a pure state machine that consumes SessionEvents and produces a canonical [Message] list plus a small `Overlays` struct (streamingText: String?, errors: [String], per-item timing). Value type, no SwiftUI dependency, unit-testable with plain assertions.
+- `TranscriptProjection`: a pure function `([Message], Overlays) -> [ConversationItem]`. Also value-type, no @MainActor, no observation.
+- `ConversationStore` (thin): @Observable @MainActor. Owns LLMSession, runs the event pump, holds the mirror + overlays, republishes items via the projection. Public surface stays the same so hosts don't notice.
+
+**Dependency category**: Concerns fusion.
+
+**Test impact**: Currently the store has effectively no unit tests — SessionExportTests is fixture-builder work, not behavior. After splitting, MessageMirror gets a full state-machine test suite (delta / tool call / result / cancellation events) and TranscriptProjection is pure-function testable. The thin store keeps its integration tests (of which there are none today either, but that's a smaller target).
+
+**Non-goals**: Public API of ConversationStore stays as-is. No new UI. Rollback (#26) isn't in scope; it belongs on whatever owns the mirror.
+
+Ranking: lowest urgency of the three architecture candidates but real testability payoff.
+
+---
+
+## 55: @CollaborationTool doesn't work in an extension
+
++++
+status: new
+priority: medium
+kind: bug
+created: 2026-07-13T04:04:01Z
++++
+
+Marking a method with `@CollaborationTool` inside an `extension` of a `@CollaborationTools`-annotated type doesn't produce a working tool.
+
+Expected: methods annotated in extensions are picked up the same way as methods declared in the primary type body, and appear in the generated `collaborationTools` array.
+
+Actual: TBD — needs reproduction to confirm whether the peer macro is silently ignored, the member macro doesn't see extension members, or it fails to compile.
 
 ---
