@@ -2539,9 +2539,9 @@ Follows: #85 (added `triggerAtTokens`; this issue completes the transition).
 status: open
 priority: medium
 kind: feature
-labels: effort:l
+labels: deferred, effort:xl
 created: 2026-07-13T16:38:44Z
-updated: 2026-07-13T16:42:21Z
+updated: 2026-07-13T16:44:45Z
 +++
 
 Add a new chat backend alongside the existing remote providers (Anthropic, OpenAI) that talks to a locally running `pi` model over a Unix domain socket.
@@ -2558,9 +2558,9 @@ Distinct enough from the remote HTTP providers that it likely warrants its own b
 status: open
 priority: medium
 kind: feature
-labels: effort:m
+labels: effort:m, deferred
 created: 2026-07-13T16:38:45Z
-updated: 2026-07-13T16:42:21Z
+updated: 2026-07-13T16:44:00Z
 +++
 
 Let the user type slash commands (e.g. `/clear`, `/model …`, `/export`) in the composer to trigger app or session actions without a tool round-trip.
@@ -2614,9 +2614,9 @@ Distinct from #93 (which is native `pi` over a Unix socket) — this issue cover
 status: open
 priority: medium
 kind: feature
-labels: effort:l
+labels: effort:l, deferred
 created: 2026-07-13T16:40:20Z
-updated: 2026-07-13T16:42:21Z
+updated: 2026-07-13T16:44:00Z
 +++
 
 Handle models that emit thinking / reasoning content separately from the assistant response — Anthropic extended thinking, OpenAI o-series reasoning tokens, etc.
@@ -2667,5 +2667,18 @@ The transcript should show how long each tool call took (the duration label in t
 Not yet clear which tools or which conditions trigger it — could be tools that finish before a duration can be stamped, tools whose result arrives outside the mirrored event stream, or history-replay rows that never saw the live `.toolResult` event.
 
 Repro guidance for later investigation: run a session with several tool calls, look for rows where the header has no `Xs`/`Xms` label on the right.
+
+---
+
+## 100: MCP Support
+
++++
+status: open
+priority: medium
+kind: task
+labels: deferred, effort:xl
+created: 2026-07-13T16:43:43Z
+updated: 2026-07-13T16:44:30Z
++++
 
 ---
