@@ -446,6 +446,8 @@ Missing per RFC 0003 §3.2:
 - Hand-written @CollaborationTool methods on the same @Model override the derived tool of the same name.
 - OS-version gating in the bridge module.
 
+- `2026-07-13T17:06:27Z`: Drafted as [RFC 0004](rfcs/0004-swiftdata-bridge.md) — standalone spec expanding RFC 0003 §3.2. Proposes 4 slices (A: read-only, B: filter/sort, C: mutations, D: relationships). Open questions still to resolve: id inference vs. explicit `.id`, concurrency gating, implicit `save()`, default `requiresApproval` for mutations.
+
 ---
 
 ## 18: RFC 0003: AppIntents bridge exposes AppIntent.perform() as a tool
