@@ -2583,12 +2583,13 @@ status: new
 priority: medium
 kind: feature
 created: 2026-07-13T16:39:46Z
+updated: 2026-07-13T16:39:58Z
 +++
 
-Support talking to local LLM servers that expose HTTP APIs \u2014 e.g. LM Studio, Ollama, llama.cpp server, vLLM.
+Support talking to local LLM servers that expose HTTP APIs — e.g. LM Studio, Ollama, llama.cpp server, vLLM.
 
 Most of these speak an OpenAI-compatible `/v1/chat/completions` dialect, so this may just need a configurable base URL + auth (optional API key) reusing the existing OpenAI provider, plus UI in Settings to add/manage local endpoints.
 
-Distinct from #93 (which is native `pi` over a Unix socket) \u2014 this issue covers HTTP-speaking local servers.
+Distinct from #93 (which is native `pi` over a Unix socket) — this issue covers HTTP-speaking local servers.
 
 ---
