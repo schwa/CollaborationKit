@@ -2525,3 +2525,20 @@ Follows: #85 (added `triggerAtTokens`; this issue completes the transition).
 - `2026-07-13T16:29:55Z`: Landed together: KeepRecentCompactionStrategy is now token-triggered only (triggerAtTokens required, minMessagesBeforeCompacting removed), and CompactionStrategy gains a compactionProgress(usage:) hook that KeepRecent implements. ConversationStore surfaces it as compactionProgress; ComposerView renders a 'used / limit' chip that hides itself when the strategy has no budget.
 
 ---
+
+## 93: Support pi as a chat backend/mode
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T16:38:44Z
++++
+
+Add a new chat backend alongside the existing remote providers (Anthropic, OpenAI) that talks to a locally running `pi` model over a Unix domain socket.
+
+macOS only.
+
+Distinct enough from the remote HTTP providers that it likely warrants its own backend type and settings surface (socket path, model selection, etc.) rather than shoehorning into the existing HTTP-based provider abstraction.
+
+---
