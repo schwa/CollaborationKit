@@ -1910,3 +1910,16 @@ Missing surface in CollaborationKitUI:
 - A FocusedValueKey / focused-scene-value so hosts can add a File menu command that triggers export without reimplementing the plumbing.
 
 ---
+
+## 73: Persist conversations across launches
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T06:39:46Z
++++
+
+Conversations are not persisted; relaunching the app loses all prior conversation state. Should reload existing conversations on launch.
+
+---
