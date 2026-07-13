@@ -1146,3 +1146,19 @@ created: 2026-07-13T02:07:18Z
 Explore whether the Apple Passwords API can be used to fetch stored API keys (e.g. Claude, OpenAI) instead of requiring the user to enter/store them separately. Feasibility unknown — Passwords API may not expose arbitrary secrets or non-website credentials.
 
 ---
+
+## 46: Replace AnyTool type-erasure wrapper with existential `any Tool`
+
++++
+status: new
+priority: medium
+kind: enhancement
+created: 2026-07-13T03:15:57Z
++++
+
+`AnyTool` predates / duplicates Swift's built-in existential support. Now that the codebase can rely on `any Tool`, the hand-rolled wrapper is redundant.
+
+## Proposed fix (per user)
+Remove `AnyTool` and use `any Tool` at the call sites instead.
+
+---

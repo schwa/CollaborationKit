@@ -4,102 +4,63 @@ import CollaborationKitUI
 
 struct ContentView: View {
     @Environment(CollaborationCredentials.self) private var credentials
-    @State private var chat: ChatSession?
-    @State private var buildError: String?
     @State private var notes = DemoNotes()
-    @State private var inspectorShown: Bool = true
+    @State private var session: LLMSession?
+    @State private var store: ConversationStore?
+    @State private var buildError: String?
+    @State private var showAssistant: Bool = true
 
     var body: some View {
         NotesListView(notes: notes)
-            .frame(minWidth: 320, minHeight: 400)
-            .inspector(isPresented: $inspectorShown) {
-                assistantInspector
-                    .inspectorColumnWidth(min: 320, ideal: 420, max: 640)
-            }
+            .navigationTitle("Notes")
+            .inspector(isPresented: $showAssistant) { assistant }
             .toolbar {
-                ToolbarItem {
-                    Button {
-                        inspectorShown.toggle()
-                    } label: {
-                        Label("Assistant", systemImage: "bubble.left.and.text.bubble.right")
-                    }
-                    .help("Show or hide the assistant.")
+                Button {
+                    showAssistant.toggle()
+                } label: {
+                    Label("Assistant", systemImage: "bubble.left.and.text.bubble.right")
                 }
             }
-            .task(id: taskKey) { rebuildChat() }
+            .task(id: rebuildKey) { rebuild() }
     }
 
-    // MARK: - Inspector
-
     @ViewBuilder
-    private var assistantInspector: some View {
-        if let chat {
-            CollaborationChatView(store: chat.store, composerBorderStyle: .glow)
+    private var assistant: some View {
+        if let store {
+            CollaborationChatView(store: store, composerBorderStyle: .glow)
         } else if let buildError {
-            ContentUnavailableView {
-                Label("Couldn't Start Chat", systemImage: "exclamationmark.triangle")
-            } description: {
-                Text(buildError)
-            }
+            ContentUnavailableView("Couldn't Start Chat", systemImage: "exclamationmark.triangle", description: Text(buildError))
         } else {
             ContentUnavailableView {
                 Label("Sign in to Chat", systemImage: "key.horizontal")
             } description: {
-                Text("Add credentials for \(credentials.backend.displayName) in Settings (⌘,).")
+                Text("Add credentials in Settings (⌘,).")
             } actions: {
-                #if os(macOS)
                 SettingsLink { Text("Open Settings…") }
-                #endif
             }
         }
     }
 
-    // MARK: - Chat lifecycle
-
-    private var taskKey: String {
+    private var rebuildKey: String {
         "\(credentials.backend.rawValue)-\(credentials.hasCredentials)"
     }
 
-    private func rebuildChat() {
-        chat = nil
+    private func rebuild() {
+        session = nil
+        store = nil
         buildError = nil
         guard credentials.hasCredentials else { return }
         do {
-            chat = try ChatSession(credentials: credentials, notes: notes)
+            let provider = try credentials.makeProvider()
+            let session = LLMSession(
+                provider: provider,
+                system: "You help the user manage a small list of notes. Use the list, create, and delete tools.",
+                tools: notes.collaborationTools
+            )
+            self.session = session
+            self.store = ConversationStore(session: session)
         } catch {
             buildError = error.localizedDescription
         }
-    }
-}
-
-/// Holds the `LLMSession` + `ConversationStore` for one chat window so both
-/// stay alive together. Wires the `DemoNotes` tools into the session so the
-/// assistant can list, create, delete, and count notes.
-@MainActor
-private final class ChatSession {
-    let session: LLMSession
-    let store: ConversationStore
-
-    init(credentials: CollaborationCredentials, notes: DemoNotes) throws {
-        let provider = try credentials.makeProvider(maxTokens: 4_096)
-        let tools = notes.collaborationTools
-        // Tools that opted in via `@CollaborationTool(…, requiresApproval: true)`.
-        // A real host would prompt here; the demo auto-approves so the
-        // metadata still flows through and can be shown in the UI later.
-        let approvalRequired = Set(tools.filter(\.requiresApproval).map(\.name))
-        self.session = LLMSession(
-            provider: provider,
-            system: """
-            You are a helpful assistant called "CollaborationDemo" collaborating with the user through a small notes app. \
-            Use the `list`, `create`, `delete`, and `count` tools to manage the user's notes. \
-            Always confirm what you did in a short reply.
-            """,
-            tools: tools,
-            approval: { use in
-                _ = approvalRequired
-                return .allow
-            }
-        )
-        self.store = ConversationStore(session: session)
     }
 }
