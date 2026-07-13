@@ -13,7 +13,7 @@ public enum CollaborationToolsMacro: MemberMacro {
 
         let tools = try annotatedMethods(in: declaration, context: context, prefix: prefix)
 
-        // Emit even when empty — the accessor should exist so the user's site
+        // Emit even when empty, so the accessor exists and the user's site
         // compiles predictably.
         var decls: [DeclSyntax] = []
 
@@ -211,15 +211,12 @@ public enum CollaborationToolsMacro: MemberMacro {
     ) throws -> [DeclSyntax] {
         let structName = "__CKTool_\(tool.methodName)"
 
-        // Input struct body
         let inputFields = tool.parameters
             .map { "        let \($0.inputFieldName): \($0.type.swiftTypeSource)" }
             .joined(separator: "\n")
 
-        // JSON schema
         let schemaSource = jsonSchemaSource(for: tool.parameters)
 
-        // Forwarding call
         let callArgs = tool.parameters.map { p -> String in
             if let external = p.externalLabel {
                 return "\(external): input.\(p.inputFieldName)"

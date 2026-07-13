@@ -37,14 +37,10 @@ struct SessionExportTests {
     @Test
     func exportCapturesLastError() {
         let store = ConversationStore(session: LLMSession(provider: NullProvider()))
-        // Trigger the error overlay path.
         store.send("hi")
-        // No real turn will run; there won't be a last error yet either.
-        // Instead, exercise directly by seeding a message + error via public API.
-        _ = store
+        // No turn runs against NullProvider, so lastError stays nil and the
+        // field encodes as null.
         let export = store.buildExport()
-        // Not enforcing lastError content here — just that the field exists
-        // and encodes null when absent.
         #expect(export.lastError == nil)
     }
 

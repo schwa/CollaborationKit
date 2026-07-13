@@ -74,7 +74,7 @@ func truncateHistoryRollsBackToEarlierTurn() async throws {
     let session = LLMSession(provider: provider)
 
     _ = try await session.send("One")
-    let afterFirst = await session.messages.count // user + assistant
+    let afterFirst = await session.messages.count
     #expect(afterFirst == 2)
 
     _ = try await session.send("Two")

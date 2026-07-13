@@ -165,7 +165,7 @@ public actor LLMSession {
 
             // Run the tools and attach each result to its call in place, so the
             // history stays domain-shaped (one assistant message owns its tool
-            // calls and their results — no separate tool-result message).
+            // calls and their results; no separate tool-result message).
             for use in pendingToolUses {
                 let result = await execute(use)
                 attachResult(result, toUse: use.id, inMessageAt: assistantIndex)

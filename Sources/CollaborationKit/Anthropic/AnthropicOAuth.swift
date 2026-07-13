@@ -41,7 +41,6 @@ public enum OAuthError: Error, Sendable {
 /// in a browser, the user approves, and pastes back the resulting `code#state`
 /// (or full callback URL), which is exchanged for tokens.
 public struct AnthropicOAuth: Sendable {
-    // Claude Code OAuth client parameters.
     private static let clientID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
     private static let authorizeURLBase = "https://claude.ai/oauth/authorize"
     private static let tokenURL = URL(string: "https://platform.claude.com/v1/oauth/token")!
@@ -134,7 +133,6 @@ public struct AnthropicOAuth: Sendable {
                     return try Self.decode(data: data, fallbackRefresh: fallbackRefresh)
                 }
 
-                // Non-2xx: retry transient statuses within budget.
                 if attempt < retryPolicy.maxAttempts, RetryReason.isRetryable(status: status) {
                     let backoff = retryPolicy.backoff(forAttempt: attempt + 1)
                     let retryAfter = parseRetryAfter(http?.value(forHTTPHeaderField: "Retry-After"))

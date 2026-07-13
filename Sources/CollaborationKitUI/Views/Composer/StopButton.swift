@@ -19,18 +19,15 @@ public struct StopButton: View {
     public var body: some View {
         Button(action: action) {
             ZStack {
-                // Faint full ring as a track.
                 Circle()
                     .stroke(.tint.opacity(0.2), lineWidth: lineWidth)
 
-                // Indeterminate spinning arc.
                 Circle()
                     .trim(from: 0, to: 0.25)
                     .stroke(.tint, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .rotationEffect(.degrees(spinning ? 360 : 0))
                     .animation(.linear(duration: 0.9).repeatForever(autoreverses: false), value: spinning)
 
-                // Filled stop square.
                 Image(systemName: "stop.fill")
                     .font(.system(size: size * 0.55))
                     .foregroundStyle(.primary)

@@ -83,7 +83,8 @@ enum OpenAIWire {
                 ]))
 
             case .toolCall:
-                break // tool calls never appear in a user message
+                // Tool calls never appear in a user message.
+                break
             }
         }
         // With images present, user content must be a multi-part array.
@@ -131,7 +132,8 @@ enum OpenAIWire {
                 }
 
             case .image:
-                break // never appears in an assistant message
+                // Images never appear in an assistant message.
+                break
             }
         }
         var object: [String: JSONValue] = ["role": "assistant"]

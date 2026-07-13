@@ -57,7 +57,7 @@ enum ParamType {
         case .custom(let name):
             // Runtime lookup: the type supplies its own schema via
             // `CollaborationSchemaConvertible`. If the type doesn't conform,
-            // the generated code fails to compile at the call site — the
+            // the generated code fails to compile at the call site with the
             // exact error the user needs to see.
             return "\(name).collaborationSchema"
         }
@@ -113,7 +113,7 @@ func parseParamType(_ type: TypeSyntax) throws -> ParamType {
         return .stringDictionary(try parseParamType(dict.value))
     }
 
-    // Identifier — including generic forms like Optional<T>, Array<T>,
+    // Identifier, including generic forms like Optional<T>, Array<T>,
     // Dictionary<String, T>.
     if let ident = type.as(IdentifierTypeSyntax.self) {
         let name = ident.name.text
@@ -154,18 +154,17 @@ func parseParamType(_ type: TypeSyntax) throws -> ParamType {
             // Escape hatch (#25): assume the user's type conforms to
             // CollaborationSchemaConvertible. If it doesn't, the generated
             // Tool struct fails to compile at `<Type>.collaborationSchema`
-            // — exactly the error message the user needs to see.
+            // with exactly the error message the user needs to see.
             return .custom(type.trimmedDescription)
         }
     }
 
-    // Nested / dotted names like `Note.ID` — treat as an opaque custom type
+    // Nested / dotted names like `Note.ID`: treat as an opaque custom type
     // and route through the CollaborationSchemaConvertible escape hatch.
     if type.is(MemberTypeSyntax.self) {
         return .custom(type.trimmedDescription)
     }
 
-    // Metatypes, function types, existentials, etc.: still unsupported.
     throw SchemaDerivationError.unsupportedType(type.trimmedDescription)
 }
 

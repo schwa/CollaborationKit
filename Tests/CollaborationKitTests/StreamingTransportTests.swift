@@ -445,7 +445,7 @@ struct TransportRetryTests {
 @Test
 func transportHandlesPayloadSplitAcrossChunks() async throws {
     // Real networks deliver bytes in arbitrary chunks that don't line up
-    // with `\n` boundaries — a `data:` payload can be split down the middle.
+    // with `\n` boundaries; a `data:` payload can be split down the middle.
     // Foundation's async byte stream (behind URLSession.bytes) is supposed
     // to reassemble lines regardless of chunk boundaries; this test drives
     // that with a URLProtocol that delivers a JSON payload in three pieces.
