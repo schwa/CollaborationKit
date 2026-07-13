@@ -2542,3 +2542,21 @@ macOS only.
 Distinct enough from the remote HTTP providers that it likely warrants its own backend type and settings surface (socket path, model selection, etc.) rather than shoehorning into the existing HTTP-based provider abstraction.
 
 ---
+
+## 94: Support slash commands in the composer
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T16:38:45Z
++++
+
+Let the user type slash commands (e.g. `/clear`, `/model …`, `/export`) in the composer to trigger app or session actions without a tool round-trip.
+
+Needs:
+- A registry of available commands with descriptions.
+- Composer UI: autocomplete/menu when the prompt starts with `/`.
+- Dispatch that runs the command instead of sending the text to the model.
+
+---
