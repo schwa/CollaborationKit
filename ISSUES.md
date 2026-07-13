@@ -69,11 +69,11 @@ Added 7 unit tests (RetryTests) for policy/classifier/header parsing and 3 seria
 
 +++
 status: open
-priority: medium
+priority: high
 kind: enhancement
 labels: enhancement, effort:m
 created: 2026-06-23T23:14:06Z
-updated: 2026-07-13T01:49:39Z
+updated: 2026-07-13T14:14:40Z
 +++
 
 send() is not easily cancellable mid-turn and the session events stream never finishes (its continuation is never terminated). For any UI, cancelling a turn should stop the in-flight request, stop the tool loop, and let observers know. Wire Task cancellation through the provider streams and the session loop; consider finishing or yielding a terminal event so the events AsyncStream completes.
@@ -684,11 +684,11 @@ Related: RFC 0002, #13.
 
 +++
 status: open
-priority: none
+priority: low
 kind: feature
 labels: effort:m
 created: 2026-07-13T01:28:00Z
-updated: 2026-07-13T06:20:30Z
+updated: 2026-07-13T14:14:52Z
 +++
 
 RFC 0002 calls for a small Theme struct (colors, spacing, corner radii, typography) read from the environment, with hosts overriding per-view or per-tree. Currently ConversationRowView and ComposerView hard-code accent/secondary/red colors and 10/12/16pt spacing.
@@ -741,11 +741,11 @@ Verified: xcodebuild against a generic iOS Simulator destination builds the Coll
 
 +++
 status: open
-priority: low
+priority: high
 kind: feature
 labels: effort:m
 created: 2026-07-13T01:28:00Z
-updated: 2026-07-13T01:49:58Z
+updated: 2026-07-13T14:14:59Z
 +++
 
 Right now ConversationRowView renders every tool call the same way: icon + summary line + optional monospaced result. Rich hosts want per-tool custom content (e.g. Phosphor's compileShader row showing diagnostics inline, a diff view for edit results, an image preview for an image-gen tool).
@@ -927,11 +927,11 @@ ConversationStore.buildExport(model:userInfo:) gathers the snapshot; SessionExpo
 
 +++
 status: open
-priority: low
+priority: high
 kind: feature
 labels: effort:s
 created: 2026-07-13T01:40:35Z
-updated: 2026-07-13T06:19:05Z
+updated: 2026-07-13T14:15:02Z
 +++
 
 Phosphor's transcript accepts image file drops (URLs) directly onto the scroll area and routes them into the pending composer attachments. CollaborationKitUI's TranscriptView has no dropDestination — users must go through the paperclip importer.
@@ -1746,11 +1746,11 @@ DemoNotes marks delete as requiresApproval: true, but the demo's LLMSession is c
 
 +++
 status: open
-priority: medium
+priority: high
 kind: feature
 labels: effort:m
 created: 2026-07-13T05:44:43Z
-updated: 2026-07-13T06:18:59Z
+updated: 2026-07-13T14:15:19Z
 +++
 
 During an active conversation turn (assistant streaming, tools running, etc.) the composer input is locked. The user has to wait for the whole turn to finish before typing the next prompt.
@@ -1781,11 +1781,11 @@ The placeholder text (and probably the whole placeholder view) needs to be host-
 
 +++
 status: open
-priority: medium
+priority: high
 kind: feature
 labels: effort:m
 created: 2026-07-13T05:57:23Z
-updated: 2026-07-13T06:19:04Z
+updated: 2026-07-13T14:15:16Z
 +++
 
 Pasting an image (or any file) into the composer's text field does nothing. Users have no way to attach visual/document content to a prompt short of describing it in words.
@@ -1799,12 +1799,13 @@ The composer should accept pasted images and file attachments from the clipboard
 ## 67: Composer doesn't accept dragged images or file attachments
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:m
 created: 2026-07-13T05:57:24Z
-updated: 2026-07-13T06:19:05Z
+updated: 2026-07-13T14:14:34Z
+closed: 2026-07-13T14:14:34Z
 +++
 
 Dragging an image or file onto the composer's text field does nothing. Users can't drop a screenshot, PDF, or other document onto the input to attach it.
@@ -1861,11 +1862,11 @@ The current conversation view has limited text selection and other interaction a
 
 +++
 status: open
-priority: medium
+priority: high
 kind: enhancement
 labels: effort:s
 created: 2026-07-13T06:13:38Z
-updated: 2026-07-13T06:18:59Z
+updated: 2026-07-13T14:15:21Z
 +++
 
 Phosphor's composer shows a small caption above the prompt field: "cpu · <Backend display name> · <selected model id>". CollaborationKit's `ComposerView` has no slot for this and no built-in rendering of the active backend/model.
