@@ -904,12 +904,13 @@ Related: RFC 0003, #14, #25.
 ## 40: RFC 0003: improve unsupported-input-type macro diagnostic
 
 +++
-status: open
+status: closed
 priority: high
 kind: enhancement
 labels: effort:s
 created: 2026-07-13T01:43:27Z
-updated: 2026-07-13T01:53:30Z
+updated: 2026-07-13T02:00:33Z
+closed: 2026-07-13T02:00:33Z
 +++
 
 Today `SchemaDerivationError.unsupportedType` (Sources/CollaborationKitMacros/SchemaDerivation.swift) surfaces as:
@@ -924,6 +925,8 @@ Actionable improvements:
 - Point at the RFC section that documents supported types.
 
 Related: RFC 0003, #14, #21, #25.
+
+- `2026-07-13T02:00:33Z`: Diagnostic message rewritten to point at concrete workarounds available today (primitive-id pattern; Encodable-return works) and the follow-ups that will eventually cover richer types (#21, #24, #25, #41). SchemaDerivationError gained a `typeName` accessor so the macro can construct tailored messages without parsing the description string. Not covered by a unit test yet — diagnostic testing needs SwiftSyntaxMacrosTestSupport, tracked in #23.
 
 ---
 

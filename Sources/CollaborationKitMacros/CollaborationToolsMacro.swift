@@ -93,7 +93,7 @@ public enum CollaborationToolsMacro: MemberMacro {
                 } catch let error as SchemaDerivationError {
                     context.diagnose(Diagnostic(
                         node: Syntax(param.type),
-                        message: MacroDiagnostic.unsupportedType(error.description)
+                        message: MacroDiagnostic.unsupportedInputType(error.typeName)
                     ))
                     hadUnsupported = true
                 }
@@ -310,6 +310,25 @@ struct MacroDiagnostic: DiagnosticMessage {
         MacroDiagnostic(
             message: description,
             diagnosticID: MessageID(domain: "CollaborationKitMacros", id: "unsupportedType"),
+            severity: .error
+        )
+    }
+
+    /// A tailored diagnostic for an unsupported parameter type, pointing at
+    /// the concrete workarounds available today and the follow-up work that
+    /// will eventually cover it.
+    static func unsupportedInputType(_ typeName: String) -> MacroDiagnostic {
+        let message = """
+        Unsupported parameter type '\(typeName)'. \
+        Slice 1 supports Bool, Int, Double, Float, String, Optional<T>, Array<T>, and [String: T] where T is one of the same. \
+        Workarounds: \
+        (1) pass a primitive id (e.g. String) and look up the value inside the method — the recommended pattern for referring to host-owned objects; \
+        (2) return types have no such restriction — anything Encodable or CollaborationResultConvertible works today. \
+        Follow-ups: #21 (nested @CollaborationTools by id), #24 (schema derivation for enums / tuples / generic wrappers), #25 (CollaborationSchemaConvertible escape hatch), #41 (RawRepresentable typed ids).
+        """
+        return MacroDiagnostic(
+            message: message,
+            diagnosticID: MessageID(domain: "CollaborationKitMacros", id: "unsupportedInputType"),
             severity: .error
         )
     }

@@ -60,6 +60,14 @@ enum ParamType {
 enum SchemaDerivationError: Error, CustomStringConvertible {
     case unsupportedType(String)
 
+    /// The offending type name, for constructing tailored diagnostics.
+    var typeName: String {
+        switch self {
+        case .unsupportedType(let name):
+            return name
+        }
+    }
+
     var description: String {
         switch self {
         case .unsupportedType(let name):
