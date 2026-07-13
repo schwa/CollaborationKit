@@ -690,3 +690,163 @@ created: 2026-07-13T01:36:39Z
 Port the progress/stop button UI component from the Phosphor project into the CollaborationKitUI target. Used to indicate an in-flight LLM turn and let the user cancel it.
 
 ---
+
+## 34: CollaborationKitUI: model picker per backend
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T01:40:35Z
++++
+
+Phosphor's Settings has a ModelPickerSection that fetches the available models for the selected backend (via ModelLister), filters to chat/tool-capable ids, sorts them, and persists the user's selection. CollaborationKitUI currently only knows CollaborationBackend.defaultModel.
+
+Design:
+- ModelPickerSection view usable inside CollaborationSettingsView (or standalone).
+- Fetches via the ModelLister protocol against the currently-configured backend.
+- Filters obvious non-chat models (embeddings, audio, image, moderation, dated snapshots) with a customizable predicate.
+- Persists selection to UserDefaults under a caller-supplied key (defaults to "collaborationkit.model.<backend>").
+- CollaborationCredentials.makeProvider(model:) already accepts an override; add a resolved-selection accessor so hosts don't reinvent it.
+- Graceful fallback when the fetch fails or credentials are missing.
+
+Blocks: any Phosphor migration onto CollaborationKitUI.
+Related: RFC 0002, #13, #28.
+
+---
+
+## 35: CollaborationKitUI: session debug export (JSON)
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T01:40:35Z
++++
+
+Phosphor's ConversationExport bundles a full session snapshot (raw transcript, system prompt, model id, cumulative usage, last error, tool calls/results, and any host-specific state like current shader source) into a Codable JSON export, then hands it to .fileExporter.
+
+Design:
+- Codable SessionExport value covering: exportedAt, model id, system prompt, TokenUsage, lastError, [Message], and the projected [ConversationItem] transcript with per-row timing.
+- ConversationStore.buildExport() async that gathers the LLMSession's authoritative messages/usage plus the projected items.
+- FileDocument (or Transferable) conformance for .fileExporter usage.
+- Extension point for hosts to attach domain payload (e.g. Phosphor's currentSource) via a generic parameter or a userInfo dictionary.
+
+Blocks: any Phosphor migration onto CollaborationKitUI.
+Related: RFC 0002, #13.
+
+---
+
+## 36: CollaborationKitUI: image drop destination on the transcript
+
++++
+status: new
+priority: low
+kind: feature
+created: 2026-07-13T01:40:35Z
++++
+
+Phosphor's transcript accepts image file drops (URLs) directly onto the scroll area and routes them into the pending composer attachments. CollaborationKitUI's TranscriptView has no dropDestination — users must go through the paperclip importer.
+
+Design:
+- TranscriptView gains a dropDestination(for: URL.self) that funnels dropped files into the ComposerView's attachment list.
+- ComposerView exposes a way to receive attachments programmatically (init/binding or a small controller).
+- Handle security-scoped URL access.
+
+Blocks: parity with Phosphor's drag-drop experience.
+Related: RFC 0002, #13.
+
+---
+
+## 37: CollaborationKitUI: menu-command / focused-scene-value hooks
+
++++
+status: new
+priority: low
+kind: feature
+created: 2026-07-13T01:40:35Z
++++
+
+Phosphor exposes actions (export debug info, stop generation, roll back) to the app menu via focusedSceneValue with typed FocusedValueKey values, so the File / Edit menus can trigger them contextually.
+
+Design:
+- Public FocusedValueKey types for the actions CollaborationKitUI can drive: exportSession, stopGeneration, rollBack (once rollback lands).
+- A small Actions value type surfaced by CollaborationChatView / TranscriptView / ComposerView via focusedSceneValue.
+- Documented pattern for hosts to add CommandMenu items that consume them.
+
+Related: RFC 0002, #13, #26 (rollback), and the export issue above.
+
+---
+
+## 38: CollaborationKitUI: glowing multicolor prompt border (opt-in)
+
++++
+status: new
+priority: low
+kind: feature
+created: 2026-07-13T01:40:36Z
++++
+
+Phosphor's composer sports a distinctive multicolor glowing border on the prompt field that brightens on focus. It's decorative and Phosphor-only today; ComposerView uses a plain 1pt accent border.
+
+Design:
+- ViewModifier (glowingPromptBorder(cornerRadius:active:)) shipped with CollaborationKitUI.
+- Opt-in per host \u2014 the default border stays plain so we don't foist chrome on everyone.
+- ComposerView gains an initializer parameter (borderStyle: .plain | .glow) or exposes the modifier for hosts to apply.
+
+Related: RFC 0002, #13, #27 (theme).
+
+---
+
+## 39: RFC 0003: replace `String(describing:)` fallback in `_ckStringify`
+
++++
+status: new
+priority: medium
+kind: enhancement
+created: 2026-07-13T01:43:27Z
++++
+
+Today `_ckStringify` (Sources/CollaborationKit/Macros/CollaborationResult.swift) handles a return type in this order:
+
+1. `CollaborationResultConvertible` conformance
+2. `Encodable` (JSON encoded)
+3. `String(describing:)` fallback
+
+The third branch is a footgun: a struct that conforms to neither ends up sent to the model as `NoteRow(id: "n1", title: "Groceries")` — not JSON, not obviously human-readable, and the model then has to guess how to parse it. Silent bad behavior.
+
+Options:
+
+- **Runtime error.** Throw a clear `ToolError("Return type \(T.self) needs Encodable or CollaborationResultConvertible")`; the session converts it to an `is_error` tool result and the model learns. Cheap, obvious, but every-turn cost.
+- **`Mirror` fallback.** Reflect the value into a synthetic JSON object (properties → keys). Better than `String(describing:)` but slow, doesn't handle collections/enums with associated values cleanly, and effectively hides the missing conformance.
+- **Macro-time check.** Have `@CollaborationTool` inspect the return type and emit a compile-time diagnostic ("Return type X does not conform to Encodable or CollaborationResultConvertible; conform one of them."). Best DX but SwiftSyntax can't check conformances directly — only surface-level heuristics.
+
+Recommendation: land the runtime error first (safe, immediate), consider the `Mirror` fallback as an opt-in for prototyping, and pursue a macro-time diagnostic when we can.
+
+Related: RFC 0003, #14, #25.
+
+---
+
+## 40: RFC 0003: improve unsupported-input-type macro diagnostic
+
++++
+status: new
+priority: low
+kind: enhancement
+created: 2026-07-13T01:43:27Z
++++
+
+Today `SchemaDerivationError.unsupportedType` (Sources/CollaborationKitMacros/SchemaDerivation.swift) surfaces as:
+
+    Unsupported parameter/return type: NoteRow. Slice 1 supports Bool, Int, Double, Float, String, Optional, Array, and [String: T] where T is one of the same.
+
+Actionable improvements:
+
+- Once #25 (CollaborationSchemaConvertible escape hatch) lands, mention it in the diagnostic message.
+- For struct/class parameter types, suggest the ID-pattern ("Pass a String id and look up the value inside the method — see #21").
+- Emit a FixIt suggesting the primitive workaround when the offending type is a Codable value type (best-effort — SwiftSyntax can only see the declared type, not conformances).
+- Point at the RFC section that documents supported types.
+
+Related: RFC 0003, #14, #21, #25.
+
+---
