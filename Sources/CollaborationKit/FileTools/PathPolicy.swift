@@ -2,9 +2,9 @@ import Foundation
 
 /// An allowlist of filesystem locations tools may read from or write to.
 ///
-/// The built-in ``ReadTool`` / ``WriteTool`` / ``EditTool`` accept a single
-/// ``TextDocument`` at construction, so their filesystem reach is already
-/// bounded to what the caller passed in. Hosts building **their own**
+/// The built-in ``FileTools`` accept a single ``TextDocument`` at
+/// construction, so their filesystem reach is already bounded to what the
+/// caller passed in. Hosts building **their own**
 /// path-parameterized tools (e.g. "list files in this directory", "open a
 /// project file by name") use ``PathPolicy`` to gate every path the model
 /// supplies against a set of pre-approved roots.

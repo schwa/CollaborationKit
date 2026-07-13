@@ -1711,12 +1711,13 @@ Backend lives in CollaborationKitUI although it is a provider-registry concept, 
 ## 62: FileTools hand-writes JSON schemas the @CollaborationTools macro automates; tool call() bodies untested
 
 +++
-status: open
+status: closed
 priority: high
 kind: enhancement
 labels: architecture, testing, effort:m
 created: 2026-07-13T05:06:25Z
-updated: 2026-07-13T06:21:26Z
+updated: 2026-07-13T06:32:19Z
+closed: 2026-07-13T06:32:19Z
 +++
 
 FileTools.swift predates the @CollaborationTools macro (RFC 0003) and hand-declares name/description/inputSchema/call for each tool, giving an interface/implementation ratio near 1:1. The Read/Write/EditTool call() bodies are untested (e.g. EditTool's uniqueness counting via components(separatedBy:)); only PathPolicy has test coverage.

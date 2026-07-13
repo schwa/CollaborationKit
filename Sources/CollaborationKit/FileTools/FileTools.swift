@@ -1,116 +1,50 @@
 import Foundation
 
-/// A tool that reads the full contents of a ``TextDocument``.
-public struct ReadTool: Tool {
-    public struct Input: Decodable, Sendable {
-        public init() {}
-    }
+/// The read/write/edit tool set for a single ``TextDocument``.
+///
+/// Uses ``CollaborationTools(prefix:)`` to derive tool names, descriptions,
+/// and JSON schemas from the methods below, so this file has one job:
+/// implement the three actual document operations. The previous hand-written
+/// `ReadTool` / `WriteTool` / `EditTool` structs (with hand-maintained
+/// `inputSchema` literals) were replaced by this in RFC 0003 follow-up.
+///
+/// The three methods are also the natural seam for unit tests, since they
+/// operate directly on the ``TextDocument`` without needing the JSON layer.
+@CollaborationTools
+public struct FileTools: Sendable {
+    /// The document the tools operate on.
+    public let document: any TextDocument
 
-    private let document: TextDocument
-
-    public init(document: TextDocument) {
+    public init(document: any TextDocument) {
         self.document = document
     }
 
-    public var name: String { "read" }
-    public var description: String { "Read the full current contents of the document." }
-    public var inputSchema: JSONValue {
-        .object([
-            "type": "object",
-            "properties": .object([:])
-        ])
-    }
-
-    public func call(_: Input) throws -> String {
+    /// Read the full current contents of the document.
+    @CollaborationTool
+    public func read() throws -> String {
         do {
             return try document.read()
         } catch {
             throw ToolError("Failed to read document: \(error.localizedDescription)")
         }
     }
-}
 
-/// A tool that overwrites the full contents of a ``TextDocument``.
-public struct WriteTool: Tool {
-    public struct Input: Decodable, Sendable {
-        public let content: String
-    }
-
-    private let document: TextDocument
-
-    public init(document: TextDocument) {
-        self.document = document
-    }
-
-    public var name: String { "write" }
-    public var description: String {
-        "Overwrite the entire document with new content. Provide the complete new contents."
-    }
-    public var inputSchema: JSONValue {
-        .object([
-            "type": "object",
-            "properties": .object([
-                "content": .object([
-                    "type": "string",
-                    "description": "The complete new contents of the document."
-                ])
-            ]),
-            "required": .array(["content"])
-        ])
-    }
-
-    public func call(_ input: Input) throws -> String {
+    /// Overwrite the entire document with new content. Provide the complete new contents.
+    @CollaborationTool
+    public func write(content: String) throws -> String {
         do {
-            try document.write(input.content)
-            return "Wrote \(input.content.count) characters."
+            try document.write(content)
+            return "Wrote \(content.count) characters."
         } catch {
             throw ToolError("Failed to write document: \(error.localizedDescription)")
         }
     }
-}
 
-/// A tool that performs an exact, unique string replacement within a document.
-///
-/// The `oldText` must appear exactly once in the document; otherwise the edit is
-/// rejected with an error result so the model can supply more context.
-public struct EditTool: Tool {
-    public struct Input: Decodable, Sendable {
-        public let oldText: String
-        public let newText: String
-    }
-
-    private let document: TextDocument
-
-    public init(document: TextDocument) {
-        self.document = document
-    }
-
-    public var name: String { "edit" }
-    public var description: String {
-        """
-        Replace an exact, unique span of text in the document. \
-        `oldText` must match exactly once; include enough surrounding context to \
-        make it unique. Use `write` to create content in an empty document.
-        """
-    }
-    public var inputSchema: JSONValue {
-        .object([
-            "type": "object",
-            "properties": .object([
-                "oldText": .object([
-                    "type": "string",
-                    "description": "The exact text to replace. Must be unique in the document."
-                ]),
-                "newText": .object([
-                    "type": "string",
-                    "description": "The replacement text."
-                ])
-            ]),
-            "required": .array(["oldText", "newText"])
-        ])
-    }
-
-    public func call(_ input: Input) throws -> String {
+    /// Replace an exact, unique span of text in the document. `oldText` must
+    /// match exactly once; include enough surrounding context to make it
+    /// unique. Use `write` to create content in an empty document.
+    @CollaborationTool
+    public func edit(oldText: String, newText: String) throws -> String {
         let current: String
         do {
             current = try document.read()
@@ -118,13 +52,13 @@ public struct EditTool: Tool {
             throw ToolError("Failed to read document: \(error.localizedDescription)")
         }
 
-        let occurrences = current.components(separatedBy: input.oldText).count - 1
+        let occurrences = current.components(separatedBy: oldText).count - 1
         switch occurrences {
         case 0:
             throw ToolError("`oldText` was not found in the document.")
 
         case 1:
-            let updated = current.replacingOccurrences(of: input.oldText, with: input.newText)
+            let updated = current.replacingOccurrences(of: oldText, with: newText)
             do {
                 try document.write(updated)
             } catch {
@@ -140,11 +74,9 @@ public struct EditTool: Tool {
 
 extension Array where Element == AnyTool {
     /// The standard read/write/edit tool set for a single document.
-    public static func fileTools(for document: TextDocument) -> [AnyTool] {
-        [
-            ReadTool(document: document).eraseToAnyTool(),
-            WriteTool(document: document).eraseToAnyTool(),
-            EditTool(document: document).eraseToAnyTool()
-        ]
+    ///
+    /// Equivalent to `FileTools(document: document).collaborationTools`.
+    public static func fileTools(for document: any TextDocument) -> [AnyTool] {
+        FileTools(document: document).collaborationTools
     }
 }
