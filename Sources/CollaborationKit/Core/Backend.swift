@@ -71,17 +71,32 @@ public struct Backend: Sendable, Identifiable, Hashable {
 // MARK: - Built-in backends
 
 extension Backend {
+    /// Stable id / display-name pairs for the three built-in backends.
+    ///
+    /// The built-in `Backend` values need to embed their own id in both the
+    /// public `id` property and inside the `makeProvider` closure's error
+    /// payload, because the closure is constructed before `self` exists.
+    /// Naming both spellings once here keeps them from drifting.
+    private enum Builtin {
+        static let claudeSubscription = (id: "claudeSubscription", displayName: "Claude Subscription")
+        static let anthropicAPI = (id: "anthropicAPI", displayName: "Anthropic API")
+        static let openAI = (id: "openAI", displayName: "OpenAI")
+    }
+
     /// Claude via a Claude subscription (unofficial OAuth).
     public static let claudeSubscription = Backend(
-        id: "claudeSubscription",
-        displayName: "Claude Subscription",
+        id: Builtin.claudeSubscription.id,
+        displayName: Builtin.claudeSubscription.displayName,
         defaultModel: "claude-sonnet-4-5",
         hasCredentials: { store in
             store.anthropicOAuthCredentials() != nil
         },
         makeProvider: { store, model, maxTokens, baseURL in
             guard store.anthropicOAuthCredentials() != nil else {
-                throw CollaborationCredentialsError.missingCredentials(id: "claudeSubscription", displayName: "Claude Subscription")
+                throw CollaborationCredentialsError.missingCredentials(
+                    id: Builtin.claudeSubscription.id,
+                    displayName: Builtin.claudeSubscription.displayName
+                )
             }
             let tokenProvider = anthropicOAuthTokenProvider(store: store)
             let auth = AnthropicAuth.oauth { try await tokenProvider() }
@@ -94,15 +109,19 @@ extension Backend {
 
     /// Anthropic Claude via a billed API key.
     public static let anthropicAPI = Backend(
-        id: "anthropicAPI",
-        displayName: "Anthropic API",
+        id: Builtin.anthropicAPI.id,
+        displayName: Builtin.anthropicAPI.displayName,
         defaultModel: "claude-sonnet-4-5",
         hasCredentials: { store in
             if case .found(let v) = store.anthropicAPIKey(), !v.isEmpty { return true }
             return false
         },
         makeProvider: { store, model, maxTokens, baseURL in
-            let key = try Backend.readAPIKey(store.anthropicAPIKey(), id: "anthropicAPI", displayName: "Anthropic API")
+            let key = try Backend.readAPIKey(
+                store.anthropicAPIKey(),
+                id: Builtin.anthropicAPI.id,
+                displayName: Builtin.anthropicAPI.displayName
+            )
             var config = AnthropicConfig(apiKey: key, model: model, maxTokens: maxTokens)
             if let baseURL { config.baseURL = baseURL }
             return AnthropicProvider(config: config)
@@ -112,15 +131,19 @@ extension Backend {
 
     /// The OpenAI API (or an OpenAI-compatible server) via an API key.
     public static let openAI = Backend(
-        id: "openAI",
-        displayName: "OpenAI",
+        id: Builtin.openAI.id,
+        displayName: Builtin.openAI.displayName,
         defaultModel: "gpt-4o",
         hasCredentials: { store in
             if case .found(let v) = store.openAIAPIKey(), !v.isEmpty { return true }
             return false
         },
         makeProvider: { store, model, maxTokens, baseURL in
-            let key = try Backend.readAPIKey(store.openAIAPIKey(), id: "openAI", displayName: "OpenAI")
+            let key = try Backend.readAPIKey(
+                store.openAIAPIKey(),
+                id: Builtin.openAI.id,
+                displayName: Builtin.openAI.displayName
+            )
             var config = OpenAIConfig(apiKey: key, model: model, maxTokens: maxTokens)
             if let baseURL { config.baseURL = baseURL }
             return OpenAIProvider(config: config)

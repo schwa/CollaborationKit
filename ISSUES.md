@@ -2029,12 +2029,13 @@ In the chat UI, tapping an attachment should open/preview it. Currently there's 
 ## 77: Review uses of stringy keys
 
 +++
-status: open
+status: closed
 priority: medium
 kind: task
 labels: effort:m
 created: 2026-07-13T15:02:13Z
-updated: 2026-07-13T15:11:44Z
+updated: 2026-07-13T15:24:38Z
+closed: 2026-07-13T15:24:38Z
 +++
 
 Audit the codebase for places where we use bare String keys (UserDefaults keys, Keychain account names, Codable CodingKeys spelled as raw strings, dictionary keys, notification names, etc.) and evaluate whether they should be strongly-typed instead.
@@ -2047,6 +2048,74 @@ Areas to look at:
 - Any other ad-hoc string constants used as lookup keys
 
 For each site, note whether a typed wrapper (e.g. a `RawRepresentable` key type, dedicated enum, or `KeyPath`-based API) would prevent typos, collisions, or drift between read/write sites.
+
+- `2026-07-13T15:24:38Z`: Audit posted; applied the one small fix it recommended (deduping built-in Backend id/displayName strings into a private `Builtin` enum in Backend.swift).
+- `2026-07-13T15:24:42Z`: # Stringy-key audit (issue #77)
+
+Scanned: `UserDefaults` call sites, Keychain `kSecAttr*` usage, `[String: Any]` payloads, `CodingKeys`, backend/provider identifiers, and other lookup-key strings across `Sources/`.
+
+## UserDefaults
+
+- `CollaborationCredentials(defaultsKey: "collaborationkit.backend")` — public init parameter, default lives in one place. No drift risk.
+- `Backend.modelDefaultsKey` — computed as `"collaborationkit.model.\(id)"` on `Backend`; all four call sites in `CollaborationCredentials.swift` route through the property. No magic strings scattered.
+- `CLICredentialStore.defaultsKey(for:)` — CLI-local helper, one derivation site.
+
+**Verdict:** already centralized. No change needed.
+
+## Keychain
+
+- `KeychainCredentialStore` account values flow from `CredentialStoreKey.anthropicAPIKey/anthropicOAuth/openAIAPIKey` (with `CredentialStore.StandardKey` alias). Callers don't spell raw account strings.
+- `kSecClass`/`kSecAttrService`/`kSecAttrAccount`/`kSecValueData` etc. are `CFString` constants bridged via `as String` — that's the idiomatic Security API surface, not a stringy-key smell.
+- `[String: Any]` query dictionaries are required by `SecItemCopyMatching`/`SecItemAdd`/`SecItemUpdate`; can't be typed further without a wrapper that offers nothing but ceremony.
+
+**Verdict:** already keyed off `CredentialStoreKey`. No change needed.
+
+## Codable / CodingKeys
+
+- `ConversationItem` and `Message` use `enum CodingKeys: String, CodingKey`. The strings are wire-format identifiers (`type`, `uuid`, `text`, `images`, `name`, …) — they must be raw strings by design.
+- Nested tag enums (`Kind`, `Tag`) are `String, Codable` so the on-wire discriminator is spelled exactly.
+
+**Verdict:** correct pattern; no action.
+
+## Backend / provider identifiers — the one real smell
+
+`Backend`'s three built-ins (`claudeSubscription`, `anthropicAPI`, `openAI` in `Backend.swift`) each spell their id twice:
+
+```
+static let anthropicAPI = Backend(
+    id: "anthropicAPI",                     // <-- here
+    ...
+    makeProvider: { store, model, ... in
+        let key = try Backend.readAPIKey(
+            store.anthropicAPIKey(),
+            id: "anthropicAPI",             // <-- and again
+            displayName: "Anthropic API"
+        )
+        ...
+    }
+)
+```
+
+The `makeProvider` closure is initialized before the `Backend` value exists, so it can't reach `self.id`. If someone renames a built-in id, they have to update both spellings or the error payload silently drifts from the runtime id.
+
+**Options:**
+1. Extract each built-in id into a `private enum BuiltinBackendID { static let anthropicAPI = "anthropicAPI"; … }` and reference it from both places.
+2. Move the `readAPIKey` call to a small helper that receives the `Backend` and reads `.id`/`.displayName` off it (requires post-init construction — could be a static factory method that returns a `Backend` from separate closures).
+3. Leave as-is and add a debug assertion in `init` that the closures don't reference a stale id (hard to check statically).
+
+Option 1 is small and mechanical; recommend that if we do anything here.
+
+## Everything else scanned
+
+- `ClaudeCodeIdentity.userAgent/.betas/.app` — centralized string constants used from one call site each.
+- `AnthropicConfig.apiVersion: String` — value comes from the caller; a `RawRepresentable` wrapper would add ceremony without shrinking the API surface.
+- `[String: String]` in `SessionExport.userInfo` and `AnthropicOAuth` request bodies — genuinely open string bags by design.
+- No `NotificationCenter` / `Notification.Name` usage anywhere in `Sources/`.
+- Model ids (Anthropic/OpenAI) pass through as `String` — that matches how the wire APIs treat them; wrapping them in a phantom type would fight the servers' own vocabulary.
+
+## Summary
+
+Everything the issue named is already typed except the built-in `Backend` id duplication. Recommend a small follow-up to extract the three built-in id strings into a private `enum` and reuse them from both the `id:` and the `readAPIKey(id:)` call. All other stringy-key sites are either centralized via `CredentialStoreKey` / `Backend.modelDefaultsKey`, imposed by wire formats, or imposed by system frameworks (Keychain, Security).
 
 ---
 
