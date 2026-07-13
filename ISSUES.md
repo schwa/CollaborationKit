@@ -556,6 +556,8 @@ RFC 0003 open question 1 asks how far the built-in derivation should go before r
 
 Whichever we support should have expansion tests and a clear line vs. the escape hatch.
 
+- `2026-07-13T02:01:07Z`: Punt from autonomous run: this is a design decision, not an implementation task. The issue itself asks 'candidates to decide on' — string/int-backed enums, associated-value enums, labeled tuples, user-declared generic wrappers. Without knowing the target type's conformances at macro-expansion time (SwiftSyntax can't resolve conformances), the only safe path is either (a) a per-type annotation the user spells, or (b) route everything through CollaborationSchemaConvertible (#25). Recommend: land #25 first (explicit escape hatch), then reconsider what to bake in built-in. Meanwhile #41 covers RawRepresentable typed ids as its own targeted slice. Needs product call before implementation.
+
 ---
 
 ## 25: RFC 0003: CollaborationSchemaConvertible escape hatch for custom parameter/return types
