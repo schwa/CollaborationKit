@@ -56,4 +56,14 @@ public enum SessionEvent: Sendable {
     ///   round-trip of the cancelled turn, concatenated in order. Empty
     ///   when the model had not yet emitted any text.
     case turnCancelled(partialText: String)
+
+    /// The turn ended, for any reason — natural completion, cancellation,
+    /// or an error thrown out of ``LLMSession/send(_:)``.
+    ///
+    /// Always the last event of a turn, emitted after every other event the
+    /// turn produced (including ``turnComplete(text:usage:stopReason:)`` or
+    /// ``turnCancelled(partialText:)``). Consumers that mirror session state
+    /// can treat its arrival as proof that the stream is drained for the
+    /// turn — no `.historyChanged` or `.usage` events remain buffered.
+    case turnEnded
 }

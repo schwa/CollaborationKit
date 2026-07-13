@@ -65,6 +65,21 @@ public final class ConversationStore {
     private var eventTask: Task<Void, Never>?
     private var sendTask: Task<Void, Never>?
 
+    /// In-flight session-history truncation started by ``rollBack(through:)``.
+    /// Awaited by ``run(_:)`` before the next send so a prompt issued right
+    /// after a rollback can't reach the session before the truncation does.
+    @ObservationIgnored
+    private var truncationTask: Task<Void, Never>?
+
+    /// Set when the pump sees the current turn's `.turnEnded` sentinel.
+    @ObservationIgnored
+    private var turnEnded = false
+
+    /// Suspended ``waitForTurnEnd()`` caller, resumed by the pump on
+    /// `.turnEnded` (or by ``cancel()`` during teardown).
+    @ObservationIgnored
+    private var turnEndContinuation: CheckedContinuation<Void, Never>?
+
     /// Rollback snapshots keyed by the user message's id. Each entry pairs
     /// the host's restore closure with the mirror's message count *before*
     /// the user prompt was appended — the point ``rollBack(through:)`` will
@@ -123,6 +138,10 @@ public final class ConversationStore {
     public func cancel() {
         eventTask?.cancel()
         sendTask?.cancel()
+        // The pump is dead after this; release any turn-end waiter so a
+        // send task blocked in waitForTurnEnd() doesn't hang forever.
+        turnEndContinuation?.resume()
+        turnEndContinuation = nil
     }
 
     // MARK: - Sending
@@ -189,6 +208,10 @@ public final class ConversationStore {
     }
 
     private func run(_ userMessage: Message) async {
+        // A rollback may still be truncating the session's history; let it
+        // land before this turn's history is sent to the provider.
+        await truncationTask?.value
+        turnEnded = false
         defer {
             isGenerating = false
             sendTask = nil
@@ -221,29 +244,36 @@ public final class ConversationStore {
                 onTurnEnded?(.failed("\(error)"))
             }
         }
-        // Give the event pump a few ticks to dequeue any events still
-        // buffered on the AsyncStream. session.send returns as soon as
-        // its final event is yielded onto the stream; a `.historyChanged`
-        // or `.usage` event just before that yield may still be waiting
-        // on the pump task's `await next()`. Yielding on @MainActor lets
-        // the pump run before we clear `isGenerating`, so observers who
-        // read state right after the flag flips see up-to-date mirror /
-        // usage values instead of a version from a few events ago.
+        // Wait for the event pump to drain the turn's remaining buffered
+        // events. session.send returns as soon as its final event is
+        // yielded onto the AsyncStream; a `.historyChanged` or `.usage`
+        // event may still be waiting on the pump task's `await next()`.
+        // The session emits a `.turnEnded` sentinel as the turn's very
+        // last event, so once the pump has seen it every earlier event
+        // has been handled and observers who read state right after
+        // `isGenerating` flips see up-to-date mirror / usage values.
         //
         // Usage was accumulated live in `handle` from `.usage` events.
         // Re-reading `session.totalUsage` here would race the pump: any
         // `.usage` event still buffered would be added on top of a value
         // that already included it. Trust the pump — just wait for it.
-        await waitForEventPump()
+        await waitForTurnEnd()
     }
 
-    /// Waits for the event pump to catch up with events buffered on the
-    /// AsyncStream. On @MainActor the pump is serialized with this task,
-    /// so a handful of yields is enough for it to drain the queue and
-    /// re-suspend at `await next()`. See ``run(_:)`` for the rationale.
-    private func waitForEventPump() async {
-        for _ in 0..<8 {
-            await Task.yield()
+    /// Suspends until the pump handles the current turn's `.turnEnded`
+    /// sentinel. Returns immediately if it already arrived. Resumed by
+    /// ``cancel()`` during teardown so the send task can't leak.
+    private func waitForTurnEnd() async {
+        if turnEnded { return }
+        await withCheckedContinuation { continuation in
+            // Re-check after suspension was requested: the pump runs on
+            // the same actor and may have handled `.turnEnded` between
+            // the guard above and this closure executing.
+            if turnEnded {
+                continuation.resume()
+            } else {
+                turnEndContinuation = continuation
+            }
         }
     }
 
@@ -287,7 +317,13 @@ public final class ConversationStore {
         // session's own history to the same pre-turn count.
         let keep = entry.messageCount
         mirror.truncate(keepingMessages: keep)
-        Task { [session] in await session.truncateHistory(keeping: keep) }
+        // Tracked so the next turn's `run(_:)` awaits it — a send issued
+        // right after this call must not race the truncation to the actor.
+        let previous = truncationTask
+        truncationTask = Task { [session] in
+            await previous?.value
+            await session.truncateHistory(keeping: keep)
+        }
 
         // Any snapshot whose pre-turn count is >= the rollback point
         // referred to a turn that no longer exists.
@@ -313,6 +349,11 @@ public final class ConversationStore {
     private func handle(_ event: SessionEvent) {
         if case .usage(let turnUsage) = event {
             usage += turnUsage
+        }
+        if case .turnEnded = event {
+            turnEnded = true
+            turnEndContinuation?.resume()
+            turnEndContinuation = nil
         }
         mirror.handle(event, summary: summarizeTool)
         reproject()

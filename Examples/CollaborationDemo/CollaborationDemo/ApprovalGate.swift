@@ -41,8 +41,20 @@ final class ApprovalGate {
             existing.continuation.resume(returning: .deny(reason: "Superseded by a new approval request."))
             pending = nil
         }
-        return await withCheckedContinuation { continuation in
-            pending = PendingApproval(use: use, continuation: continuation)
+        // Cancellation-aware: if the turn is cancelled while suspended
+        // here (e.g. the user hits Stop with the alert open), resolve the
+        // pending request as a deny so the session's tool loop can unwind
+        // instead of hanging until the alert is answered. `resolve` is a
+        // no-op when `pending` is already nil, so racing a real user
+        // answer is safe — first resume wins.
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                pending = PendingApproval(use: use, continuation: continuation)
+            }
+        } onCancel: {
+            Task { @MainActor in
+                self.resolve(.deny(reason: "Turn cancelled."))
+            }
         }
     }
 

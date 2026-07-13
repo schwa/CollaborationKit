@@ -115,6 +115,10 @@ public struct MessageMirror: Sendable {
             // "Stopped." overlay via `appendError`.
             finishStreamingAssistant(at: date)
 
+        case .turnEnded:
+            // Drain sentinel for stream consumers; no mirror state changes.
+            return
+
         case .historyChanged(let snapshot):
             // Authoritative history from the session. Replacing whole
             // (rather than reducing per-block) is the whole point of

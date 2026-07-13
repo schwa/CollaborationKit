@@ -92,7 +92,7 @@ struct Chat: AsyncParsableCommand {
         )
 
         let timer = TurnTimer()
-        printEvents(from: session, timer: timer)
+        let printer = printEvents(from: session, timer: timer)
 
         print("Collaborating on \(url.path). Type a message, or 'exit' to quit.\n")
         while true {
@@ -115,6 +115,11 @@ struct Chat: AsyncParsableCommand {
                 FileHandle.standardError.write(Data("\nError: \(error)\n".utf8))
             }
         }
+
+        // Finish the events stream and join the printer so any buffered
+        // events are flushed before the command exits.
+        await session.close()
+        await printer.value
     }
 
     /// Builds the configured provider, sourcing credentials as needed.
@@ -180,7 +185,7 @@ struct Chat: AsyncParsableCommand {
     }
 
     /// Streams session events to stdout: assistant text live, tool activity tagged.
-    private func printEvents(from session: LLMSession, timer: TurnTimer) {
+    private func printEvents(from session: LLMSession, timer: TurnTimer) -> Task<Void, Never> {
         Task {
             for await event in session.events {
                 switch event {
@@ -201,7 +206,7 @@ struct Chat: AsyncParsableCommand {
                     await timer.addOutputTokens(usage.outputTokens)
                     print("\n  [usage] in: \(usage.inputTokens)  out: \(usage.outputTokens)")
 
-                case .text, .turnComplete, .historyChanged:
+                case .text, .turnComplete, .turnEnded, .historyChanged:
                     break
 
                 case .turnCancelled:

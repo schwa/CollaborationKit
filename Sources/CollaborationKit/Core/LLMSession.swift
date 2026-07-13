@@ -181,6 +181,10 @@ public actor LLMSession {
         defer {
             isRunning = false
             currentTurnText = ""
+            // Sentinel: always the turn's final event, after any
+            // `.turnComplete` / `.turnCancelled`. Lets consumers wait for
+            // the stream to drain without counting yields.
+            eventContinuation.yield(.turnEnded)
         }
         history.append(message)
         yieldHistory()

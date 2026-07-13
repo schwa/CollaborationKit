@@ -11,10 +11,10 @@ import SwiftUI
 /// ``EnvironmentValues/collaborationComposerHeader``) through the
 /// environment instead of forcing hosts to thread them through initializer
 /// generics on every chat view in the module.
-public struct CollaborationViewSlot: @unchecked Sendable {
-    private let build: @MainActor () -> AnyView
+public struct CollaborationViewSlot: Sendable {
+    private let build: @MainActor @Sendable () -> AnyView
 
-    init(build: @escaping @MainActor () -> AnyView) {
+    init(build: @escaping @MainActor @Sendable () -> AnyView) {
         self.build = build
     }
 
@@ -66,7 +66,7 @@ extension View {
     /// the transcript is empty and no turn is in flight. Hosts should
     /// override the default to describe what their assistant actually does.
     public func collaborationEmptyPlaceholder<Content: View>(
-        @ViewBuilder _ content: @escaping @MainActor () -> Content
+        @ViewBuilder _ content: @escaping @MainActor @Sendable () -> Content
     ) -> some View {
         environment(
             \.collaborationEmptyPlaceholder,
@@ -77,7 +77,7 @@ extension View {
     /// Installs a host-supplied caption view drawn above the composer's
     /// prompt field. Typically shows the active backend and model.
     public func collaborationComposerHeader<Content: View>(
-        @ViewBuilder _ content: @escaping @MainActor () -> Content
+        @ViewBuilder _ content: @escaping @MainActor @Sendable () -> Content
     ) -> some View {
         environment(
             \.collaborationComposerHeader,
@@ -90,7 +90,7 @@ extension View {
     /// ``CollaborationCredentials`` reports no stored credentials for the
     /// current backend.
     public func collaborationMissingCredentialsPlaceholder<Content: View>(
-        @ViewBuilder _ content: @escaping @MainActor () -> Content
+        @ViewBuilder _ content: @escaping @MainActor @Sendable () -> Content
     ) -> some View {
         environment(
             \.collaborationMissingCredentialsPlaceholder,
