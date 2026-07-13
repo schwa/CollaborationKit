@@ -277,16 +277,20 @@ public actor LLMSession {
                 isError: true
             )
         }
-        // Ask the host before running side-effectful code. A denial is
-        // reported to the model as an error result so it can pivot to a
-        // different plan on the next turn.
-        switch await approval(use) {
-        case .allow:
-            break
+        // Only tools that opted in via `requiresApproval` consult the host.
+        // Everything else runs unattended — the approval closure would
+        // otherwise fire for every read/list/search call the model made.
+        // A denial is reported to the model as an error result so it can
+        // pivot to a different plan on the next turn.
+        if tool.requiresApproval {
+            switch await approval(use) {
+            case .allow:
+                break
 
-        case .deny(let reason):
-            let message = reason.isEmpty ? "Denied by the host." : "Denied: \(reason)"
-            return ToolResult(toolUseID: use.id, content: message, isError: true)
+            case .deny(let reason):
+                let message = reason.isEmpty ? "Denied by the host." : "Denied: \(reason)"
+                return ToolResult(toolUseID: use.id, content: message, isError: true)
+            }
         }
         do {
             let output = try await tool.call(use.input)

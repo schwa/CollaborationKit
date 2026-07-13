@@ -1733,12 +1733,13 @@ FileTools.swift predates the @CollaborationTools macro (RFC 0003) and hand-decla
 ## 63: Demo app doesn't wire up tool approval
 
 +++
-status: open
+status: closed
 priority: medium
 kind: task
 labels: effort:m
 created: 2026-07-13T04:58:55Z
-updated: 2026-07-13T06:18:59Z
+updated: 2026-07-13T14:45:11Z
+closed: 2026-07-13T14:45:11Z
 +++
 
 DemoNotes marks delete as requiresApproval: true, but the demo's LLMSession is created without an approval closure, so the default allow-all applies and approval-gated tools run without any user prompt. The demo has no UI for approving/denying tool calls.

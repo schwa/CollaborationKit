@@ -163,10 +163,54 @@ private struct SpyingTool: Tool {
     var name: String { "spy" }
     var description: String { "records a call" }
     var inputSchema: JSONValue { .object(["type": .string("object"), "properties": .object([:])]) }
+    // Opts in so the approval closure is consulted for every call in the
+    // tests below. Tools that don't opt in bypass the closure entirely
+    // — see requiresApprovalFalseBypassesTheApprovalClosure.
+    var requiresApproval: Bool { true }
     func call(_: Input) async -> String {
         await recorder.bump()
         return "ran"
     }
+}
+
+/// Same shape as ``SpyingTool`` but leaves ``requiresApproval`` at the
+/// default `false`. Used to prove the approval closure is skipped for
+/// tools that didn't opt in.
+private struct QuietSpyingTool: Tool {
+    struct Input: Decodable, Sendable {}
+    let recorder: RecordingTool
+    var name: String { "quiet" }
+    var description: String { "records a call; no approval needed" }
+    var inputSchema: JSONValue { .object(["type": .string("object"), "properties": .object([:])]) }
+    func call(_: Input) async -> String {
+        await recorder.bump()
+        return "ran"
+    }
+}
+
+@Test
+func requiresApprovalFalseBypassesTheApprovalClosure() async throws {
+    let recorder = RecordingTool()
+    let approvalCalls = RecordingTool()
+    let provider = ScriptedProvider([
+        [
+            .toolUse(ToolUse(id: "q1", name: "quiet", input: .object([:]))),
+            .messageComplete(stopReason: "tool_use")
+        ],
+        [.text("done"), .messageComplete(stopReason: "end_turn")]
+    ])
+    let session = LLMSession(
+        provider: provider,
+        tools: [QuietSpyingTool(recorder: recorder).eraseToAnyTool()]
+    ) { _ in
+        await approvalCalls.bump()
+        return .deny(reason: "should never be called")
+    }
+    _ = try await session.send("go")
+
+    // Approval closure was never consulted; the tool ran normally.
+    #expect(await approvalCalls.callCount == 0)
+    #expect(await recorder.callCount == 1)
 }
 
 @Test
