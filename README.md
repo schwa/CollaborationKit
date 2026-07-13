@@ -1,27 +1,39 @@
 # CollaborationKit
 
 Swift package for building apps that collaborate with an LLM through tools.
-Annotate methods on your model with a macro and the model can call them. Drop
-the SwiftUI chat view into your app and you have an assistant panel.
+Annotate methods on your model with a macro and the model can call them.
+Add the SwiftUI chat view and you have an assistant panel.
 
 Swift 6, macOS 14+ / iOS 17+. URLSession + async/await. MIT.
 
 ## Features
 
-- `LLMSession`: an actor that owns the conversation, the tools, and the
-  tool-use loop.
-- `@CollaborationTools` / `@CollaborationTool` macros — annotate methods on
-  your model, get typed tools with derived JSON Schema for free.
+### `CollaborationKit`
+
+- `LLMSession`: an actor that runs the tool-use loop.
+- `@CollaborationTools` / `@CollaborationTool` macros. Annotate methods on
+  your model and the JSON Schema is derived from the parameter list.
 - Providers:
   - `AnthropicProvider`: Claude via API key or subscription (OAuth).
   - `OpenAIProvider`: OpenAI and any compatible server (LM Studio, Ollama,
     [antirez/ds4](https://github.com/antirez/ds4)).
   - Roll your own by implementing `ModelProvider`.
-- Live event stream: text deltas, tool calls, tool results, usage.
+- Live event stream for text deltas, tool activity, and token usage.
 - Tool errors go back to the model. Transport and decoding errors throw to
-  you. The two never get confused.
-- `CollaborationKitUI`: SwiftUI chat view, composer, settings, and a
-  Keychain-backed credential store.
+  you.
+
+### `CollaborationKitUI`
+
+- `CollaborationChatView`: transcript + composer, drop into any SwiftUI
+  hierarchy.
+- `ConversationStore`: observable transcript state driven by an
+  `LLMSession`.
+- `CollaborationSettingsView`: everything needed to sign in and pick a
+  model.
+- `CollaborationCredentials`: observable credentials wrapper for the
+  environment; builds a `ModelProvider` on demand.
+- `KeychainCredentialStore`: Keychain-backed storage for API keys and OAuth
+  tokens.
 
 ## Installation
 
@@ -60,8 +72,9 @@ final class Notes {
 ```
 
 Parameters may be primitives, `Optional`, `Array`, `Dictionary<String, T>`,
-or any type conforming to `CollaborationSchemaConvertible`, `requiresApproval: true` routes the call through the
-session's approval closure before it runs.
+or any type conforming to `CollaborationSchemaConvertible`.
+`requiresApproval: true` routes the call through the session's approval
+closure before it runs.
 
 Hand the tools to a session:
 
@@ -77,9 +90,9 @@ let reply = try await session.send("Add a note titled 'Groceries'.")
 ```
 
 If you're building a custom UI or a headless tool, subscribe to
-`session.events` to stream text deltas, tool calls, and usage as they happen.
-SwiftUI hosts using `ConversationStore` / `CollaborationChatView` don't need
-this — the store consumes the events for you.
+`session.events` to watch the model work as it goes. SwiftUI hosts using
+`ConversationStore` / `CollaborationChatView` skip this; the store consumes
+the events for you.
 
 ```swift
 for await event in session.events {
@@ -94,8 +107,8 @@ for await event in session.events {
 
 ## SwiftUI
 
-`CollaborationKitUI` gives you the chat surface, a Settings pane, and a
-Keychain-backed credentials store. Drop it into an app:
+`CollaborationKitUI` gives you the chat surface and a settings pane backed
+by the Keychain. Wire it into an app:
 
 ```swift
 import SwiftUI
@@ -121,12 +134,11 @@ struct MyApp: App {
 }
 ```
 
-`CollaborationSettingsView` handles provider selection, API keys, Claude
-subscription OAuth, and model pickers — writes go straight to the Keychain.
+`CollaborationSettingsView` handles sign-in and model selection. Writes go
+straight to the Keychain.
 
-In your view, build a session from the credentials and drop
-`CollaborationChatView` wherever you want the assistant to live (an
-`.inspector`, a sheet, a side panel):
+In your view, build a session from the credentials and put
+`CollaborationChatView` wherever you want the assistant to live:
 
 ```swift
 struct ContentView: View {
@@ -163,11 +175,11 @@ placeholder when credentials are missing.
 ## Demo app
 
 [`Examples/CollaborationDemo`](Examples/CollaborationDemo) is a small
-SwiftUI notes app wired up end to end: `@CollaborationTools` on the notes
-store, `CollaborationChatView` in an inspector, `CollaborationSettingsView`
-in the Settings scene, Keychain credentials, and switching between Claude
-(API key or subscription) and OpenAI-compatible backends. Open the Xcode
-project inside that folder and run.
+SwiftUI notes app wired up end to end. The notes store uses
+`@CollaborationTools`, the chat lives in an inspector, and Settings hosts
+`CollaborationSettingsView` so you can switch between Claude (API key or
+subscription) and any OpenAI-compatible backend. Open the Xcode project
+inside that folder and run.
 
 ## Providers
 
@@ -180,13 +192,6 @@ project inside that folder and run.
 
 > OAuth caveat: subscription login uses the Claude Code OAuth client and is
 > unofficial. It may violate Anthropic's terms and may break without notice.
-
-## Contributing
-
-Open an issue before starting significant work. Run `swift test`; tests must
-not hit the network. Design rules worth knowing: `Core/` stays
-provider-agnostic, tools are typed rather than raw JSON, tool errors go back
-to the model, and harness errors throw out to the caller.
 
 ## License
 
