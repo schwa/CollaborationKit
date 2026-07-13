@@ -1233,3 +1233,24 @@ Demo:
 Related: RFC 0002, #13, #27.
 
 ---
+
+## 49: Skills support
+
++++
+status: new
+priority: low
+kind: feature
+created: 2026-07-13T03:33:06Z
++++
+
+CollaborationKit has no concept of skills — bundles of instructions (and optionally scripts/resources) the model can load on demand to specialize its behavior for a task.
+
+Skills are used by pi and Claude Code to give the model context-specific guidance without bloating the system prompt. Without support, hosts that want the same pattern have to build it themselves on top of tools.
+
+Scope to explore:
+- How skills are discovered and registered on a session.
+- Whether skills are surfaced as tools (model-invoked) or as prompt injection (harness-managed).
+- Interaction with the existing tool loop and system prompt.
+- Whether `CollaborationKitUI` needs a picker / indicator.
+
+---
