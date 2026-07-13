@@ -36,3 +36,65 @@ public protocol CollaborationSchemaConvertible: Decodable, Sendable {
     /// part of the tool spec so it knows how to shape the value.
     static var collaborationSchema: JSONValue { get }
 }
+
+/// A raw value type that has a built-in JSON Schema, used by
+/// ``CollaborationSchemaConvertible``'s automatic conformance for typed IDs.
+///
+/// Conforming ``RawValue`` types are ``String``, ``Int``, ``Double``,
+/// ``Float``, ``Bool``. A caller-declared `RawRepresentable` id wrapper
+/// gets its schema for free.
+public protocol CollaborationRawValue: Sendable {
+    /// The JSON Schema for values of this raw type.
+    static var collaborationRawSchema: JSONValue { get }
+}
+
+extension String: CollaborationRawValue {
+    public static var collaborationRawSchema: JSONValue {
+        .object(["type": .string("string")])
+    }
+}
+
+extension Int: CollaborationRawValue {
+    public static var collaborationRawSchema: JSONValue {
+        .object(["type": .string("integer")])
+    }
+}
+
+extension Double: CollaborationRawValue {
+    public static var collaborationRawSchema: JSONValue {
+        .object(["type": .string("number")])
+    }
+}
+
+extension Float: CollaborationRawValue {
+    public static var collaborationRawSchema: JSONValue {
+        .object(["type": .string("number")])
+    }
+}
+
+extension Bool: CollaborationRawValue {
+    public static var collaborationRawSchema: JSONValue {
+        .object(["type": .string("boolean")])
+    }
+}
+
+/// Default schema for `RawRepresentable` id wrappers.
+///
+/// Conform a typed id (e.g. `struct NoteID: RawRepresentable, Codable`) to
+/// ``CollaborationSchemaConvertible`` and its ``collaborationSchema`` is
+/// synthesized from ``RawValue`` — no boilerplate:
+///
+/// ```swift
+/// struct NoteID: RawRepresentable, Codable, CollaborationSchemaConvertible, Hashable {
+///     let rawValue: String
+/// }
+///
+/// @CollaborationTool("Delete the note with this id.")
+/// func delete(id: NoteID) async throws { ... }
+/// ```
+extension CollaborationSchemaConvertible
+where Self: RawRepresentable, Self.RawValue: CollaborationRawValue {
+    public static var collaborationSchema: JSONValue {
+        RawValue.collaborationRawSchema
+    }
+}

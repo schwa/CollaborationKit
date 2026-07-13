@@ -40,10 +40,23 @@ struct EscapePoint: CollaborationSchemaConvertible, Equatable {
     }
 }
 
+/// String-backed typed id relying on the automatic RawRepresentable
+/// conformance (#41): no `collaborationSchema` boilerplate.
+struct EscapeNoteID: RawRepresentable, Codable, CollaborationSchemaConvertible, Hashable {
+    let rawValue: String
+}
+
+/// Integer-backed typed id, same story with an `Int` raw value.
+struct EscapeTaskID: RawRepresentable, Codable, CollaborationSchemaConvertible, Hashable {
+    let rawValue: Int
+}
+
 @CollaborationTools
 final class EscapeStore: @unchecked Sendable {
     private(set) var lastPriority: EscapePriority?
     private(set) var lastPoint: EscapePoint?
+    private(set) var lastNoteID: EscapeNoteID?
+    private(set) var lastTaskID: EscapeTaskID?
 
     @CollaborationTool("Record a priority.")
     func setPriority(_ p: EscapePriority) -> String {
@@ -55,6 +68,18 @@ final class EscapeStore: @unchecked Sendable {
     func setPoint(_ point: EscapePoint) -> String {
         lastPoint = point
         return "\(point.x),\(point.y)"
+    }
+
+    @CollaborationTool("Remember a note by id.")
+    func rememberNote(id: EscapeNoteID) -> String {
+        lastNoteID = id
+        return id.rawValue
+    }
+
+    @CollaborationTool("Remember a task by id.")
+    func rememberTask(id: EscapeTaskID) -> String {
+        lastTaskID = id
+        return "\(id.rawValue)"
     }
 }
 
@@ -112,5 +137,45 @@ struct CollaborationSchemaConvertibleTests {
         ])]))
         #expect(out == "3,4")
         #expect(store.lastPoint == EscapePoint(x: 3, y: 4))
+    }
+
+    // MARK: RawRepresentable typed IDs (#41)
+
+    @Test("string-backed typed id derives a string schema automatically")
+    func stringTypedIDDerivesStringSchema() {
+        #expect(EscapeNoteID.collaborationSchema == .object(["type": .string("string")]))
+
+        let store = EscapeStore()
+        let tool = store.collaborationTools.first { $0.name == "rememberNote" }!
+        #expect(tool.inputSchema == .object([
+            "type": .string("object"),
+            "properties": .object([
+                "id": .object(["type": .string("string")])
+            ]),
+            "required": .array([.string("id")])
+        ]))
+    }
+
+    @Test("int-backed typed id derives an integer schema automatically")
+    func intTypedIDDerivesIntegerSchema() {
+        #expect(EscapeTaskID.collaborationSchema == .object(["type": .string("integer")]))
+    }
+
+    @Test("decodes and dispatches a string-backed typed id")
+    func decodesAndDispatchesStringTypedID() async throws {
+        let store = EscapeStore()
+        let tool = store.collaborationTools.first { $0.name == "rememberNote" }!
+        let out = try await tool.call(.object(["id": .string("n42")]))
+        #expect(out == "n42")
+        #expect(store.lastNoteID == EscapeNoteID(rawValue: "n42"))
+    }
+
+    @Test("decodes and dispatches an int-backed typed id")
+    func decodesAndDispatchesIntTypedID() async throws {
+        let store = EscapeStore()
+        let tool = store.collaborationTools.first { $0.name == "rememberTask" }!
+        let out = try await tool.call(.object(["id": .number(7)]))
+        #expect(out == "7")
+        #expect(store.lastTaskID == EscapeTaskID(rawValue: 7))
     }
 }

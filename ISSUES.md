@@ -487,11 +487,11 @@ closed: 2026-07-13T02:05:13Z
 There is no defined behaviour when a @CollaborationTool method takes a value of another @CollaborationTools-annotated type as a parameter, or returns one. Right now such a parameter fails schema derivation.
 
 Missing per RFC 0003 open question 3:
-- Decide and document: nested types are passed by ID, not by inlined value.
-- Macro emits a schema referencing the ID type; the tool body dereferences on entry.
-- What 'ID type' means for a given store is user-declared, likely via a small protocol.
-- Test that the model sees a stable ID schema and not the full nested object.
 
+- `2026-07-13T01:03:03Z`: Decide and document: nested types are passed by ID, not by inlined value.
+- `2026-07-13T01:03:03Z`: Macro emits a schema referencing the ID type; the tool body dereferences on entry.
+- `2026-07-13T01:03:03Z`: What 'ID type' means for a given store is user-declared, likely via a small protocol.
+- `2026-07-13T01:03:03Z`: Test that the model sees a stable ID schema and not the full nested object.
 - `2026-07-13T02:05:13Z`: Documented in RFC 0003 (Nested-object rule) and the @CollaborationTools doc comment. Split by identity: referent objects (host-owned, identity-bearing) pass ids; value objects (transient, no identity) inline via CollaborationSchemaConvertible (#25). No macro-time enforcement — SwiftSyntax can't tell 'is this another @CollaborationTools type' or 'does this thing have identity'. Docs-only fix.
 
 ---
@@ -941,12 +941,13 @@ Related: RFC 0003, #14, #21, #25.
 ## 41: RFC 0003: support typed ID wrappers (RawRepresentable) as tool parameters
 
 +++
-status: open
+status: closed
 priority: high
 kind: feature
 labels: effort:m
 created: 2026-07-13T01:52:23Z
-updated: 2026-07-13T01:57:53Z
+updated: 2026-07-13T02:06:39Z
+closed: 2026-07-13T02:06:39Z
 +++
 
 The demo's DemoNotes today has:
@@ -974,6 +975,14 @@ Design:
 Update the demo to use `Note.ID` on `create` / `delete` and `[Note]` on `list` once inputs land.
 
 Related: RFC 0003, #14, #24 (enums/tuples/generics), #25 (custom escape hatch).
+
+- `2026-07-13T02:06:39Z`: Landed via a default extension on CollaborationSchemaConvertible for RawRepresentable types whose RawValue conforms to a new CollaborationRawValue protocol (String/Int/Double/Float/Bool ship with it). A caller-declared typed id is now:
+
+    struct NoteID: RawRepresentable, Codable, CollaborationSchemaConvertible, Hashable {
+        let rawValue: String
+    }
+
+— no schema boilerplate, works as-is on tool parameters (with correct schema derived from RawValue) and returns (Encodable does the rest). Added 4 tests covering string- and int-backed ids for both schema derivation and end-to-end call dispatch.
 
 ---
 
