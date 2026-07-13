@@ -284,13 +284,17 @@ Context: surfaced while wiring OpenAI into Phosphor's shader-generation tool loo
 ## 13: Implement RFC 0002 — CollaborationKitUI
 
 +++
-status: new
+status: closed
 priority: medium
 kind: feature
 created: 2026-07-13T00:40:29Z
+updated: 2026-07-13T01:28:24Z
+closed: 2026-07-13T01:28:24Z
 +++
 
 See rfcs/0002-collaborationkit-ui.md.
+
+- `2026-07-13T01:28:24Z`: Core landed as of 2026-07-12: auth flow (KeychainCredentialStore, CollaborationCredentials, Settings view, OAuth paste flow, API key sections), transcript model (ConversationStore + ConversationItem, Phosphor-ported), transcript/composer/chat views, demo wired end-to-end. Remaining work per the RFC tracked in #26 (rollback), #27 (theme), #28 (iOS), #29 (tool presenters), #30 (accessibility). RFC 0002 marked Implemented.
 
 ---
 
@@ -541,5 +545,109 @@ Missing:
 - @CollaborationSchema attached macro that emits the conformance (or documents how to write it by hand).
 
 See rfcs/0003-model-object-tool-macro.md, sections 'Supported parameter/return types (initial)' and '3.4 User-sprinkled macros'.
+
+---
+
+## 26: CollaborationKitUI: rollback/snapshot support
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T01:28:00Z
++++
+
+Phosphor's ConversationStore lets a user roll back the session to just before a prior user prompt: it snapshots host state (in Phosphor's case, the shader source) alongside the pre-turn history depth, then restores both on demand and truncates the LLMSession history.
+
+Not ported in the initial CollaborationKitUI transcript because the snapshot payload is host-specific. Design a generic API:
+
+- Generic `RollbackSnapshot<Context>` (Context: Sendable) attached to each user prompt row.
+- Host closure captures Context at send time and applies it on rollback.
+- ConversationStore.rollBack(to:) truncates messages (and calls LLMSession.truncateHistory), invokes the apply closure, drops error overlays.
+- ConversationRowView exposes a 'Roll Back to Here' affordance on user rows when snapshots are available.
+
+Related: RFC 0002, #13.
+
+---
+
+## 27: CollaborationKitUI: Theme type with environment plumbing
+
++++
+status: new
+priority: low
+kind: feature
+created: 2026-07-13T01:28:00Z
++++
+
+RFC 0002 calls for a small Theme struct (colors, spacing, corner radii, typography) read from the environment, with hosts overriding per-view or per-tree. Currently ConversationRowView and ComposerView hard-code accent/secondary/red colors and 10/12/16pt spacing.
+
+Design:
+- `CollaborationTheme` struct with named tokens (accent, userBubble, assistantBubble, errorTint, spacing, cornerRadius, prose/monospaced fonts).
+- `EnvironmentValues.collaborationTheme` + `.collaborationTheme(_:)` modifier.
+- Replace hard-coded values in all built-in views.
+
+Related: RFC 0002, #13.
+
+---
+
+## 28: CollaborationKitUI: iOS platform support
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T01:28:00Z
++++
+
+Package currently declares only macOS 14. RFC 0002 calls for macOS 14+ AND iOS 17+.
+
+Work:
+- Add `.iOS(.v17)` to Package.swift platforms.
+- Verify BrowserOpener path uses UIApplication.open (already guarded).
+- Guard `SettingsLink` in CollaborationChatView / missing-credentials placeholder.
+- Verify AttachmentThumbnailsView / Attachment (UIImage path already present).
+- collab-cli executable target: audit stdio usage (getpass etc.) or exclude from iOS builds.
+- Add an iOS destination to the demo app scheme and smoke-test.
+
+Related: RFC 0002, #13.
+
+---
+
+## 29: CollaborationKitUI: tool-presenter registry for custom row content
+
++++
+status: new
+priority: low
+kind: feature
+created: 2026-07-13T01:28:00Z
++++
+
+Right now ConversationRowView renders every tool call the same way: icon + summary line + optional monospaced result. Rich hosts want per-tool custom content (e.g. Phosphor's compileShader row showing diagnostics inline, a diff view for edit results, an image preview for an image-gen tool).
+
+Design a `ToolPresenter` protocol (or view builder closure) registered by tool name, consulted by ConversationRowView. Default presenter matches today's rendering. Registry lives on the store or in the environment; unknown tools fall through to the default.
+
+Related: RFC 0002, #13.
+
+---
+
+## 30: CollaborationKitUI: accessibility pass
+
++++
+status: new
+priority: medium
+kind: task
+created: 2026-07-13T01:28:00Z
++++
+
+RFC 0002 open question 6: roles/labels for the transcript, streaming announcements, focus management on the composer.
+
+Concretely:
+- Transcript rows: accessibilityLabel per row kind (user prompt, assistant reply, tool call name+state, error).
+- Streaming announcements: post an accessibility notification when a new item appears or a turn completes (VoiceOver rotor).
+- Composer: sensible focus order; explicit labels on Attach/Send/Stop buttons; announce token label changes as polite updates.
+- ContentUnavailableViews: audit systemImage roles.
+- Dynamic Type: verify at accessibility sizes.
+
+Related: RFC 0002, #13.
 
 ---

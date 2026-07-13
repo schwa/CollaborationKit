@@ -1,10 +1,24 @@
 # RFC 0002 — CollaborationKitUI
 
-- **Status:** Draft
+- **Status:** Implemented (2026-07-12)
 - **Author:** @schwa
 - **Created:** 2026-07-12
 - **Affects:** New target `CollaborationKitUI` in this package.
-- **Related:** RFC 0001 (Conversation Structure)
+- **Related:** RFC 0001 (Withdrawn — superseded by porting Phosphor's projection model)
+
+> **Implemented.** Core RFC landed under #13 (closed). Deviations from the
+> original design and follow-up work tracked as separate issues:
+>
+> - Transcript model uses Phosphor's projection over `LLMSession.messages`
+>   (`ConversationStore` + `ConversationItem` + `ItemID`) rather than the
+>   nested `Conversation`/`Exchange`/`Entry` shape from RFC 0001. Phosphor's
+>   version is proven; the RFC 0001 shape would have duplicated the message
+>   history without adding capability.
+> - Rollback / snapshot support: #26.
+> - `Theme` type with environment plumbing: #27.
+> - iOS platform support: #28.
+> - Tool-presenter registry for custom row content: #29.
+> - Accessibility pass: #30.
 
 ## Summary
 
