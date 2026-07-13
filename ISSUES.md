@@ -78,6 +78,8 @@ updated: 2026-07-13T01:49:39Z
 
 send() is not easily cancellable mid-turn and the session events stream never finishes (its continuation is never terminated). For any UI, cancelling a turn should stop the in-flight request, stop the tool loop, and let observers know. Wire Task cancellation through the provider streams and the session loop; consider finishing or yielding a terminal event so the events AsyncStream completes.
 
+- `2026-07-13T02:43:06Z`: Attempted: added SessionEvent.turnCancelled + Task.checkCancellation() at strategic points in runLoop + close() to finish the events stream. Cancellation didn't propagate from the caller's Task into the actor's method body — Task.checkCancellation() never fired inside runLoop even after outer task.cancel(). Punting: real fix likely needs withTaskCancellationHandler + a nonisolated cancellation flag the actor polls, and warrants a careful test plan for the actor/AsyncThrowingStream cancellation interaction. Not autonomous-friendly — needs a design pass on how cancellation should reach the actor.
+
 ---
 
 ## 5: Preserve partial work when maxIterations is exceeded
