@@ -1714,3 +1714,18 @@ updated: 2026-07-13T05:08:42Z
 DemoNotes marks delete as requiresApproval: true, but the demo's LLMSession is created without an approval closure, so the default allow-all applies and approval-gated tools run without any user prompt. The demo has no UI for approving/denying tool calls.
 
 ---
+
+## 64: Composer is disabled while assistant is responding; queue prompts instead
+
++++
+status: new
+priority: medium
+kind: none
+created: 2026-07-13T05:44:43Z
++++
+
+During an active conversation turn (assistant streaming, tools running, etc.) the composer input is locked. The user has to wait for the whole turn to finish before typing the next prompt.
+
+Instead, allow typing at any time and queue up prompts. When the current turn finishes, dequeue and send the next one automatically.
+
+---
