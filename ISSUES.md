@@ -1871,12 +1871,13 @@ Hosts currently have to fork the whole composer to add it.
 ## 71: CollaborationChatView: no onGeneratingChange callback
 
 +++
-status: open
+status: closed
 priority: high
 kind: enhancement
 labels: effort:xs
 created: 2026-07-13T06:14:12Z
-updated: 2026-07-13T06:21:42Z
+updated: 2026-07-13T06:24:31Z
+closed: 2026-07-13T06:24:31Z
 +++
 
 Phosphor's GeneratePanel takes an `onGeneratingChange: (Bool) -> Void` closure and fires it via `.onChange(of: store.isGenerating)`, so the host can react (disable UI, pause compilation, etc.) when a turn starts or ends.

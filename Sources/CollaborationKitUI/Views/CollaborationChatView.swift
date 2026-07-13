@@ -21,6 +21,11 @@ public struct CollaborationChatView: View {
     /// Composer border style (plain or glow).
     public let composerBorderStyle: ComposerBorderStyle
 
+    /// Called whenever the underlying store's ``ConversationStore/isGenerating``
+    /// flag flips. Hosts can use this to disable other UI, pause compilation,
+    /// or drive external indicators while a turn is in flight.
+    public let onGeneratingChange: (Bool) -> Void
+
     @Environment(CollaborationCredentials.self)
     private var credentials
 
@@ -28,12 +33,14 @@ public struct CollaborationChatView: View {
         store: ConversationStore,
         iconForTool: @escaping (String) -> String = ConversationRowView.defaultIcon(for:),
         allowsImageAttachments: Bool = true,
-        composerBorderStyle: ComposerBorderStyle = .plain
+        composerBorderStyle: ComposerBorderStyle = .plain,
+        onGeneratingChange: @escaping (Bool) -> Void = { _ in }
     ) {
         self.store = store
         self.iconForTool = iconForTool
         self.allowsImageAttachments = allowsImageAttachments
         self.composerBorderStyle = composerBorderStyle
+        self.onGeneratingChange = onGeneratingChange
     }
 
     public var body: some View {
@@ -49,6 +56,9 @@ public struct CollaborationChatView: View {
             } else {
                 missingCredentials
             }
+        }
+        .onChange(of: store.isGenerating) { _, isGenerating in
+            onGeneratingChange(isGenerating)
         }
     }
 
