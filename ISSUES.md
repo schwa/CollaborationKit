@@ -3039,10 +3039,24 @@ Any host wiring `Backend.openAI` into an agentic loop has to either accept paral
 
 ## Options (per user, not prescriptive)
 
-- Add a `Backend.openAI(parallelToolCalls: Bool? = nil)` factory alongside the existing static value.
-- Expose an `OpenAIConfig` customization hook on the built-in backends (a `configure: (inout OpenAIConfig) -> Void` closure passed through `makeProvider`).
-- Or document the recommended fork pattern so hosts know what they're signing up for.
-
+- `2026-07-13T17:45:21Z`: Add a `Backend.openAI(parallelToolCalls: Bool? = nil)` factory alongside the existing static value.
+- `2026-07-13T17:45:21Z`: Expose an `OpenAIConfig` customization hook on the built-in backends (a `configure: (inout OpenAIConfig) -> Void` closure passed through `makeProvider`).
+- `2026-07-13T17:45:21Z`: Or document the recommended fork pattern so hosts know what they're signing up for.
 - `2026-07-13T17:53:31Z`: Fixed in dc20fb18.
+
+---
+
+## 115: No UI to configure LM Studio (or other local LLM servers)
+
++++
+status: new
+priority: medium
+kind: enhancement
+created: 2026-07-13T17:57:29Z
++++
+
+Settings has no way to point CollaborationKit at a local LM Studio server. The provider picker only shows the hosted backends (Claude Subscription, Anthropic API, OpenAI); LM Studio isn't offered, so there's no place to enter the base URL or pick a local model from the UI.
+
+Same story for other local OpenAI-compatible servers (Ollama).
 
 ---
