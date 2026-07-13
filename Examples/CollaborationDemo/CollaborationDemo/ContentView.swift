@@ -7,7 +7,11 @@ struct ContentView: View {
     private var credentials
     @State private var notes = DemoNotes()
     @State private var sketch = DemoSketch()
-    @State private var store: ConversationStore?
+    // Per-tab stores keep each surface's tool set isolated so tool names
+    // (list, delete, …) can't collide across DemoNotes and DemoSketch —
+    // Anthropic rejects a request whose tools[] contains duplicates.
+    @State private var notesStore: ConversationStore?
+    @State private var sketchStore: ConversationStore?
     @State private var buildError: String?
     @State private var showAssistant: Bool = true
     @State private var editing: EditingNote?
@@ -18,7 +22,7 @@ struct ContentView: View {
         let id: Note.ID
     }
 
-    private enum DemoTab: Hashable {
+    enum DemoTab: Hashable {
         case notes
         case sketch
     }
@@ -55,11 +59,11 @@ struct ContentView: View {
             } label: {
                 Label("Assistant", systemImage: "bubble.left.and.text.bubble.right")
             }
-            if let store {
+            if let store = activeStore {
                 ShareLink(
                     item: SessionExportPayload(
                         export: store.buildExport(model: credentials.selectedModel),
-                        suggestedFileName: "CollaborationDemo-\(Int(Date().timeIntervalSince1970)).json"
+                        suggestedFileName: "CollaborationDemo-\(selectedTab.exportSlug)-\(Int(Date().timeIntervalSince1970)).json"
                     ),
                     preview: SharePreview("Session Log", image: Image(systemName: "doc.text"))
                 ) {
@@ -98,8 +102,15 @@ struct ContentView: View {
         .task(id: "\(credentials.backend.id)-\(credentials.hasCredentials)") { rebuild() }
     }
 
+    private var activeStore: ConversationStore? {
+        switch selectedTab {
+        case .notes: notesStore
+        case .sketch: sketchStore
+        }
+    }
+
     @ViewBuilder private var assistant: some View {
-        if let store {
+        if let store = activeStore {
             CollaborationChatView(store: store, composerBorderStyle: .glow)
         } else if let buildError {
             ContentUnavailableView("Couldn't Start Chat", systemImage: "exclamationmark.triangle", description: Text(buildError))
@@ -115,35 +126,55 @@ struct ContentView: View {
     }
 
     private func rebuild() {
-        store = nil
+        notesStore = nil
+        sketchStore = nil
         buildError = nil
         guard credentials.hasCredentials else { return }
         do {
             let provider = try credentials.makeProvider()
-            let session = LLMSession(
+            let approve: @Sendable (ToolUse) async -> ToolApprovalDecision = { [approvals] use in
+                await approvals.request(use)
+            }
+
+            let notesSession = LLMSession(
                 provider: provider,
                 system: """
-                IMPORTANT: You're an app called "DemoApp" with two surfaces the user can switch between:
+                IMPORTANT: You're the Notes surface of an app called "DemoApp". The user keeps a \
+                small list of notes with title, body, optional tag (idea, todo, question, journal, \
+                follow-up), and optional color (red, orange, yellow, green, blue, purple, pink). \
+                Use the list, search, create, edit, setTag, setColor, and delete tools. Prefer \
+                setTag and setColor to make notes visually distinct when it helps the user scan them.
+                """,
+                tools: notes.collaborationTools,
+                approval: approve
+            )
+            notesStore = ConversationStore(session: notesSession)
 
-                1. Notes — a small list of notes with title, body, optional tag \
-                (idea, todo, question, journal, follow-up), and optional color (red, orange, yellow, green, \
-                blue, purple, pink). Use the list, search, create, edit, setTag, setColor, and delete tools. \
-                Prefer setTag and setColor to make notes visually distinct when it helps the user scan them.
-
-                2. Sketch — a square canvas the user can draw on freehand. You can add shapes (addLine, \
-                addRectangle, addEllipse, addPath), change the background (setBackground), inspect the \
-                current shapes (list), undo the last shape, delete one by id, or clear the whole canvas. \
+            let sketchSession = LLMSession(
+                provider: provider,
+                system: """
+                IMPORTANT: You're the Sketch surface of an app called "DemoApp". The user has a \
+                square canvas they can draw on freehand. You can add shapes (addLine, addRectangle, \
+                addEllipse, addPath), change the background (setBackground), inspect the current \
+                shapes (list), undo the last shape, delete one by id, or clear the whole canvas. \
                 All canvas coordinates are in the 0–1 unit square with the top-left as the origin. \
                 Prefer thin strokes (width 0.003–0.008) unless the user asks for something bold.
                 """,
-                tools: notes.collaborationTools + sketch.collaborationTools,
-                approval: { [approvals] use in
-                    await approvals.request(use)
-                }
+                tools: sketch.collaborationTools,
+                approval: approve
             )
-            self.store = ConversationStore(session: session)
+            sketchStore = ConversationStore(session: sketchSession)
         } catch {
             buildError = error.localizedDescription
+        }
+    }
+}
+
+private extension ContentView.DemoTab {
+    var exportSlug: String {
+        switch self {
+        case .notes: "notes"
+        case .sketch: "sketch"
         }
     }
 }
