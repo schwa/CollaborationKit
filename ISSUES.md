@@ -1934,3 +1934,30 @@ created: 2026-07-13T06:39:46Z
 Conversations are not persisted; relaunching the app loses all prior conversation state. Should reload existing conversations on launch.
 
 ---
+
+## 74: Dragging an image onto the composer text field pastes the file path as text
+
++++
+status: new
+priority: high
+kind: bug
+labels: effort:m
+created: 2026-07-13T14:38:28Z
++++
+
+Dragging an image file from Finder onto the composer's TextField inserts the file path as literal text into the prompt, instead of attaching the image.
+
+Dragging the same image onto the transcript area works correctly (routes into the composer's attachment strip via #36's drop destination).
+
+## Repro
+1. Open the demo app.
+2. Drag an image file from Finder onto the composer TextField (not the transcript, and not the paperclip button).
+3. Observe: the file path (e.g. /Users/…/screenshot.png) appears as text in the prompt field.
+
+## Expected
+The image is added to the composer's attachment strip, matching the transcript-drop behavior.
+
+## Notes
+Related: #66 (paste has the same underlying cause — focused TextField wins over container-level drop/paste destinations for URL/text payloads). #36 wired the transcript drop but did not extend the drop destination to the composer itself.
+
+---
