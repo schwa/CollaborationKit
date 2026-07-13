@@ -21,7 +21,7 @@ struct ContentView: View {
                     Label("Assistant", systemImage: "bubble.left.and.text.bubble.right")
                 }
             }
-            .task(id: rebuildKey) { rebuild() }
+            .task(id: "\(credentials.backend.rawValue)-\(credentials.hasCredentials)") { rebuild() }
     }
 
     @ViewBuilder
@@ -39,10 +39,6 @@ struct ContentView: View {
                 SettingsLink { Text("Open Settings…") }
             }
         }
-    }
-
-    private var rebuildKey: String {
-        "\(credentials.backend.rawValue)-\(credentials.hasCredentials)"
     }
 
     private func rebuild() {
