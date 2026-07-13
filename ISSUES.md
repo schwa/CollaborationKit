@@ -1789,7 +1789,7 @@ priority: high
 kind: feature
 labels: effort:m
 created: 2026-07-13T05:57:23Z
-updated: 2026-07-13T14:15:16Z
+updated: 2026-07-13T14:38:02Z
 +++
 
 Pasting an image (or any file) into the composer's text field does nothing. Users have no way to attach visual/document content to a prompt short of describing it in words.
@@ -1797,6 +1797,9 @@ Pasting an image (or any file) into the composer's text field does nothing. User
 The composer should accept pasted images and file attachments from the clipboard, surface them as attachment chips in the composer, and include them in the outgoing message.
 
 - `2026-07-13T06:19:05Z`: Related: #67 (drag attachments on composer) and #36 (image drop on transcript).
+- `2026-07-13T14:38:02Z`: Autonomous run 2: attempted onPasteCommand(of: [.image, .fileURL]) on the container, then moved to the TextField, then tried .pasteDestination(for: URL.self) + .onPasteCommand(of: [.image]) on the container. In all cases the focused TextField still wins for URL/text pastes and the attachment strip stays empty. Paste code left in place as scaffolding.
+
+Next step likely needs a lower-level intercept — a custom NSTextView subclass that overrides paste:, or wrapping the composer in an NSViewRepresentable with pasteboardTypes. Not autonomous-friendly.
 
 ---
 
