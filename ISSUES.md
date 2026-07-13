@@ -974,6 +974,16 @@ Design:
 
 Related: RFC 0002, #13, #26 (rollback), and the export issue above.
 
+- `2026-07-13T15:17:09Z`: Investigated. `exportDebugLog` is already wired via `focusedSceneValue` (see `SessionDebugExport.swift`) — so the remaining scope is `stopGeneration` and `rollBack`.
+
+Punting: rollback (#26) hasn't landed, so the full set can't be delivered together. Adding just `stopGeneration` also raises API-shape questions I don't want to decide unilaterally:
+
+1. One `Actions` struct exposed as a single focused value, or a family of narrow single-action focused values (following the `exportDebugLog` pattern)?
+2. Where does `stopGeneration` get installed — automatically by `CollaborationChatView`, or via an explicit modifier like `sessionDebugExport`?
+3. Should the focused value carry the `ConversationStore` itself (letting host menus reach anything) instead of typed action values?
+
+Can you steer on (1)–(3), or should this wait until #26 lands so the whole surface goes in at once?
+
 ---
 
 ## 38: CollaborationKitUI: glowing multicolor prompt border (opt-in)
@@ -1998,15 +2008,18 @@ Introduced by #64 (queue prompts while assistant responding).
 ## 76: Tap attachment to view it
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:m
 created: 2026-07-13T14:44:13Z
-updated: 2026-07-13T15:11:44Z
+updated: 2026-07-13T15:18:35Z
+closed: 2026-07-13T15:18:35Z
 +++
 
 In the chat UI, tapping an attachment should open/preview it. Currently there's no way to view an attachment after it's been sent.
+
+- `2026-07-13T15:18:35Z`: Tapping a transcript attachment thumbnail now opens a full-size preview sheet with a Done button.
 
 ---
 
@@ -2048,5 +2061,6 @@ updated: 2026-07-13T15:11:44Z
 The UI should display how many tokens (or what percentage of the context window) remain before compaction is triggered, so users can see how close they are to a compaction event.
 
 - `2026-07-13T15:11:44Z`: Related to #7 (compaction landed Jul 12). Depends on the strategy exposing a 'progress toward compaction' signal — currently KeepRecentCompactionStrategy triggers on message count, not tokens, so the UI would need either a token-budget strategy or a strategy-agnostic 'how close am I' hook.
+- `2026-07-13T15:17:32Z`: Punting: the current `KeepRecentCompactionStrategy` triggers on message count, not tokens, so there's no natural 'tokens until compaction' number to show. To resolve this we'd need to (a) extend `CompactionStrategy` with a `progressTowardCompaction(history:usage:)` hook, (b) decide what 'progress' means for a count-based strategy (message count?), and (c) decide where the UI displays it (composer action row? a separate chip?). Those are three API/design decisions that need your call before writing code.
 
 ---
