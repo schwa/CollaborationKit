@@ -40,6 +40,52 @@ public struct ConversationRowView: View {
                 .strokeBorder(borderColor, lineWidth: 1)
         }
         .textSelection(.enabled)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabelText)
+        .accessibilityValue(accessibilityValueText)
+    }
+
+    // MARK: - Accessibility labels
+
+    /// Screen reader label describing the row's role + timing at a glance.
+    private var accessibilityLabelText: String {
+        switch item.kind {
+        case .user:
+            return "User message"
+
+        case .assistant:
+            return "Assistant reply"
+
+        case .tool(let name, _, _, let isError):
+            return isError ? "Tool \(name), errored" : "Tool \(name)"
+
+        case .error:
+            return "Error"
+        }
+    }
+
+    /// Screen reader value with the row's content plus latency when known.
+    private var accessibilityValueText: String {
+        var parts: [String] = []
+        switch item.kind {
+        case .user(let text, let images):
+            parts.append(text)
+            if !images.isEmpty { parts.append("\(images.count) attached image\(images.count == 1 ? "" : "s")") }
+
+        case .assistant(let text):
+            parts.append(text.isEmpty ? "still generating" : text)
+
+        case .tool(_, let summary, let result, _):
+            parts.append(summary)
+            if let result { parts.append("Result: \(result)") } else { parts.append("pending") }
+
+        case .error(let message):
+            parts.append(message)
+        }
+        if let latency = item.latency {
+            parts.append("Waited \(Self.durationText(latency))")
+        }
+        return parts.joined(separator: ". ")
     }
 
     // MARK: - Header

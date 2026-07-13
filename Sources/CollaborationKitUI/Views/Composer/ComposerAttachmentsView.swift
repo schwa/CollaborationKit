@@ -25,8 +25,11 @@ struct ComposerAttachmentsView: View {
                             }
                             .buttonStyle(.borderless)
                             .offset(x: 4, y: -4)
+                            .accessibilityLabel("Remove attachment")
+                            .accessibilityHint("Remove \(attachment.filename) from the message.")
                         }
                         .help(attachment.filename)
+                        .accessibilityLabel("Attachment: \(attachment.filename)")
                 }
             }
             .padding(.vertical, 2)

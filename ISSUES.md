@@ -727,12 +727,13 @@ Related: RFC 0002, #13.
 ## 30: CollaborationKitUI: accessibility pass
 
 +++
-status: open
+status: closed
 priority: medium
 kind: task
 labels: effort:m
 created: 2026-07-13T01:28:00Z
-updated: 2026-07-13T01:49:58Z
+updated: 2026-07-13T02:55:40Z
+closed: 2026-07-13T02:55:40Z
 +++
 
 RFC 0002 open question 6: roles/labels for the transcript, streaming announcements, focus management on the composer.
@@ -745,6 +746,17 @@ Concretely:
 - Dynamic Type: verify at accessibility sizes.
 
 Related: RFC 0002, #13.
+
+- `2026-07-13T02:55:40Z`: First pass landed. Changes:
+
+- ConversationRowView: combined element with a role-specific accessibilityLabel (User message / Assistant reply / Tool <name>[, errored] / Error) and an accessibilityValue that reads the content, image count for user rows, tool summary + result-or-pending, and the round-trip latency when known.
+- ComposerView: explicit accessibilityLabel and accessibilityHint on Attach / Send / Stop buttons (labels replace SF-symbol-derived defaults; hints describe the action).
+- ComposerAttachmentsView: attachment thumbnails get a filename label; remove button gets an explicit label + hint.
+- TranscriptView 'thinking' row: ignores its children and announces 'Assistant is generating a reply' as a single element so VoiceOver reads one thing.
+
+Not touched this pass — happy to file follow-ups if you want them separate:
+- VoiceOver rotor announcements when a new item appears (needs an AccessibilityNotification.post on transcript diff).
+- Dynamic Type verification at accessibility sizes.
 
 ---
 

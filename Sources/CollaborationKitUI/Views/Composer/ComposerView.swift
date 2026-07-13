@@ -112,6 +112,8 @@ public struct ComposerView: View {
                 .buttonStyle(.borderless)
                 .disabled(store.isGenerating)
                 .help("Attach one or more images to the next message.")
+                .accessibilityLabel("Attach image")
+                .accessibilityHint("Add images to your next message.")
             }
 
             Spacer()
@@ -119,6 +121,8 @@ public struct ComposerView: View {
             if store.isGenerating {
                 StopButton { store.stop() }
                     .help("Stop the current turn.")
+                    .accessibilityLabel("Stop")
+                    .accessibilityHint("Cancel the current turn.")
             } else {
                 Button("Send", systemImage: "arrow.up") {
                     submit()
@@ -128,6 +132,8 @@ public struct ComposerView: View {
                 .clipShape(.circle)
                 .keyboardShortcut(.defaultAction)
                 .disabled(!canSubmit)
+                .accessibilityLabel("Send message")
+                .accessibilityHint(canSubmit ? "Send your message." : "Type a message first.")
             }
         }
     }

@@ -92,6 +92,8 @@ public struct TranscriptView: View {
             RoundedRectangle(cornerRadius: 10)
                 .strokeBorder(Color.secondary.opacity(0.25), lineWidth: 1)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Assistant is generating a reply")
     }
 
     private func scrollToEnd(_ proxy: ScrollViewProxy) {
