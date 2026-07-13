@@ -2750,9 +2750,9 @@ Behavior questions to resolve during implementation:
 status: open
 priority: medium
 kind: bug
-labels: effort:s
+labels: effort:s, deferred
 created: 2026-07-13T16:56:32Z
-updated: 2026-07-13T17:37:13Z
+updated: 2026-07-13T18:20:39Z
 +++
 
 The transcript is supposed to keep the newest content in view as messages/tool calls stream in, but it stops scrolling to the bottom.
