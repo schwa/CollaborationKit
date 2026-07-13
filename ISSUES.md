@@ -2140,10 +2140,12 @@ The UI should display how many tokens (or what percentage of the context window)
 ## 79: Built-in tools suite (read, write, search, etc.)
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:l
 created: 2026-07-13T15:19:12Z
+updated: 2026-07-13T15:29:36Z
 +++
 
 CollaborationKit should ship a suite of built-in tools (file read, file write, search, and similar common tools) that users can enable and configure on a session.
@@ -2151,19 +2153,23 @@ CollaborationKit should ship a suite of built-in tools (file read, file write, s
 Tools must be opt-in: nothing runs unless the host app explicitly enables and configures it (e.g. allowed paths, allowed operations, size limits).
 
 Scope to define:
-- Which tools are in the initial set.
-- Configuration surface per tool (allowlists, sandbox roots, limits).
-- How host apps enable/disable them per session or per conversation.
+
+- `2026-07-13T15:19:12Z`: Which tools are in the initial set.
+- `2026-07-13T15:19:12Z`: Configuration surface per tool (allowlists, sandbox roots, limits).
+- `2026-07-13T15:19:12Z`: How host apps enable/disable them per session or per conversation.
+- `2026-07-13T15:26:46Z`: Related to #80 (web tool candidate for the built-in tools suite).
 
 ---
 
 ## 80: Built-in web tool
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:l, deferred
 created: 2026-07-13T15:19:17Z
+updated: 2026-07-13T15:29:15Z
 +++
 
 CollaborationKit should ship a built-in web tool (fetch/browse URLs, and possibly search) that users can enable and configure on a session.
@@ -2171,19 +2177,18 @@ CollaborationKit should ship a built-in web tool (fetch/browse URLs, and possibl
 Must be opt-in: disabled by default. Host apps explicitly enable it and provide configuration.
 
 Scope to define:
-- Fetch vs. search vs. both.
-- Configuration surface: allowed domains / blocklist, timeout, max response size, redirect policy, user agent, auth headers.
-- How results are returned to the model (raw text, extracted content, truncation policy).
 
 ---
 
 ## 81: Demo app: add more tabs (e.g. canvas sketch view with tools)
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:m
 created: 2026-07-13T15:19:26Z
+updated: 2026-07-13T15:26:46Z
 +++
 
 The Demo app currently has a limited set of tabs. Add more tabs to showcase additional CollaborationKit capabilities.
@@ -2197,10 +2202,12 @@ Other tab ideas welcome; this issue is a placeholder to expand the demo's covera
 ## 82: Tapping an attachment in the composer/editor field should open a viewer
 
 +++
-status: new
+status: open
 priority: medium
-kind: feature
+kind: enhancement
+labels: effort:s
 created: 2026-07-13T15:20:26Z
+updated: 2026-07-13T15:26:46Z
 +++
 
 In the composer/editor field, attachments are shown but tapping them does nothing. Tapping an attachment should open it in a viewer, same as attachments elsewhere in the UI.
@@ -2210,10 +2217,12 @@ In the composer/editor field, attachments are shown but tapping them does nothin
 ## 83: Use a popover for attachment viewing
 
 +++
-status: new
+status: open
 priority: medium
-kind: feature
+kind: enhancement
+labels: effort:s
 created: 2026-07-13T15:20:26Z
+updated: 2026-07-13T15:26:46Z
 +++
 
 Attachment viewing should be presented as a popover (anchored to the attachment) rather than a sheet or separate window.
@@ -2223,12 +2232,33 @@ Attachment viewing should be presented as a popover (anchored to the attachment)
 ## 84: Cannot drag or export attachments out of editor/transcript
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:m
 created: 2026-07-13T15:21:30Z
+updated: 2026-07-13T15:27:59Z
 +++
 
 Attachments in the editor and transcript views can be dropped in, but there is no way to drag them back out or export them to disk. Users need a way to save/extract attachments once they're in the app.
+
+---
+
+## 85: KeepRecentCompactionStrategy triggers on message count, not token usage
+
++++
+status: open
+priority: medium
+kind: enhancement
+labels: effort:s
+created: 2026-07-13T15:30:55Z
+updated: 2026-07-13T15:30:57Z
++++
+
+The built-in `KeepRecentCompactionStrategy` decides whether to compact based on `history.count` vs `minMessagesBeforeCompacting` — a content/message-count heuristic. `TokenUsage` is already threaded through `CompactionStrategy.compact(history:usage:)` but the default strategy ignores it.
+
+Message count is a poor proxy for context-window pressure: a few long tool_result blocks can blow the window while many short turns stay well within it.
+
+Switch the default trigger to be token-based (e.g. compact when cumulative or last-turn tokens exceed a configurable threshold), and keep the message-count knob only as a secondary/floor guard if useful. Related: #78 (surfacing tokens/% until compaction).
 
 ---
