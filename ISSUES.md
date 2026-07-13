@@ -2155,12 +2155,13 @@ Remaining open question: **UI placement.** Suggested default: a small caption ch
 ## 79: Built-in tools suite (read, write, search, etc.)
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:l
 created: 2026-07-13T15:19:12Z
-updated: 2026-07-13T15:29:36Z
+updated: 2026-07-13T15:59:52Z
+closed: 2026-07-13T15:59:52Z
 +++
 
 CollaborationKit should ship a suite of built-in tools (file read, file write, search, and similar common tools) that users can enable and configure on a session.
@@ -2174,6 +2175,7 @@ Scope to define:
 - `2026-07-13T15:19:12Z`: How host apps enable/disable them per session or per conversation.
 - `2026-07-13T15:26:46Z`: Related to #80 (web tool candidate for the built-in tools suite).
 - `2026-07-13T15:42:10Z`: Reviewed. Punting: the issue explicitly leaves three decisions open (which tools ship in the initial set, per-tool config surface for allowlists/sandbox roots/limits, and the host enable/disable UX per session vs. per conversation). These are policy calls I don't want to make unilaterally on an effort:l feature, and picking the wrong shape here has a large blast radius for downstream tools (#80, etc.). Can you decide the initial set (e.g. just read+write scoped to a caller-supplied directory?) and the enable/config API shape? I'd suggest splitting into: (a) a small 'ToolPolicy'/allowlist type in CollaborationKit, (b) one focused issue per tool (read, write, search) so each lands independently.
+- `2026-07-13T15:59:52Z`: Implemented WorkspaceTools: a workspace-rooted opt-in tool suite (readFile, writeFile, editFile, listDirectory, searchFiles) gated by PathPolicy. writeFile/editFile set requiresApproval so hosts can gate mutations. Ships as .workspaceTools(root:) and .readOnlyWorkspaceTools(root:) helpers on [any Tool]. Sensible defaults: 512 KiB read cap, 500-entry list cap, 100-hit search cap, prunes hidden/.build/.git/node_modules/DerivedData/etc. 24 new tests.
 
 ---
 
