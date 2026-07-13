@@ -927,12 +927,13 @@ ConversationStore.buildExport(model:userInfo:) gathers the snapshot; SessionExpo
 ## 36: CollaborationKitUI: image drop destination on the transcript
 
 +++
-status: open
+status: closed
 priority: high
 kind: feature
 labels: effort:s
 created: 2026-07-13T01:40:35Z
-updated: 2026-07-13T14:15:02Z
+updated: 2026-07-13T14:22:43Z
+closed: 2026-07-13T14:22:43Z
 +++
 
 Phosphor's transcript accepts image file drops (URLs) directly onto the scroll area and routes them into the pending composer attachments. CollaborationKitUI's TranscriptView has no dropDestination — users must go through the paperclip importer.

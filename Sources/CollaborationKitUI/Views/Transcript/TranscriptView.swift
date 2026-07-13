@@ -21,24 +21,34 @@ public struct TranscriptView: View {
     /// the built-in view has no way of knowing the host's tools or workflow.
     public let emptyPlaceholder: (() -> AnyView)?
 
+    /// Optional handler invoked when file URLs are dropped onto the
+    /// transcript. When `nil`, the transcript accepts no drops. Hosts using
+    /// ``CollaborationChatView`` get this wired up automatically to route
+    /// image drops into the composer.
+    public let onDropURLs: (([URL]) -> Bool)?
+
     public init(
         store: ConversationStore,
-        iconForTool: @escaping (String) -> String = ConversationRowView.defaultIcon(for:)
+        iconForTool: @escaping (String) -> String = ConversationRowView.defaultIcon(for:),
+        onDropURLs: (([URL]) -> Bool)? = nil
     ) {
         self.store = store
         self.iconForTool = iconForTool
         self.emptyPlaceholder = nil
+        self.onDropURLs = onDropURLs
     }
 
     /// Creates a transcript with a custom empty-state placeholder.
     public init<Placeholder: View>(
         store: ConversationStore,
         iconForTool: @escaping (String) -> String = ConversationRowView.defaultIcon(for:),
+        onDropURLs: (([URL]) -> Bool)? = nil,
         @ViewBuilder emptyPlaceholder: @escaping () -> Placeholder
     ) {
         self.store = store
         self.iconForTool = iconForTool
         self.emptyPlaceholder = { AnyView(emptyPlaceholder()) }
+        self.onDropURLs = onDropURLs
     }
 
     private static let bottomID = "collaborationkit.transcript.bottom"
@@ -70,6 +80,7 @@ public struct TranscriptView: View {
             .background(.background.secondary)
             .overlay { emptyState }
             .onChange(of: scrollSignal) { _, _ in scrollToEnd(proxy) }
+            .modifier(TranscriptDropModifier(onDropURLs: onDropURLs))
         }
     }
 
@@ -141,6 +152,23 @@ public struct TranscriptView: View {
 
     private func scrollToEnd(_ proxy: ScrollViewProxy) {
         withAnimation { proxy.scrollTo(Self.bottomID, anchor: .bottom) }
+    }
+}
+
+/// Attaches a URL drop destination to the transcript scroll area only when a
+/// handler is supplied. Absent a handler, no drop target is installed so the
+/// view doesn't silently swallow drops the host wants to route elsewhere.
+private struct TranscriptDropModifier: ViewModifier {
+    var onDropURLs: (([URL]) -> Bool)?
+
+    func body(content: Content) -> some View {
+        if let onDropURLs {
+            content.dropDestination(for: URL.self) { urls, _ in
+                onDropURLs(urls)
+            }
+        } else {
+            content
+        }
     }
 }
 

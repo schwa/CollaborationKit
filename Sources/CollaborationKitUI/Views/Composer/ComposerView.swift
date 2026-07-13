@@ -35,9 +35,16 @@ public struct ComposerView<Header: View>: View {
     private let header: () -> Header
 
     @State private var prompt: String = ""
-    @State private var attachments: [Attachment] = []
+    @State private var ownedBuffer = ComposerAttachmentBuffer()
     @State private var showImporter: Bool = false
     @FocusState private var promptFocused: Bool
+    @Environment(\.composerAttachmentBuffer) private var injectedBuffer
+
+    private var buffer: ComposerAttachmentBuffer {
+        injectedBuffer ?? ownedBuffer
+    }
+
+    private var attachments: [Attachment] { buffer.attachments }
 
     public init(
         store: ConversationStore,
@@ -78,7 +85,7 @@ public struct ComposerView<Header: View>: View {
         VStack(alignment: .leading, spacing: 6) {
             if !attachments.isEmpty {
                 ComposerAttachmentsView(attachments: attachments) { id in
-                    attachments.removeAll { $0.id == id }
+                    buffer.remove(id: id)
                 }
             }
 
@@ -160,17 +167,12 @@ public struct ComposerView<Header: View>: View {
         let submitted = prompt
         let images = attachments.map(\.content)
         prompt = ""
-        attachments = []
+        buffer.clear()
         store.send(submitted, images: images)
     }
 
     private func addAttachments(from urls: [URL]) {
-        for url in urls {
-            let scoped = url.startAccessingSecurityScopedResource()
-            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-            guard let attachment = Attachment(url: url) else { continue }
-            attachments.append(attachment)
-        }
+        buffer.add(urls: urls)
     }
 }
 

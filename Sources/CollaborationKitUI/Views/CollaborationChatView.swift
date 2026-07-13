@@ -39,6 +39,11 @@ public struct CollaborationChatView: View {
     @Environment(CollaborationCredentials.self)
     private var credentials
 
+    /// Shared attachment buffer plumbed into the composer and used as the
+    /// sink for transcript image drops, so drags from Finder onto the
+    /// transcript surface immediately in the composer's attachment strip.
+    @State private var attachmentBuffer = ComposerAttachmentBuffer()
+
     public init(
         store: ConversationStore,
         iconForTool: @escaping (String) -> String = ConversationRowView.defaultIcon(for:),
@@ -122,6 +127,7 @@ public struct CollaborationChatView: View {
                 missingCredentials
             }
         }
+        .environment(\.composerAttachmentBuffer, allowsImageAttachments ? attachmentBuffer : nil)
         .onChange(of: store.isGenerating) { _, isGenerating in
             onGeneratingChange(isGenerating)
         }
@@ -129,11 +135,27 @@ public struct CollaborationChatView: View {
 
     @ViewBuilder private var transcript: some View {
         if let emptyPlaceholder {
-            TranscriptView(store: store, iconForTool: iconForTool) {
+            TranscriptView(
+                store: store,
+                iconForTool: iconForTool,
+                onDropURLs: dropHandler
+            ) {
                 emptyPlaceholder()
             }
         } else {
-            TranscriptView(store: store, iconForTool: iconForTool)
+            TranscriptView(
+                store: store,
+                iconForTool: iconForTool,
+                onDropURLs: dropHandler
+            )
+        }
+    }
+
+    private var dropHandler: (([URL]) -> Bool)? {
+        guard allowsImageAttachments else { return nil }
+        return { urls in
+            attachmentBuffer.add(urls: urls)
+            return true
         }
     }
 
