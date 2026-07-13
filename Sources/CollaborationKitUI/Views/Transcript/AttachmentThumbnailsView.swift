@@ -10,19 +10,19 @@ import UIKit
 /// Read-only thumbnails of images the user attached to a prompt, shown inside
 /// their transcript bubble.
 ///
-/// Tapping a thumbnail opens a modal preview of the full-size image so the
-/// user can inspect what they actually sent — the 64pt thumbnail is usually
-/// too small to read screenshots.
+/// Tapping a thumbnail opens a popover anchored to that thumbnail with the
+/// full-size image so the user can inspect what they actually sent — the
+/// 64pt thumbnail is usually too small to read screenshots.
 struct AttachmentThumbnailsView: View {
     let images: [ImageContent]
 
-    @State private var preview: PreviewItem?
+    @State private var previewIndex: Int?
 
     var body: some View {
         HStack(spacing: 6) {
             ForEach(Array(images.enumerated()), id: \.offset) { index, image in
                 Button {
-                    preview = PreviewItem(index: index, image: image)
+                    previewIndex = index
                 } label: {
                     thumbnail(for: image)
                         .frame(width: 64, height: 64)
@@ -31,11 +31,14 @@ struct AttachmentThumbnailsView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Attached image")
                 .accessibilityHint("View full-size image.")
-            }
-        }
-        .sheet(item: $preview) { item in
-            AttachmentPreviewView(image: item.image) {
-                preview = nil
+                .popover(
+                    isPresented: Binding(
+                        get: { previewIndex == index },
+                        set: { if !$0 { previewIndex = nil } }
+                    )
+                ) {
+                    AttachmentPreviewView(image: image)
+                }
             }
         }
     }
@@ -71,37 +74,20 @@ struct AttachmentThumbnailsView: View {
             .accessibilityLabel("Image unavailable")
     }
 
-    /// Identity wrapper so `sheet(item:)` can distinguish attachments with
-    /// identical bytes at different positions in the same message.
-    private struct PreviewItem: Identifiable {
-        let index: Int
-        let image: ImageContent
-        var id: Int { index }
-    }
 }
 
-/// Full-size attachment preview shown from ``AttachmentThumbnailsView``.
-/// Fits the image inside the sheet without cropping and offers a Done button.
+/// Full-size attachment preview shown from ``AttachmentThumbnailsView`` as a
+/// popover. Fits the image inside a bounded frame; the popover chrome
+/// provides its own dismissal (tap outside / Esc), so no Done button is
+/// needed.
 private struct AttachmentPreviewView: View {
     let image: ImageContent
-    let onDismiss: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            fullImage
-                .frame(minWidth: 320, minHeight: 240)
-                .padding()
-
-            Divider()
-
-            HStack {
-                Spacer()
-                Button("Done", action: onDismiss)
-                    .keyboardShortcut(.defaultAction)
-            }
-            .padding(12)
-        }
-        .frame(maxWidth: 720, maxHeight: 720)
+        fullImage
+            .frame(minWidth: 320, minHeight: 240)
+            .frame(maxWidth: 720, maxHeight: 720)
+            .padding()
     }
 
     @ViewBuilder

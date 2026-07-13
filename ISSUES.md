@@ -2220,15 +2220,18 @@ In the composer/editor field, attachments are shown but tapping them does nothin
 ## 83: Use a popover for attachment viewing
 
 +++
-status: open
+status: closed
 priority: medium
 kind: enhancement
 labels: effort:s
 created: 2026-07-13T15:20:26Z
-updated: 2026-07-13T15:26:46Z
+updated: 2026-07-13T15:35:39Z
+closed: 2026-07-13T15:35:39Z
 +++
 
 Attachment viewing should be presented as a popover (anchored to the attachment) rather than a sheet or separate window.
+
+- `2026-07-13T15:35:39Z`: Transcript attachment viewer switched from sheet to popover anchored on the thumbnail.
 
 ---
 
