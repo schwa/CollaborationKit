@@ -8,6 +8,14 @@ import CollaborationKit
 /// Shift+Enter inserts a newline. Attachments are optional and gated by the
 /// `allowsImageAttachments` flag; disable them for backends without image
 /// support (most OpenAI-compatible local servers).
+/// The visual style of the composer's prompt field border.
+public enum ComposerBorderStyle: Sendable {
+    /// A plain 1pt border that turns accent-colored on focus. Default.
+    case plain
+    /// Xcode-Coding-Intelligence-style multicolor glow. See ``GlowingPromptBorder``.
+    case glow
+}
+
 public struct ComposerView: View {
     public var store: ConversationStore
 
@@ -18,6 +26,9 @@ public struct ComposerView: View {
     /// backends where images aren't supported.
     public let allowsImageAttachments: Bool
 
+    /// How the prompt field is bordered. Defaults to ``ComposerBorderStyle/plain``.
+    public let borderStyle: ComposerBorderStyle
+
     @State private var prompt: String = ""
     @State private var attachments: [Attachment] = []
     @State private var showImporter: Bool = false
@@ -26,11 +37,13 @@ public struct ComposerView: View {
     public init(
         store: ConversationStore,
         placeholder: LocalizedStringKey = "Message…",
-        allowsImageAttachments: Bool = true
+        allowsImageAttachments: Bool = true,
+        borderStyle: ComposerBorderStyle = .plain
     ) {
         self.store = store
         self.placeholder = placeholder
         self.allowsImageAttachments = allowsImageAttachments
+        self.borderStyle = borderStyle
     }
 
     public var body: some View {
@@ -79,11 +92,7 @@ public struct ComposerView: View {
             actionsRow
         }
         .padding(12)
-        .background(.background, in: .rect(cornerRadius: 12))
-        .overlay {
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(promptFocused ? Color.accentColor : Color.secondary.opacity(0.3), lineWidth: 1)
-        }
+        .modifier(PromptFieldBackground(style: borderStyle, active: promptFocused))
     }
 
     private var actionsRow: some View {
@@ -108,13 +117,8 @@ public struct ComposerView: View {
             Spacer()
 
             if store.isGenerating {
-                Button("Stop", systemImage: "stop.fill") {
-                    store.stop()
-                }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.bordered)
-                .clipShape(.circle)
-                .help("Stop the current turn.")
+                StopButton { store.stop() }
+                    .help("Stop the current turn.")
             } else {
                 Button("Send", systemImage: "arrow.up") {
                     submit()
@@ -150,6 +154,31 @@ public struct ComposerView: View {
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             guard let attachment = Attachment(url: url) else { continue }
             attachments.append(attachment)
+        }
+    }
+}
+
+/// Applies either the plain or the glowing prompt border, so ``ComposerView``
+/// doesn't have to fork the view tree at the call site.
+private struct PromptFieldBackground: ViewModifier {
+    var style: ComposerBorderStyle
+    var active: Bool
+
+    func body(content: Content) -> some View {
+        switch style {
+        case .plain:
+            content
+                .background(.background, in: .rect(cornerRadius: 12))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 12)
+                        .strokeBorder(
+                            active ? Color.accentColor : Color.secondary.opacity(0.3),
+                            lineWidth: 1
+                        )
+                }
+
+        case .glow:
+            content.glowingPromptBorder(cornerRadius: 12, active: active)
         }
     }
 }

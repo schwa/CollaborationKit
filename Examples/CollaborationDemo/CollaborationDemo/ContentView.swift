@@ -34,7 +34,7 @@ struct ContentView: View {
     @ViewBuilder
     private var assistantInspector: some View {
         if let chat {
-            CollaborationChatView(store: chat.store)
+            CollaborationChatView(store: chat.store, composerBorderStyle: .glow)
         } else if let buildError {
             ContentUnavailableView {
                 Label("Couldn't Start Chat", systemImage: "exclamationmark.triangle")

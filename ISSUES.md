@@ -681,13 +681,17 @@ Add a mechanism for the host to approve (or deny) filesystem path access by buil
 ## 33: Copy progress/stop button from Phosphor to CollaborationKitUI
 
 +++
-status: new
+status: closed
 priority: medium
 kind: task
 created: 2026-07-13T01:36:39Z
+updated: 2026-07-13T01:45:54Z
+closed: 2026-07-13T01:45:54Z
 +++
 
 Port the progress/stop button UI component from the Phosphor project into the CollaborationKitUI target. Used to indicate an in-flight LLM turn and let the user cancel it.
+
+- `2026-07-13T01:45:54Z`: Ported from Phosphor as `StopButton` (public) in Sources/CollaborationKitUI/Views/Composer/. Wired into ComposerView; replaces the plain bordered Stop button when a turn is running.
 
 ---
 
@@ -781,10 +785,12 @@ Related: RFC 0002, #13, #26 (rollback), and the export issue above.
 ## 38: CollaborationKitUI: glowing multicolor prompt border (opt-in)
 
 +++
-status: new
+status: closed
 priority: low
 kind: feature
 created: 2026-07-13T01:40:36Z
+updated: 2026-07-13T01:45:54Z
+closed: 2026-07-13T01:45:54Z
 +++
 
 Phosphor's composer sports a distinctive multicolor glowing border on the prompt field that brightens on focus. It's decorative and Phosphor-only today; ComposerView uses a plain 1pt accent border.
@@ -795,6 +801,8 @@ Design:
 - ComposerView gains an initializer parameter (borderStyle: .plain | .glow) or exposes the modifier for hosts to apply.
 
 Related: RFC 0002, #13, #27 (theme).
+
+- `2026-07-13T01:45:54Z`: Ported from Phosphor as `GlowingPromptBorder` (public ViewModifier) + `.glowingPromptBorder(cornerRadius:active:)` extension. Exposed via `ComposerBorderStyle.glow` on ComposerView / CollaborationChatView; default remains `.plain`. Demo uses `.glow` to show it off.
 
 ---
 

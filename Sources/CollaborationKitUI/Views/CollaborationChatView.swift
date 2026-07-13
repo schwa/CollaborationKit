@@ -18,16 +18,21 @@ public struct CollaborationChatView: View {
     /// Whether the composer exposes the paperclip/image importer.
     public let allowsImageAttachments: Bool
 
+    /// Composer border style (plain or glow).
+    public let composerBorderStyle: ComposerBorderStyle
+
     @Environment(CollaborationCredentials.self) private var credentials
 
     public init(
         store: ConversationStore,
         iconForTool: @escaping (String) -> String = ConversationRowView.defaultIcon(for:),
-        allowsImageAttachments: Bool = true
+        allowsImageAttachments: Bool = true,
+        composerBorderStyle: ComposerBorderStyle = .plain
     ) {
         self.store = store
         self.iconForTool = iconForTool
         self.allowsImageAttachments = allowsImageAttachments
+        self.composerBorderStyle = composerBorderStyle
     }
 
     public var body: some View {
@@ -35,7 +40,11 @@ public struct CollaborationChatView: View {
             if credentials.hasCredentials {
                 TranscriptView(store: store, iconForTool: iconForTool)
                 Divider()
-                ComposerView(store: store, allowsImageAttachments: allowsImageAttachments)
+                ComposerView(
+                    store: store,
+                    allowsImageAttachments: allowsImageAttachments,
+                    borderStyle: composerBorderStyle
+                )
             } else {
                 missingCredentials
             }
