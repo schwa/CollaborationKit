@@ -16,10 +16,22 @@ struct CollaborationDemoApp: App {
         }
         #if os(macOS)
         Settings {
-            CollaborationSettingsView()
-                .environment(credentials)
-                .frame(minWidth: 520, minHeight: 380)
+            VStack(spacing: 0) {
+                CollaborationSettingsView()
+                Text(settingsFooterText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 8)
+            }
+            .environment(credentials)
+            .frame(minWidth: 520, minHeight: 420)
         }
         #endif
+    }
+
+    private var settingsFooterText: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "1.0"
+        return "v\(version) — Built with CollaborationKit"
     }
 }

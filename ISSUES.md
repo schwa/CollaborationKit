@@ -1783,10 +1783,12 @@ The composer should accept dragged images and file attachments, surface them as 
 ## 68: Redesign the demo Settings window — current layout doesn't feel like a native macOS Settings scene
 
 +++
-status: new
+status: closed
 priority: medium
 kind: none
 created: 2026-07-13T05:58:52Z
+updated: 2026-07-13T06:16:19Z
+closed: 2026-07-13T06:16:19Z
 +++
 
 The CollaborationDemo Settings window is styled as three floating rounded 'cards' (AI SERVICE / OPENAI API CONFIGURATION / MODEL SELECTION) with all-caps section labels above each card, over a flat gray background. It reads as a bespoke landing page, not a macOS Settings window.
@@ -1800,6 +1802,8 @@ Problems visible in the current layout:
 - No use of the standard macOS Settings scene / tab layout even though there are obvious groupings (provider, credentials, model).
 
 The Settings surface should look and behave like a native macOS Settings window and stop trying to be its own visual system.
+
+- `2026-07-13T06:16:19Z`: Redesigned to match the mockup: AI Service section now has a header, API Key row is a single LabeledContent (SecureField + Clear + prominent Save) with status messages on a conditional second row, Model Selection header renamed, and the demo Settings scene picks up a version footer read from CFBundleShortVersionString.
 
 ---
 

@@ -39,17 +39,39 @@ public struct APIKeySection<Footer: View>: View {
 
     public var body: some View {
         Section {
-            SecureField(placeholder, text: $key)
-                .textFieldStyle(.roundedBorder)
-                .onSubmit(save)
-                .onAppear(perform: load)
+            keyRow
+            statusRow
+        } header: {
+            Text(title)
+        } footer: {
+            footer()
+        }
+    }
 
-            HStack {
-                Button("Save", action: save).keyboardShortcut(.defaultAction)
+    private var keyRow: some View {
+        LabeledContent {
+            HStack(spacing: 8) {
+                SecureField(placeholder, text: $key)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(minWidth: 200)
+                    .onSubmit(save)
+                    .onAppear(perform: load)
                 Button("Clear") {
                     key = ""
                     save()
                 }
+                Button("Save", action: save)
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+            }
+        } label: {
+            Text("API Key")
+        }
+    }
+
+    @ViewBuilder private var statusRow: some View {
+        if savedFlash || readError != nil || saveError != nil {
+            HStack {
                 if savedFlash {
                     Text("Saved")
                         .foregroundStyle(.secondary)
@@ -65,10 +87,6 @@ public struct APIKeySection<Footer: View>: View {
                 Spacer()
             }
             .animation(.smooth, value: savedFlash)
-        } header: {
-            Text(title)
-        } footer: {
-            footer()
         }
     }
 
@@ -108,7 +126,7 @@ public struct AnthropicAPIKeySection: View {
     public init() {}
     public var body: some View {
         APIKeySection(
-            title: "Anthropic API Key",
+            title: "Anthropic API",
             placeholder: "sk-ant-…",
             read: { $0.anthropicAPIKey() },
             write: { $0.saveAnthropicAPIKey($1) },
@@ -129,7 +147,7 @@ public struct OpenAIAPIKeySection: View {
     public init() {}
     public var body: some View {
         APIKeySection(
-            title: "OpenAI API Key",
+            title: "OpenAI API",
             placeholder: "sk-…",
             read: { $0.openAIAPIKey() },
             write: { $0.saveOpenAIAPIKey($1) },

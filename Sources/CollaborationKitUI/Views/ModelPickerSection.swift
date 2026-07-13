@@ -56,7 +56,7 @@ public struct ModelPickerSection: View {
                 }
             }
         } header: {
-            Text("Model")
+            Text("Model Selection")
         }
         .task(id: TaskKey(backendID: credentials.backend.id, hasCredentials: credentials.hasCredentials)) {
             await loadModels()

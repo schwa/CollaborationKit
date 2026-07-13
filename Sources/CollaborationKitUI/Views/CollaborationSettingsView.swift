@@ -18,6 +18,8 @@ public struct CollaborationSettingsView: View {
                         Text(backend.displayName).tag(backend)
                     }
                 }
+            } header: {
+                Text("AI Service")
             } footer: {
                 Text("Choose which provider CollaborationKit talks to. Each provider has its own credentials.")
                     .font(.callout)
