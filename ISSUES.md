@@ -8,11 +8,11 @@ File format: <https://github.com/schwa/issues-format>
 
 +++
 status: open
-priority: low
+priority: medium
 kind: task
 labels: testing, effort:m
 created: 2026-06-23T23:13:55Z
-updated: 2026-07-13T06:19:52Z
+updated: 2026-07-13T15:13:14Z
 +++
 
 All provider tests are parser-level (StreamAccumulator / OpenAIStreamAccumulator). Nothing exercises AnthropicProvider/OpenAIProvider end-to-end over a real URLSession. Add a MockURLProtocol that feeds canned SSE byte streams through the actual providers to verify: request construction (auth headers, anthropic-beta/user-agent for OAuth, x-api-key vs Bearer), HTTP status handling (non-2xx -> httpError with body), and partial-line SSE buffering. Largest gap: the networking layer is unproven by tests, only manually verified against LM Studio and Anthropic.
@@ -424,12 +424,12 @@ Depends on the CollaborationSchemaConvertible / schema-lookup mechanism from #15
 
 +++
 status: open
-priority: low
+priority: medium
 kind: feature
 labels: effort:l, deferred
 depends: 14, 15
 created: 2026-07-13T01:02:41Z
-updated: 2026-07-13T14:53:02Z
+updated: 2026-07-13T15:13:26Z
 +++
 
 Slice 1 does not know about SwiftData @Model types. Annotating a @Model with @CollaborationTools does nothing useful — the user still has to hand-write list/fetch/create/update/delete tools.
@@ -688,11 +688,11 @@ Related: RFC 0002, #13.
 
 +++
 status: open
-priority: low
+priority: medium
 kind: feature
-labels: effort:m
+labels: effort:m, deferred
 created: 2026-07-13T01:28:00Z
-updated: 2026-07-13T14:14:52Z
+updated: 2026-07-13T15:15:05Z
 +++
 
 RFC 0002 calls for a small Theme struct (colors, spacing, corner radii, typography) read from the environment, with hosts overriding per-view or per-tree. Currently ConversationRowView and ComposerView hard-code accent/secondary/red colors and 10/12/16pt spacing.
@@ -958,11 +958,11 @@ Related: RFC 0002, #13.
 
 +++
 status: open
-priority: low
+priority: medium
 kind: feature
 labels: effort:s
 created: 2026-07-13T01:40:35Z
-updated: 2026-07-13T01:49:58Z
+updated: 2026-07-13T15:13:29Z
 +++
 
 Phosphor exposes actions (export debug info, stop generation, roll back) to the app menu via focusedSceneValue with typed FocusedValueKey values, so the File / Edit menus can trigger them contextually.
@@ -1299,11 +1299,11 @@ Nit: demo Editing → EditingNote.
 
 +++
 status: open
-priority: low
+priority: medium
 kind: feature
-labels: effort:xl
+labels: effort:xl, deferred
 created: 2026-07-13T03:33:06Z
-updated: 2026-07-13T06:18:59Z
+updated: 2026-07-13T15:13:10Z
 +++
 
 CollaborationKit has no concept of skills — bundles of instructions (and optionally scripts/resources) the model can load on demand to specialize its behavior for a task.
@@ -1859,11 +1859,11 @@ The Settings surface should look and behave like a native macOS Settings window 
 
 +++
 status: open
-priority: low
+priority: medium
 kind: feature
-labels: effort:l
+labels: effort:l, deferred
 created: 2026-07-13T05:59:52Z
-updated: 2026-07-13T06:19:47Z
+updated: 2026-07-13T15:13:34Z
 +++
 
 The current conversation view has limited text selection and other interaction affordances. Investigate rendering the conversation as a WebView to get better native selection, copy, find, and rich-content rendering.
@@ -1931,10 +1931,12 @@ Missing surface in CollaborationKitUI:
 ## 73: Persist conversations across launches
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:l, deferred
 created: 2026-07-13T06:39:46Z
+updated: 2026-07-13T15:12:40Z
 +++
 
 Conversations are not persisted; relaunching the app loses all prior conversation state. Should reload existing conversations on launch.
@@ -1944,12 +1946,12 @@ Conversations are not persisted; relaunching the app loses all prior conversatio
 ## 74: Dragging an image onto the composer text field pastes the file path as text
 
 +++
-status: new
+status: open
 priority: high
 kind: bug
 labels: effort:m, deferred
 created: 2026-07-13T14:38:28Z
-updated: 2026-07-13T14:52:08Z
+updated: 2026-07-13T15:11:44Z
 +++
 
 Dragging an image file from Finder onto the composer's TextField inserts the file path as literal text into the prompt, instead of attaching the image.
@@ -1972,11 +1974,12 @@ Related: #66 (paste has the same underlying cause — focused TextField wins ove
 ## 75: ComposerView: send/queue arrow visible while generating even when the field is empty
 
 +++
-status: new
+status: open
 priority: medium
 kind: enhancement
 labels: effort:xs
 created: 2026-07-13T14:39:23Z
+updated: 2026-07-13T15:11:44Z
 +++
 
 While a response is generating, the composer shows both a stop button and a send/queue arrow. The arrow stays visible even when the prompt field is empty, so there's nothing to queue.
@@ -1992,10 +1995,12 @@ Introduced by #64 (queue prompts while assistant responding).
 ## 76: Tap attachment to view it
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:m
 created: 2026-07-13T14:44:13Z
+updated: 2026-07-13T15:11:44Z
 +++
 
 In the chat UI, tapping an attachment should open/preview it. Currently there's no way to view an attachment after it's been sent.
@@ -2005,10 +2010,12 @@ In the chat UI, tapping an attachment should open/preview it. Currently there's 
 ## 77: Review uses of stringy keys
 
 +++
-status: new
+status: open
 priority: medium
 kind: task
+labels: effort:m
 created: 2026-07-13T15:02:13Z
+updated: 2026-07-13T15:11:44Z
 +++
 
 Audit the codebase for places where we use bare String keys (UserDefaults keys, Keychain account names, Codable CodingKeys spelled as raw strings, dictionary keys, notification names, etc.) and evaluate whether they should be strongly-typed instead.
@@ -2021,5 +2028,22 @@ Areas to look at:
 - Any other ad-hoc string constants used as lookup keys
 
 For each site, note whether a typed wrapper (e.g. a `RawRepresentable` key type, dedicated enum, or `KeyPath`-based API) would prevent typos, collisions, or drift between read/write sites.
+
+---
+
+## 78: Show tokens/% remaining until compaction
+
++++
+status: open
+priority: medium
+kind: feature
+labels: effort:s
+created: 2026-07-13T15:10:34Z
+updated: 2026-07-13T15:11:44Z
++++
+
+The UI should display how many tokens (or what percentage of the context window) remain before compaction is triggered, so users can see how close they are to a compaction event.
+
+- `2026-07-13T15:11:44Z`: Related to #7 (compaction landed Jul 12). Depends on the strategy exposing a 'progress toward compaction' signal — currently KeepRecentCompactionStrategy triggers on message count, not tokens, so the UI would need either a token-budget strategy or a strategy-agnostic 'how close am I' hook.
 
 ---
