@@ -170,7 +170,11 @@ public struct ComposerView<Header: View>: View {
                     .accessibilityHint("Cancel the current turn.")
             }
 
-            sendButton
+            // While generating, only show the queue arrow when there's
+            // something to queue; otherwise the stop button stands alone.
+            if !store.isGenerating || canSubmit {
+                sendButton
+            }
         }
     }
 

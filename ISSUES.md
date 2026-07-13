@@ -1974,12 +1974,13 @@ Related: #66 (paste has the same underlying cause — focused TextField wins ove
 ## 75: ComposerView: send/queue arrow visible while generating even when the field is empty
 
 +++
-status: open
+status: closed
 priority: medium
 kind: enhancement
 labels: effort:xs
 created: 2026-07-13T14:39:23Z
-updated: 2026-07-13T15:11:44Z
+updated: 2026-07-13T15:16:28Z
+closed: 2026-07-13T15:16:28Z
 +++
 
 While a response is generating, the composer shows both a stop button and a send/queue arrow. The arrow stays visible even when the prompt field is empty, so there's nothing to queue.
@@ -1989,6 +1990,8 @@ The send/queue arrow only appears while generating if the user has typed somethi
 
 ## Notes
 Introduced by #64 (queue prompts while assistant responding).
+
+- `2026-07-13T15:16:28Z`: Hide the send/queue arrow while generating when the composer is empty; only the stop button remains.
 
 ---
 
