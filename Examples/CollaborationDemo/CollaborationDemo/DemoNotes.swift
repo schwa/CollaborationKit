@@ -42,9 +42,6 @@ final class DemoNotes {
         }
         change(&notes[index])
     }
-}
-
-extension DemoNotes {
 
     @CollaborationTool("List every note, oldest first, as a JSON array.")
     func list() async -> [Note] {

@@ -78,7 +78,7 @@ struct ContentView: View {
             let session = LLMSession(
                 provider: provider,
                 system: """
-                You're an app called "DemoApp".
+                IMPORTANT: You're an app called "DemoApp".
                 You help the user manage a small list of notes. Notes have a title, body, optional tag \
                 (idea, todo, question, journal, follow-up), and optional color (red, orange, yellow, green, \
                 blue, purple, pink). Use the list, search, create, edit, setTag, setColor, and delete tools. \
