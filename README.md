@@ -47,7 +47,9 @@ Products: `CollaborationKit` (core) and `CollaborationKitUI` (SwiftUI).
 
 Annotate a class (or actor, or struct) with `@CollaborationTools`, then mark
 methods with `@CollaborationTool`. The macro derives a JSON Schema from the
-parameter list and exposes a `collaborationTools: [AnyTool]` property.
+parameter list and exposes a `collaborationTools: [AnyTool]` property. Tool
+descriptions come from the method's `///` doc comment, or from an explicit
+string passed to `@CollaborationTool` if you want to override it.
 
 ```swift
 import CollaborationKit
@@ -58,16 +60,23 @@ import CollaborationKit
 final class Notes {
     var items: [Note] = []
 
-    @CollaborationTool("List every note, oldest first.")
+    /// List every note, oldest first.
+    @CollaborationTool
     func list() async -> [Note] { /* ... */ }
 
-    @CollaborationTool("Create a note. Returns the new note's id.")
+    /// Create a note. Returns the new note's id.
+    @CollaborationTool
     func create(title: String, body: String) async -> String { /* ... */ }
 
-    @CollaborationTool("Delete the note with the given id.", requiresApproval: true)
+    /// Delete the note with the given id.
+    @CollaborationTool(requiresApproval: true)
     func delete(id: String) async throws { /* ... */ }
 }
 ```
+
+Doc-comment mining uses the first paragraph — up to the first blank line or
+DocC keyword (`- Parameter`, `- Returns:`, etc.) — so parameter and return
+docs stay out of the tool description.
 
 Parameters may be primitives, `Optional`, `Array`, `Dictionary<String, T>`,
 or any type conforming to `CollaborationSchemaConvertible`.

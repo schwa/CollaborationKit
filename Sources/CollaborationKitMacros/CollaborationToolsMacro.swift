@@ -164,7 +164,22 @@ public enum CollaborationToolsMacro: MemberMacro {
 
         for member in declaration.memberBlock.members {
             guard let fn = member.decl.as(FunctionDeclSyntax.self) else { continue }
-            guard let (attr, description) = collaborationToolAttribute(on: fn) else { continue }
+            guard let (attr, attrDescription) = collaborationToolAttribute(on: fn) else { continue }
+
+            // Explicit attribute string wins. Otherwise, mine the method's
+            // `///` doc comment. If neither exists, diagnose.
+            let description: String
+            if let attrDescription {
+                description = attrDescription
+            } else if let mined = docCommentSummary(of: fn) {
+                description = mined
+            } else {
+                context.diagnose(Diagnostic(
+                    node: Syntax(attr),
+                    message: MacroDiagnostic.missingDescription
+                ))
+                continue
+            }
 
             let signature = fn.signature
 
@@ -207,24 +222,109 @@ public enum CollaborationToolsMacro: MemberMacro {
         return results
     }
 
+    /// Locates the `@CollaborationTool` attribute on `fn`, and extracts the
+    /// literal description passed as its first (unlabeled) positional
+    /// argument, if any. Returns `nil` when the attribute isn't present.
+    /// Returns `(attr, nil)` when the attribute is present but no positional
+    /// description literal was supplied — caller falls back to doc-comment
+    /// mining.
     private static func collaborationToolAttribute(
         on fn: FunctionDeclSyntax
-    ) -> (AttributeSyntax, String)? {
+    ) -> (AttributeSyntax, String?)? {
         for attr in fn.attributes {
             guard let a = attr.as(AttributeSyntax.self) else { continue }
             let name = a.attributeName.trimmedDescription
             guard name == "CollaborationTool" || name.hasSuffix(".CollaborationTool") else {
                 continue
             }
+            // `@CollaborationTool` (no parens) or `@CollaborationTool(name: ...)`
+            // both leave the description unset.
             guard case .argumentList(let args) = a.arguments,
                   let first = args.first,
+                  first.label == nil,
                   let literal = first.expression.as(StringLiteralExprSyntax.self),
                   let value = literal.representedLiteralValue else {
-                continue
+                return (a, nil)
             }
             return (a, value)
         }
         return nil
+    }
+
+    /// Extracts a plain-text summary from `fn`'s leading `///` or `/** */`
+    /// doc comments. Stops at the first blank doc-comment line or DocC
+    /// keyword line (`- Parameter`, `- Returns:`, etc.), so parameter and
+    /// return docs don't leak into the tool description.
+    private static func docCommentSummary(of fn: FunctionDeclSyntax) -> String? {
+        let rawLines = docCommentLines(from: fn.leadingTrivia)
+
+        return summarize(rawLines)
+    }
+
+    /// Reduces `trivia` to a flat list of doc-comment lines. A non-doc,
+    /// non-whitespace trivia piece resets the run so only the doc comment
+    /// immediately attached to the decl contributes.
+    private static func docCommentLines(from trivia: Trivia) -> [String] {
+        var lines: [String] = []
+        for piece in trivia {
+            if let line = docLineCommentBody(piece) {
+                lines.append(line)
+            } else if case .docBlockComment = piece {
+                lines.append(contentsOf: docBlockCommentLines(piece))
+            } else if isIgnorableTrivia(piece) {
+                continue
+            } else {
+                lines.removeAll()
+            }
+        }
+        return lines
+    }
+
+    private static func docLineCommentBody(_ piece: TriviaPiece) -> String? {
+        guard case .docLineComment(let text) = piece else { return nil }
+        var body = Substring(text)
+        if body.hasPrefix("///") { body = body.dropFirst(3) }
+        if body.first == " " { body = body.dropFirst() }
+        return String(body)
+    }
+
+    private static func docBlockCommentLines(_ piece: TriviaPiece) -> [String] {
+        guard case .docBlockComment(let text) = piece else { return [] }
+        var body = Substring(text)
+        if body.hasPrefix("/**") { body = body.dropFirst(3) }
+        if body.hasSuffix("*/") { body = body.dropLast(2) }
+        return body.split(separator: "\n", omittingEmptySubsequences: false).map { line in
+            var l = String(line).trimmingCharacters(in: .whitespaces)
+            if l.hasPrefix("*") { l.removeFirst() }
+            return l.trimmingCharacters(in: .whitespaces)
+        }
+    }
+
+    private static func isIgnorableTrivia(_ piece: TriviaPiece) -> Bool {
+        switch piece {
+        case .newlines, .spaces, .tabs, .carriageReturns, .carriageReturnLineFeeds:
+            return true
+
+        default:
+            return false
+        }
+    }
+
+    private static func summarize(_ rawLines: [String]) -> String? {
+        let stopPrefixes = [
+            "- Parameter", "- Parameters", "- Returns:", "- Throws:",
+            "- Note:", "- Important:", "- Warning:", "# ", "## "
+        ]
+        var summary: [String] = []
+        for line in rawLines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty { break }
+            if stopPrefixes.contains(where: { trimmed.hasPrefix($0) }) { break }
+            summary.append(trimmed)
+        }
+
+        let joined = summary.joined(separator: " ").trimmingCharacters(in: .whitespaces)
+        return joined.isEmpty ? nil : joined
     }
 }
 
@@ -238,6 +338,12 @@ struct MacroDiagnostic: DiagnosticMessage {
     static let notAType = Self(
         message: "@CollaborationTools can only be attached to a class, struct, or actor.",
         diagnosticID: MessageID(domain: "CollaborationKitMacros", id: "notAType"),
+        severity: .error
+    )
+
+    static let missingDescription = Self(
+        message: "@CollaborationTool needs a description — pass one as the first argument, or add a `///` doc comment above the method.",
+        diagnosticID: MessageID(domain: "CollaborationKitMacros", id: "missingDescription"),
         severity: .error
     )
 

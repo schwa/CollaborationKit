@@ -464,13 +464,14 @@ Missing per RFC 0003 §3.3:
 ## 19: RFC 0003: doc-comment mining feeds tool descriptions
 
 +++
-status: open
+status: closed
 priority: low
 kind: enhancement
 labels: effort:s
 depends: 14
 created: 2026-07-13T01:02:51Z
-updated: 2026-07-13T01:49:52Z
+updated: 2026-07-13T05:50:10Z
+closed: 2026-07-13T05:50:10Z
 +++
 
 Every @CollaborationTool method has to repeat its description in the attribute argument, even when the method already has a /// doc comment saying the same thing.
@@ -479,6 +480,8 @@ Missing per RFC 0003 open question 2:
 - If the attribute has no description argument, use the member's /// doc comment as the tool description.
 - Explicit attribute string always wins.
 - Requires enabling doc-comment trivia access in the macro.
+
+- `2026-07-13T05:50:10Z`: Slice 2: description-less @CollaborationTool falls back to the method's /// doc-comment summary (stops at first blank line or DocC keyword). Explicit attribute string still wins. Missing description now diagnoses. Demo, README, and tests updated.
 
 ---
 

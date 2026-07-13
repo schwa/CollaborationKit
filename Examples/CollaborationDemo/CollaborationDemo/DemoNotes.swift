@@ -43,12 +43,14 @@ final class DemoNotes {
         change(&notes[index])
     }
 
-    @CollaborationTool("List every note, oldest first, as an array.")
+    /// List every note, oldest first, as an array.
+    @CollaborationTool
     func list() -> [Note] {
         notes
     }
 
-    @CollaborationTool("Create a note. Returns the new note's id.")
+    /// Create a note. Returns the new note's id.
+    @CollaborationTool
     func create(title: String, body: String, tag: Tag?) -> Note.ID {
         let id: Note.ID = "n\(nextID)"
         nextID += 1
@@ -56,7 +58,8 @@ final class DemoNotes {
         return id
     }
 
-    @CollaborationTool("Case-insensitive substring search over title and body.")
+    /// Case-insensitive substring search over title and body.
+    @CollaborationTool
     func search(query: String) -> [Note] {
         let needle = query.lowercased()
         return notes.filter { note in
@@ -64,7 +67,8 @@ final class DemoNotes {
         }
     }
 
-    @CollaborationTool("Edit an existing note. Nil fields leave the value unchanged.")
+    /// Edit an existing note. Nil fields leave the value unchanged.
+    @CollaborationTool
     func edit(id: Note.ID, title: String?, body: String?) throws {
         try mutate(id) { note in
             if let title { note.title = title }
@@ -72,17 +76,20 @@ final class DemoNotes {
         }
     }
 
-    @CollaborationTool("Set or clear a note's tag. Pass null to clear.")
+    /// Set or clear a note's tag. Pass null to clear.
+    @CollaborationTool
     func setTag(id: Note.ID, tag: Tag?) throws {
         try mutate(id) { $0.tag = tag }
     }
 
-    @CollaborationTool("Set or clear a note's color. Pass null to clear.")
+    /// Set or clear a note's color. Pass null to clear.
+    @CollaborationTool
     func setColor(id: Note.ID, color: NoteColor?) throws {
         try mutate(id) { $0.color = color }
     }
 
-    @CollaborationTool("Delete the note with the given id.", requiresApproval: true)
+    /// Delete the note with the given id.
+    @CollaborationTool(requiresApproval: true)
     func delete(id: Note.ID) throws {
         guard let index = notes.firstIndex(where: { $0.id == id }) else {
             throw ToolError("No note with id \(id).")

@@ -47,7 +47,10 @@ type: "CollaborationToolsMacro"
 
 /// Marks a method as a collaboration tool.
 ///
-/// The `description` argument becomes the tool description shown to the model.
+/// The `description` argument becomes the tool description shown to the
+/// model. When omitted, the method's `///` doc-comment summary is used
+/// instead. If both are absent, the macro diagnoses an error.
+///
 /// The tool's name defaults to the Swift method name.
 ///
 /// Must be used inside a type annotated with ``CollaborationTools(prefix:)``.
@@ -65,6 +68,28 @@ type: "CollaborationToolsMacro"
 @attached(peer)
 public macro CollaborationTool(
 _ description: String,
+name: String? = nil,
+requiresApproval: Bool = false
+) = #externalMacro(
+module: "CollaborationKitMacros",
+type: "CollaborationToolMacro"
+)
+
+/// Marks a method as a collaboration tool, using the method's `///`
+/// doc-comment summary as the tool description.
+///
+/// Equivalent to `@CollaborationTool("…", name:, requiresApproval:)` where
+/// the description is mined from the leading doc comment (up to the first
+/// blank line or DocC keyword like `- Parameter`, `- Returns:`, etc.).
+///
+/// Must be used inside a type annotated with ``CollaborationTools(prefix:)``.
+///
+/// - Parameters:
+///   - name: Optional override for the exposed tool name.
+///   - requiresApproval: When `true`, routes the call through the session's
+///     approval closure.
+@attached(peer)
+public macro CollaborationTool(
 name: String? = nil,
 requiresApproval: Bool = false
 ) = #externalMacro(

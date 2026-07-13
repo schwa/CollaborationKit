@@ -51,6 +51,30 @@ final class NoteStore: @unchecked Sendable {
     func housekeeping() {}
 }
 
+/// Fixture for doc-comment mining: `@CollaborationTool` with no description
+/// argument should fall back to the leading `///` doc comment. An explicit
+/// string still wins over the doc comment.
+@CollaborationTools
+struct DocMined: Sendable {
+    /// Return a friendly greeting.
+    @CollaborationTool
+    func hello() -> String { "hi" }
+
+    /// Summary line only.
+    ///
+    /// This paragraph and any `- Parameter` blocks must not leak into the
+    /// tool description.
+    ///
+    /// - Parameter name: unused.
+    /// - Returns: nothing useful.
+    @CollaborationTool
+    func onlySummary(name: String) -> String { name }
+
+    /// Doc comment loses to the explicit attribute string.
+    @CollaborationTool("Explicit wins.")
+    func overridden() -> String { "" }
+}
+
 /// Actor variant: exercises the actor-isolation code path (macro must emit
 /// `await` when the enclosing type is an actor).
 @CollaborationTools
@@ -104,6 +128,27 @@ struct CollaborationToolsMacroTests {
         let store = NoteStore()
         let list = store.collaborationTools.first { $0.name == "list" }
         #expect(list?.description == "List all notes as \"id: title\" lines, oldest first.")
+    }
+
+    @Test("mines the tool description from the method's /// doc comment")
+    func minesDocComment() {
+        let mined = DocMined()
+        let hello = mined.collaborationTools.first { $0.name == "hello" }
+        #expect(hello?.description == "Return a friendly greeting.")
+    }
+
+    @Test("doc-comment mining stops at the first blank line or DocC keyword")
+    func minesSummaryOnly() {
+        let mined = DocMined()
+        let summary = mined.collaborationTools.first { $0.name == "onlySummary" }
+        #expect(summary?.description == "Summary line only.")
+    }
+
+    @Test("explicit description wins over the doc comment")
+    func explicitDescriptionWins() {
+        let mined = DocMined()
+        let overridden = mined.collaborationTools.first { $0.name == "overridden" }
+        #expect(overridden?.description == "Explicit wins.")
     }
 
     // MARK: Schema
