@@ -2201,12 +2201,13 @@ Scope to define:
 ## 81: Demo app: add more tabs (e.g. canvas sketch view with tools)
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:m
 created: 2026-07-13T15:19:26Z
-updated: 2026-07-13T15:26:46Z
+updated: 2026-07-13T16:29:44Z
+closed: 2026-07-13T16:29:44Z
 +++
 
 The Demo app currently has a limited set of tabs. Add more tabs to showcase additional CollaborationKit capabilities.
@@ -2216,6 +2217,7 @@ One candidate: a canvas sketch view with drawing tools, to demonstrate a richer 
 Other tab ideas welcome; this issue is a placeholder to expand the demo's coverage.
 
 - `2026-07-13T15:37:58Z`: Reviewed. Punting: the issue is a placeholder with no committed scope. Concrete build-out (e.g. a canvas sketch view with drawing tools driven through session tools) is a meaningful feature in its own right and not effort:m — closer to l/xl. Can you pick a specific tab to prioritize (canvas? a search-and-browse tab? a settings/model-picker showcase?) and file a focused issue for that one, or should this stay as a rolling wishlist?
+- `2026-07-13T16:29:44Z`: Added a Sketch tab. DemoSketch exposes setBackground/addLine/addRectangle/addEllipse/addPath/list/undo/delete/clear as collaboration tools. SketchCanvasView provides freehand drawing with a palette. ContentView wraps Notes + Sketch in a TabView and combines both tool sets on the assistant.
 
 ---
 
