@@ -4,7 +4,7 @@ import Testing
 
 @Test
 func openAIAccumulatorAssemblesText() throws {
-    var acc = OpenAIStreamAccumulator()
+    var acc = OpenAIWire.Accumulator()
     var events: [ProviderStreamEvent] = []
     events += try acc.consume(#"{"choices":[{"delta":{"content":"Hel"}}]}"#)
     events += try acc.consume(#"{"choices":[{"delta":{"content":"lo"}}]}"#)
@@ -22,7 +22,7 @@ func openAIAccumulatorAssemblesText() throws {
 
 @Test
 func openAIAccumulatorAssemblesToolCallFromFragments() throws {
-    var acc = OpenAIStreamAccumulator()
+    var acc = OpenAIWire.Accumulator()
     _ = try acc.consume(#"{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"edit","arguments":""}}]}}]}"#)
     _ = try acc.consume(#"{"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"oldText\":\"a\","}}]}}]}"#)
     _ = try acc.consume(#"{"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"newText\":\"b\"}"}}]}}]}"#)
@@ -40,7 +40,7 @@ func openAIAccumulatorAssemblesToolCallFromFragments() throws {
 
 @Test
 func openAIAccumulatorEmitsUsage() throws {
-    var acc = OpenAIStreamAccumulator()
+    var acc = OpenAIWire.Accumulator()
     _ = try acc.consume(#"{"choices":[{"delta":{"content":"hi"}}]}"#)
     _ = try acc.consume(#"{"choices":[],"usage":{"prompt_tokens":12,"completion_tokens":3,"total_tokens":15}}"#)
     let events = acc.finish()
@@ -54,7 +54,7 @@ func openAIAccumulatorEmitsUsage() throws {
 
 @Test
 func openAIAccumulatorThrowsOnError() {
-    var acc = OpenAIStreamAccumulator()
+    var acc = OpenAIWire.Accumulator()
     #expect(throws: OpenAIError.self) {
         _ = try acc.consume(#"{"error":{"message":"model not found"}}"#)
     }
@@ -161,6 +161,63 @@ func openAIConfigOverrideBeatsHeuristic() throws {
     // gpt-4o would auto-detect false, but explicit true wins.
     let other = OpenAIConfig(apiKey: "k", model: "gpt-4o", usesMaxCompletionTokens: true)
     #expect(other.resolvedUsesMaxCompletionTokens == true)
+}
+
+/// Decode a simulated OpenAI stream into events, thread the resulting text +
+/// tool_use into the next assistant turn, then encode that turn back to the
+/// wire and check the pieces survive. Only possible now that encode and decode
+/// live in the same place.
+@Test
+func openAIWireRoundTripsAssistantTurn() throws {
+    var acc = OpenAIWire.Accumulator()
+    _ = try acc.consume(#"{"choices":[{"delta":{"content":"Reading."}}]}"#)
+    _ = try acc.consume(#"{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"read","arguments":"{\"path\":\"a\"}"}}]}}]}"#)
+    let events = acc.finish()
+
+    // Reconstruct the assistant Message the model just produced.
+    var assistantBlocks: [ContentBlock] = []
+    for event in events {
+        switch event {
+        case .text(let text):
+            assistantBlocks.append(.text(text))
+        case .toolUse(let use):
+            assistantBlocks.append(.toolCall(ToolCall(
+                use: use,
+                result: ToolResult(toolUseID: use.id, content: "ok")
+            )))
+        default:
+            break
+        }
+    }
+    let assistant = Message(role: .assistant, content: assistantBlocks)
+
+    // Re-encode into the next request. The round-trip: decoded stream ->
+    // Message -> wire request body.
+    let body = OpenAIWire.requestBody(
+        model: "m", maxTokens: nil, system: nil, messages: [.user("hi"), assistant], tools: []
+    )
+    guard case .object(let root) = body,
+          case .array(let wire)? = root["messages"] else {
+        Issue.record("unexpected body shape")
+        return
+    }
+    // user, assistant(text+tool_calls), tool
+    #expect(wire.count == 3)
+    guard case .object(let assistantTurn) = wire[1],
+          case .array(let toolCalls)? = assistantTurn["tool_calls"],
+          case .object(let firstCall) = toolCalls.first,
+          case .string(let callID)? = firstCall["id"] else {
+        Issue.record("unexpected assistant turn")
+        return
+    }
+    #expect(callID == "call_1")
+    guard case .object(let toolMessage) = wire[2],
+          case .string("tool")? = toolMessage["role"],
+          case .string(let toolCallID)? = toolMessage["tool_call_id"] else {
+        Issue.record("unexpected tool message")
+        return
+    }
+    #expect(toolCallID == "call_1")
 }
 
 @Test

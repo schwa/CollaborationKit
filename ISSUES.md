@@ -180,12 +180,13 @@ Acceptance:
 ## 9: Consolidate neutral-message wire encoding ownership
 
 +++
-status: open
+status: closed
 priority: low
 kind: task
 labels: effort:m
 created: 2026-06-24T01:10:57Z
-updated: 2026-07-13T01:49:39Z
+updated: 2026-07-13T04:53:05Z
+closed: 2026-07-13T04:53:05Z
 +++
 
 Message -> wire encoding knowledge is split across AnthropicWire, OpenAIWire, and the provider request builders:
@@ -1545,11 +1546,13 @@ Kept open at low priority for the docs + optional diagnostic work.
 ## 56: Wire encode and decode for each provider live in unrelated modules
 
 +++
-status: new
+status: closed
 priority: low
 kind: task
 labels: architecture, effort:m
 created: 2026-07-13T04:20:54Z
+updated: 2026-07-13T04:53:04Z
+closed: 2026-07-13T04:53:04Z
 +++
 
 Each provider translates between the neutral `Message` model and its own wire format in two halves that live apart:

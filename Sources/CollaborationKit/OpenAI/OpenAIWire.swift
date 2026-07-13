@@ -1,11 +1,16 @@
 import Foundation
 
-/// Encodes ``Message`` values into the OpenAI `/v1/chat/completions` request body.
+/// Translates between the neutral ``Message`` model and the OpenAI
+/// `/v1/chat/completions` wire format.
 ///
 /// The neutral message model (text / tool-use / tool-result blocks within a
 /// message) is flattened into OpenAI's shape: assistant tool calls live in a
 /// `tool_calls` array, and each tool result becomes its own `role: "tool"`
 /// message. A single neutral message may therefore expand into several.
+///
+/// Both directions live here: ``requestBody(model:maxTokens:system:messages:tools:parallelToolCalls:usesMaxCompletionTokens:)``
+/// encodes into the request body, and ``Accumulator`` reassembles streaming
+/// chunks back into ``ProviderStreamEvent`` values.
 enum OpenAIWire {
     static func requestBody(
         model: String,
@@ -151,5 +156,117 @@ enum OpenAIWire {
             return "{}"
         }
         return string
+    }
+
+    /// Accumulates OpenAI streaming chunks into ``ProviderStreamEvent`` values.
+    struct Accumulator: ServerSentEventSink {
+        let doneSentinel: String? = "[DONE]"
+
+        private struct PartialCall {
+            var id: String?
+            var name: String?
+            var arguments: String = ""
+        }
+
+        private var calls: [Int: PartialCall] = [:]
+        private var sawText = false
+        private var accumulatedText = ""
+        private var usage: TokenUsage?
+
+        mutating func consume(_ payload: String) throws -> [ProviderStreamEvent] {
+            let data = Data(payload.utf8)
+            let json: JSONValue
+            do {
+                json = try JSONDecoder().decode(JSONValue.self, from: data)
+            } catch {
+                throw OpenAIError.decodingError(payload)
+            }
+            guard case .object(let root) = json else { return [] }
+
+            if case .object(let error)? = root["error"] {
+                var message = "unknown error"
+                if case .string(let m)? = error["message"] { message = m }
+                throw OpenAIError.apiError(message: message)
+            }
+
+            if case .object(let usageObject)? = root["usage"] {
+                captureUsage(usageObject)
+            }
+
+            guard case .array(let choices)? = root["choices"],
+                  case .object(let choice)? = choices.first,
+                  case .object(let delta)? = choice["delta"] else {
+                return []
+            }
+
+            var events: [ProviderStreamEvent] = []
+
+            if case .string(let content)? = delta["content"], !content.isEmpty {
+                sawText = true
+                accumulatedText += content
+                events.append(.textDelta(content))
+            }
+
+            if case .array(let toolCalls)? = delta["tool_calls"] {
+                for entry in toolCalls {
+                    accumulate(entry)
+                }
+            }
+
+            return events
+        }
+
+        private mutating func captureUsage(_ object: [String: JSONValue]) {
+            var usage = TokenUsage()
+            if case .number(let prompt)? = object["prompt_tokens"] { usage.inputTokens = Int(prompt) }
+            if case .number(let completion)? = object["completion_tokens"] { usage.outputTokens = Int(completion) }
+            self.usage = usage
+        }
+
+        mutating func finish() -> [ProviderStreamEvent] {
+            var events: [ProviderStreamEvent] = []
+            if sawText {
+                events.append(.text(accumulatedText))
+            }
+            if let usage {
+                events.append(.usage(usage))
+            }
+            for index in calls.keys.sorted() {
+                let call = calls[index]!
+                guard let id = call.id, let name = call.name else { continue }
+                let input = parseArguments(call.arguments)
+                events.append(.toolUse(ToolUse(id: id, name: name, input: input)))
+            }
+            events.append(.messageComplete(stopReason: nil))
+            return events
+        }
+
+        private mutating func accumulate(_ entry: JSONValue) {
+            guard case .object(let object) = entry,
+                  case .number(let indexValue)? = object["index"] else { return }
+            let index = Int(indexValue)
+            var call = calls[index] ?? PartialCall()
+
+            if case .string(let id)? = object["id"], !id.isEmpty {
+                call.id = id
+            }
+            if case .object(let function)? = object["function"] {
+                if case .string(let name)? = function["name"], !name.isEmpty {
+                    call.name = name
+                }
+                if case .string(let fragment)? = function["arguments"] {
+                    call.arguments += fragment
+                }
+            }
+            calls[index] = call
+        }
+
+        private func parseArguments(_ arguments: String) -> JSONValue {
+            let text = arguments.isEmpty ? "{}" : arguments
+            guard let value = try? JSONDecoder().decode(JSONValue.self, from: Data(text.utf8)) else {
+                return .object([:])
+            }
+            return value
+        }
     }
 }
