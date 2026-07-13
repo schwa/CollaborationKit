@@ -22,15 +22,18 @@ All provider tests are parser-level (StreamAccumulator / OpenAIStreamAccumulator
 ## 2: Harden SSE parsing against awkward chunk boundaries
 
 +++
-status: open
+status: closed
 priority: medium
 kind: bug
 labels: bug, testing, effort:s
 created: 2026-06-23T23:14:06Z
-updated: 2026-07-13T01:49:39Z
+updated: 2026-07-13T02:21:32Z
+closed: 2026-07-13T02:21:32Z
 +++
 
 Both providers parse the SSE stream via bytes.lines, which assumes each 'data:' payload is a single newline-delimited line. Real SSE can split a JSON payload across reads, use CRLF, or include multi-line data fields. Verify/handle: CRLF line endings, a JSON payload that spans chunk boundaries, and blank-line event separators. Add tests that drive the provider with deliberately split chunks.
+
+- `2026-07-13T02:21:32Z`: Verified via 4 regression tests in StreamingTransportTests: CRLF line endings, bare CR terminators, blank-line event separators, and a JSON payload split across three network chunks. All pass against the existing bytes.lines-based parser; URLSession's async byte stream handles line reassembly transparently. Added a small ChunkedURLProtocol that delivers a base64-encoded pipe-separated list of chunks so the payload-split case exercises actual didLoad boundaries.
 
 ---
 
