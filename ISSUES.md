@@ -2876,3 +2876,26 @@ created: 2026-07-13T17:22:00Z
 When a tool marked `requiresApproval: true` runs, the user gets an Allow/Deny prompt for every invocation. There is no way to whitelist a tool for the rest of the conversation (or session), so repeated calls to the same tool require repeated clicks.
 
 ---
+
+## 108: Tool-approval confirm UI is ugly
+
++++
+status: new
+priority: low
+kind: enhancement
+labels: ui,demo,effort:s
+created: 2026-07-13T17:32:04Z
++++
+
+The tool-call approval dialog in the CollaborationDemo (SwiftUI `.alert` driven by `ApprovalGate`, wired up in `ContentView.swift` around line 90) looks bad.
+
+Observed problems (see `Documentation/Screenshots/approval-alert-ugly.png`):
+- Body is a raw JSON dump of the tool input, escaped (`\"`, `\n`) rather than pretty-printed or rendered.
+- Long string arguments wrap awkwardly and dominate the dialog.
+- No visual separation between the tool name (`rewrite`) and its arguments.
+- Three stacked pill buttons (Allow / Deny / Cancel) with Deny highlighted in red look heavy and unbalanced; unclear why Deny and Cancel are both present.
+- Overall styling is default `.alert` chrome — no typography hierarchy, no monospaced/code styling for the payload, no truncation for large inputs.
+
+Investigate a better presentation for the approval confirm UI (tool name + human-readable summary of arguments, proper code formatting for the payload, clearer Allow/Deny affordances).
+
+---
