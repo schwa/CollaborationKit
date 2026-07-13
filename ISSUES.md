@@ -2064,3 +2064,99 @@ The UI should display how many tokens (or what percentage of the context window)
 - `2026-07-13T15:17:32Z`: Punting: the current `KeepRecentCompactionStrategy` triggers on message count, not tokens, so there's no natural 'tokens until compaction' number to show. To resolve this we'd need to (a) extend `CompactionStrategy` with a `progressTowardCompaction(history:usage:)` hook, (b) decide what 'progress' means for a count-based strategy (message count?), and (c) decide where the UI displays it (composer action row? a separate chip?). Those are three API/design decisions that need your call before writing code.
 
 ---
+
+## 79: Built-in tools suite (read, write, search, etc.)
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T15:19:12Z
++++
+
+CollaborationKit should ship a suite of built-in tools (file read, file write, search, and similar common tools) that users can enable and configure on a session.
+
+Tools must be opt-in: nothing runs unless the host app explicitly enables and configures it (e.g. allowed paths, allowed operations, size limits).
+
+Scope to define:
+- Which tools are in the initial set.
+- Configuration surface per tool (allowlists, sandbox roots, limits).
+- How host apps enable/disable them per session or per conversation.
+
+---
+
+## 80: Built-in web tool
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T15:19:17Z
++++
+
+CollaborationKit should ship a built-in web tool (fetch/browse URLs, and possibly search) that users can enable and configure on a session.
+
+Must be opt-in: disabled by default. Host apps explicitly enable it and provide configuration.
+
+Scope to define:
+- Fetch vs. search vs. both.
+- Configuration surface: allowed domains / blocklist, timeout, max response size, redirect policy, user agent, auth headers.
+- How results are returned to the model (raw text, extracted content, truncation policy).
+
+---
+
+## 81: Demo app: add more tabs (e.g. canvas sketch view with tools)
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T15:19:26Z
++++
+
+The Demo app currently has a limited set of tabs. Add more tabs to showcase additional CollaborationKit capabilities.
+
+One candidate: a canvas sketch view with drawing tools, to demonstrate a richer non-chat surface driven by the same session/tool infrastructure.
+
+Other tab ideas welcome; this issue is a placeholder to expand the demo's coverage.
+
+---
+
+## 82: Tapping an attachment in the composer/editor field should open a viewer
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T15:20:26Z
++++
+
+In the composer/editor field, attachments are shown but tapping them does nothing. Tapping an attachment should open it in a viewer, same as attachments elsewhere in the UI.
+
+---
+
+## 83: Use a popover for attachment viewing
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T15:20:26Z
++++
+
+Attachment viewing should be presented as a popover (anchored to the attachment) rather than a sheet or separate window.
+
+---
+
+## 84: Cannot drag or export attachments out of editor/transcript
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T15:21:30Z
++++
+
+Attachments in the editor and transcript views can be dropped in, but there is no way to drag them back out or export them to disk. Users need a way to save/extract attachments once they're in the app.
+
+---
