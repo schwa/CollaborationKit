@@ -38,6 +38,18 @@ public struct CollaborationSettingsView: View {
             case Backend.openAI.id:
                 OpenAIAPIKeySection()
 
+            case "lmStudio":
+                LocalServerSection(
+                    title: "LM Studio",
+                    placeholder: "http://localhost:1234"
+                )
+
+            case "ollama":
+                LocalServerSection(
+                    title: "Ollama",
+                    placeholder: "http://localhost:11434"
+                )
+
             default:
                 Section("Credentials") {
                     Text("This backend doesn't ship a built-in credentials section. Add one for '\(credentials.backend.displayName)' if you want in-app entry.")

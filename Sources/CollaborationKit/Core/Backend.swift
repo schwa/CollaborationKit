@@ -66,6 +66,11 @@ public struct Backend: Sendable, Identifiable, Hashable {
 
     /// UserDefaults key for the persisted model id of this backend.
     public var modelDefaultsKey: String { "collaborationkit.model.\(id)" }
+
+    /// UserDefaults key for the persisted base-URL override of this
+    /// backend. Only local backends read it today, but the key exists for
+    /// every ``Backend`` so hosts can override an endpoint uniformly.
+    public var baseURLDefaultsKey: String { "collaborationkit.baseURL.\(id)" }
 }
 
 // MARK: - Built-in backends
@@ -81,6 +86,8 @@ extension Backend {
         static let claudeSubscription = (id: "claudeSubscription", displayName: "Claude Subscription")
         static let anthropicAPI = (id: "anthropicAPI", displayName: "Anthropic API")
         static let openAI = (id: "openAI", displayName: "OpenAI")
+        static let lmStudio = (id: "lmStudio", displayName: "LM Studio")
+        static let ollama = (id: "ollama", displayName: "Ollama")
     }
 
     /// Claude via a Claude subscription (unofficial OAuth).
@@ -155,12 +162,87 @@ extension Backend {
     /// ``CollaborationSettingsView`` picker source.
     public static let allBuiltin: [Backend] = [.claudeSubscription, .anthropicAPI, .openAI]
 
+    /// A local LM Studio server. Speaks the OpenAI-compatible
+    /// `/v1/chat/completions` protocol; no credentials required.
+    ///
+    /// - Parameters:
+    ///   - defaultBaseURL: The URL used when no per-user override is
+    ///     supplied. Defaults to `http://localhost:1234`.
+    ///   - defaultModel: The model id to request until the user picks one.
+    ///     LM Studio ignores the field but a non-empty value is required.
+    public static func lmStudio(
+        defaultBaseURL: URL = URL(string: "http://localhost:1234")!,
+        defaultModel: String = "local-model"
+    ) -> Backend {
+        Backend(
+            id: Builtin.lmStudio.id,
+            displayName: Builtin.lmStudio.displayName,
+            defaultModel: defaultModel,
+            hasCredentials: { _ in true },
+            makeProvider: { _, model, maxTokens, baseURL in
+                let config = OpenAIConfig.lmStudio(
+                    model: model,
+                    baseURL: baseURL ?? defaultBaseURL,
+                    maxTokens: maxTokens
+                )
+                return OpenAIProvider(config: config)
+            },
+            modelFilter: Backend.localChatFilter
+        )
+    }
+
+    /// A local Ollama server. Speaks the OpenAI-compatible
+    /// `/v1/chat/completions` protocol; no credentials required.
+    ///
+    /// - Parameters:
+    ///   - defaultBaseURL: The URL used when no per-user override is
+    ///     supplied. Defaults to `http://localhost:11434`.
+    ///   - defaultModel: The model id to request until the user picks one.
+    public static func ollama(
+        defaultBaseURL: URL = URL(string: "http://localhost:11434")!,
+        defaultModel: String = "llama3.2"
+    ) -> Backend {
+        Backend(
+            id: Builtin.ollama.id,
+            displayName: Builtin.ollama.displayName,
+            defaultModel: defaultModel,
+            hasCredentials: { _ in true },
+            makeProvider: { _, model, maxTokens, baseURL in
+                var config = OpenAIConfig(
+                    apiKey: "ollama",
+                    model: model,
+                    maxTokens: maxTokens,
+                    baseURL: baseURL ?? defaultBaseURL
+                )
+                // Ollama's OpenAI shim rejects unknown fields on some
+                // versions; keep the field opt-in via the shared config.
+                config.usesMaxCompletionTokens = false
+                return OpenAIProvider(config: config)
+            },
+            modelFilter: Backend.localChatFilter
+        )
+    }
+
     // MARK: - Shared helpers
 
     /// Keeps `claude-*` model ids, drops dated snapshots (`…-2025-12-11`).
     static let claudePrefixFilter: @Sendable (String) -> Bool = { id in
         if Backend.hasDatedSnapshotSuffix(id) { return false }
         return id.hasPrefix("claude-")
+    }
+
+    /// Keeps every model id offered by a local server that isn't obviously
+    /// non-chat. Local catalogs are user-curated so there's no whitelist to
+    /// match — the filter just drops embeddings, audio, image, and vision-
+    /// only surfaces.
+    static let localChatFilter: @Sendable (String) -> Bool = { id in
+        let excluded = [
+            "embed", "embedding",
+            "whisper", "audio", "tts",
+            "dall-e", "image", "clip",
+            "moderation", "rerank"
+        ]
+        return !excluded.contains(where: id.contains)
     }
 
     /// Keeps `gpt-*`, `chatgpt`, `o1`, `o3`, `o4` families; drops embeddings,

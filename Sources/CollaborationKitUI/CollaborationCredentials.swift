@@ -116,7 +116,34 @@ public final class CollaborationCredentials {
         maxTokens: Int = 4_096,
         baseURL: URL? = nil
     ) throws -> any ModelProvider {
-        try backend.makeProvider(store, model ?? selectedModel, maxTokens, baseURL)
+        let effectiveBaseURL = baseURL ?? persistedBaseURL(for: backend)
+        return try backend.makeProvider(store, model ?? selectedModel, maxTokens, effectiveBaseURL)
+    }
+
+    // MARK: - Base URL persistence
+
+    /// Returns the persisted base-URL override for `backend`, or `nil` when
+    /// none has been set (or the stored string doesn't parse).
+    public func baseURL(for backend: Backend? = nil) -> URL? {
+        persistedBaseURL(for: backend ?? self.backend)
+    }
+
+    /// Persists a base-URL override for `backend` (defaults to the current
+    /// backend). Passing `nil` clears the override.
+    public func setBaseURL(_ url: URL?, for backend: Backend? = nil) {
+        let target = backend ?? self.backend
+        let key = target.baseURLDefaultsKey
+        if let url {
+            UserDefaults.standard.set(url.absoluteString, forKey: key)
+        } else {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+    }
+
+    private func persistedBaseURL(for backend: Backend) -> URL? {
+        guard let string = UserDefaults.standard.string(forKey: backend.baseURLDefaultsKey),
+              !string.isEmpty else { return nil }
+        return URL(string: string)
     }
 
     // MARK: - Model selection persistence

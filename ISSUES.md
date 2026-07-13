@@ -2592,12 +2592,13 @@ Should probably only fire when the app/window is unfocused.
 ## 96: Support local LLM servers (LM Studio, Ollama, etc.)
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:m
 created: 2026-07-13T16:39:46Z
-updated: 2026-07-13T16:42:21Z
+updated: 2026-07-13T17:10:10Z
+closed: 2026-07-13T17:10:10Z
 +++
 
 Support talking to local LLM servers that expose HTTP APIs — e.g. LM Studio, Ollama, llama.cpp server, vLLM.

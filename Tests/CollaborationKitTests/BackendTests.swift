@@ -30,6 +30,52 @@ struct BackendTests {
     }
 
     @Test
+    func localFilterKeepsChatAndDropsEmbeddingsAudioImage() {
+        let filter = Backend.localChatFilter
+        #expect(filter("llama3.2"))
+        #expect(filter("qwen2.5-coder:14b"))
+        #expect(filter("mistral-nemo"))
+        #expect(!filter("nomic-embed-text"))
+        #expect(!filter("whisper-large"))
+        #expect(!filter("stable-diffusion-image"))
+    }
+
+    // MARK: - Local backends
+
+    @Test
+    func lmStudioBackendReportsCredentialsWithoutStore() {
+        let backend = Backend.lmStudio()
+        #expect(backend.id == "lmStudio")
+        #expect(backend.hasCredentials(InMemoryCredentialStore()))
+    }
+
+    @Test
+    func lmStudioMakeProviderIgnoresEmptyStore() throws {
+        let backend = Backend.lmStudio()
+        _ = try backend.makeProvider(InMemoryCredentialStore(), backend.defaultModel, 1_024, nil)
+    }
+
+    @Test
+    func ollamaBackendReportsCredentialsWithoutStore() {
+        let backend = Backend.ollama()
+        #expect(backend.id == "ollama")
+        #expect(backend.hasCredentials(InMemoryCredentialStore()))
+    }
+
+    @Test
+    func ollamaMakeProviderIgnoresEmptyStore() throws {
+        let backend = Backend.ollama()
+        _ = try backend.makeProvider(InMemoryCredentialStore(), backend.defaultModel, 1_024, nil)
+    }
+
+    @Test
+    func localBackendsAreNotIncludedInAllBuiltin() {
+        let ids = Set(Backend.allBuiltin.map(\.id))
+        #expect(!ids.contains("lmStudio"))
+        #expect(!ids.contains("ollama"))
+    }
+
+    @Test
     func openAIFilterKeepsChatAndDropsAudioImageEmbeddings() {
         let filter = Backend.openAIChatFilter
         #expect(filter("gpt-4o"))
@@ -101,7 +147,9 @@ struct BackendTests {
     @Test
     func makeProviderThrowsMissingCredentialsForEmptyStore() {
         let store = InMemoryCredentialStore()
-        for backend in Backend.allBuiltin {
+        // Local backends don't require credentials; skip them here.
+        let credentialed = Backend.allBuiltin.filter { $0.id != "lmStudio" && $0.id != "ollama" }
+        for backend in credentialed {
             #expect(throws: CollaborationCredentialsError.self) {
                 _ = try backend.makeProvider(store, backend.defaultModel, 1_024, nil)
             }
@@ -112,6 +160,38 @@ struct BackendTests {
     func makeProviderBuildsForAnthropicAPIWithStoredKey() throws {
         let store = InMemoryCredentialStore(anthropicAPIKey: "sk-ant-test")
         _ = try Backend.anthropicAPI.makeProvider(store, Backend.anthropicAPI.defaultModel, 1_024, nil)
+    }
+
+    // MARK: - Base URL persistence
+
+    @Test
+    func baseURLDefaultsKeyMirrorsID() {
+        #expect(Backend.lmStudio().baseURLDefaultsKey == "collaborationkit.baseURL.lmStudio")
+        #expect(Backend.ollama().baseURLDefaultsKey == "collaborationkit.baseURL.ollama")
+    }
+
+    @MainActor
+    @Test
+    func credentialsPersistAndClearBaseURLOverride() {
+        let defaults = UserDefaults.standard
+        let backend = Backend.lmStudio()
+        defaults.removeObject(forKey: backend.baseURLDefaultsKey)
+        defer { defaults.removeObject(forKey: backend.baseURLDefaultsKey) }
+
+        let credentials = CollaborationCredentials(
+            store: InMemoryCredentialStore(),
+            backends: [backend],
+            initialBackend: backend,
+            defaultsKey: nil
+        )
+
+        #expect(credentials.baseURL() == nil)
+        let override = URL(string: "http://192.168.1.42:1234")!
+        credentials.setBaseURL(override)
+        #expect(credentials.baseURL() == override)
+
+        credentials.setBaseURL(nil)
+        #expect(credentials.baseURL() == nil)
     }
 
     // MARK: - Error carries backend metadata

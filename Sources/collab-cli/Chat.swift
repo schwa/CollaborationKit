@@ -8,6 +8,7 @@ enum ProviderKind: String, ExpressibleByArgument, CaseIterable {
     case anthropic
     case openai
     case lmstudio
+    case ollama
 }
 
 /// Tracks per-turn timing across the send call and the event-stream task.
@@ -59,7 +60,7 @@ struct Chat: AsyncParsableCommand {
     @Argument(help: "Path to the file to collaborate on. Created if it doesn't exist.")
     var path: String
 
-    @Option(name: .long, help: "Backend: anthropic, openai, or lmstudio.")
+    @Option(name: .long, help: "Backend: anthropic, openai, lmstudio, or ollama.")
     var provider: ProviderKind = .anthropic
 
     @Option(name: .long, help: "Model identifier. Defaults to a Claude model for anthropic.")
@@ -118,10 +119,8 @@ struct Chat: AsyncParsableCommand {
 
     /// Builds the configured provider, sourcing credentials as needed.
     ///
-    /// Delegates the anthropic/openai cases to the shared ``Backend``
-    /// factories so credential lookup and provider construction stay in one
-    /// place. Only the `lmstudio` case is bespoke here — there's no built-in
-    /// backend for it because it doesn't require credentials.
+    /// Delegates every case to a shared ``Backend`` factory so credential
+    /// lookup and provider construction stay in one place.
     private func makeProvider() throws -> ModelProvider {
         let baseURL = try baseURL.map(parseURL)
         switch provider {
@@ -153,10 +152,16 @@ struct Chat: AsyncParsableCommand {
             guard let model else {
                 throw ValidationError("--model is required for the lmstudio provider (the model loaded in LM Studio).")
             }
-            let serverURL = baseURL ?? URL(string: "http://localhost:1234")!
-            // LM Studio ignores the API key; no login required.
-            let config = OpenAIConfig.lmStudio(model: model, baseURL: serverURL, maxTokens: maxTokens)
-            return OpenAIProvider(config: config)
+            // No credentials required; the store is unused.
+            let backend = Backend.lmStudio()
+            return try backend.makeProvider(InMemoryCredentialStore(), model, maxTokens, baseURL)
+
+        case .ollama:
+            guard let model else {
+                throw ValidationError("--model is required for the ollama provider (e.g. llama3.2).")
+            }
+            let backend = Backend.ollama()
+            return try backend.makeProvider(InMemoryCredentialStore(), model, maxTokens, baseURL)
         }
     }
 

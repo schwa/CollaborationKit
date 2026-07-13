@@ -205,7 +205,12 @@ inside that folder and run.
 | Anthropic (API key)   | `AnthropicProvider(config: .init(apiKey:))` |
 | Claude Subscription   | `AnthropicProvider(config: .init(auth: .oauth { … }))` |
 | OpenAI                | `OpenAIProvider(config: .init(apiKey:model:))` |
-| LM Studio / Ollama    | `OpenAIProvider(config: .lmStudio(model:))` |
+| LM Studio             | `Backend.lmStudio()` — no credentials, default `http://localhost:1234` |
+| Ollama                | `Backend.ollama()` — no credentials, default `http://localhost:11434` |
+
+The local backends aren't in `Backend.allBuiltin`; opt in by passing them
+to `CollaborationCredentials(backends:)`. `CollaborationSettingsView`
+shows a base-URL editor for whichever local backend is selected.
 
 > OAuth caveat: subscription login uses the Claude Code OAuth client and is
 > unofficial. It may violate Anthropic's terms and may break without notice.
