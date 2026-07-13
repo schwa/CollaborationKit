@@ -2727,10 +2727,12 @@ updated: 2026-07-13T16:44:30Z
 ## 101: Composer: up/down arrow to recall previous prompts
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:s
 created: 2026-07-13T16:52:37Z
+updated: 2026-07-13T17:37:13Z
 +++
 
 Let the user press up/down in the composer to cycle through their previously-submitted prompts (shell/REPL style), so they can re-run or edit a past prompt without retyping.
@@ -2745,10 +2747,12 @@ Behavior questions to resolve during implementation:
 ## 102: Transcript doesn't auto-scroll to the bottom
 
 +++
-status: new
+status: open
 priority: medium
 kind: bug
+labels: effort:s
 created: 2026-07-13T16:56:32Z
+updated: 2026-07-13T17:37:13Z
 +++
 
 The transcript is supposed to keep the newest content in view as messages/tool calls stream in, but it stops scrolling to the bottom.
@@ -2789,12 +2793,13 @@ Purpose: show off tool-driven document editing and the store/mirror handling a f
 ## 104: ConversationStore: rehydrate from a persisted SessionExport / MessageMirror
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
-labels: phosphor-adoption, api
+labels: phosphor-adoption, api, effort:m
 depends: 73
 created: 2026-07-13T17:09:09Z
+updated: 2026-07-13T17:37:13Z
 +++
 
 `ConversationStore.buildExport(model:userInfo:)` produces a `SessionExport` today, but there is no corresponding initializer or method that restores a store from one. A host that persists a conversation across launches (see #73) has no way to bring a store back into the same state it left.
@@ -2816,13 +2821,13 @@ Surfaced by the #90 public-API audit for Phosphor adoption. Child of #73.
 ## 105: CollaborationChatView: missing-credentials placeholder is not host-customizable
 
 +++
-status: new
+status: open
 priority: medium
 kind: enhancement
-labels: phosphor-adoption
+labels: phosphor-adoption, effort:s
 depends: 91
 created: 2026-07-13T17:04:35Z
-updated: 2026-07-13T17:15:47Z
+updated: 2026-07-13T17:37:13Z
 +++
 
 CollaborationChatView shows a hard-coded ContentUnavailableView ("Sign in to Continue" + SettingsLink) when the ambient CollaborationCredentials reports no stored credentials for the current backend.
@@ -2836,13 +2841,13 @@ Companion to #88 (which shipped only the empty-transcript slot). Child of the #9
 ## 106: Parallel tool dispatch within a single assistant turn
 
 +++
-status: new
+status: open
 priority: low
 kind: feature
 labels: effort:m
 depends: 98
 created: 2026-07-13T17:14:35Z
-updated: 2026-07-13T17:18:06Z
+updated: 2026-07-13T17:37:13Z
 +++
 
 Follow-up to #98. Today LLMSession.runPendingTools runs each pending tool serially, in the order the model emitted them. The wire already batches results (one user message with N tool_result blocks), so #98's round-trip/token win is covered — this is purely about wall-clock inside our loop when the model emits multiple independent I/O-bound calls in the same turn.
@@ -2867,24 +2872,29 @@ Deferred from the initial #98 pass because parallel-by-default was judged too da
 ## 107: Approval prompt has no "always allow this tool" option
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:s
 created: 2026-07-13T17:22:00Z
+updated: 2026-07-13T17:37:17Z
 +++
 
 When a tool marked `requiresApproval: true` runs, the user gets an Allow/Deny prompt for every invocation. There is no way to whitelist a tool for the rest of the conversation (or session), so repeated calls to the same tool require repeated clicks.
+
+- `2026-07-13T17:37:17Z`: Related: #108 (approval confirm UI styling).
 
 ---
 
 ## 108: Tool-approval confirm UI is ugly
 
 +++
-status: new
+status: open
 priority: low
 kind: enhancement
 labels: ui, demo, effort:s
 created: 2026-07-13T17:32:04Z
+updated: 2026-07-13T17:37:17Z
 +++
 
 The tool-call approval dialog in the CollaborationDemo (SwiftUI `.alert` driven by `ApprovalGate`, wired up in `ContentView.swift` around line 90) looks bad.
@@ -2898,15 +2908,19 @@ Observed problems (see `Documentation/Screenshots/approval-alert-ugly.png`):
 
 Investigate a better presentation for the approval confirm UI (tool name + human-readable summary of arguments, proper code formatting for the payload, clearer Allow/Deny affordances).
 
+- `2026-07-13T17:37:17Z`: Related: #107 ("always allow this tool" option).
+
 ---
 
 ## 109: Queued prompts aren't shown in the transcript and can't be cancelled individually
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:m
 created: 2026-07-13T17:33:35Z
+updated: 2026-07-13T17:37:13Z
 +++
 
 When the user submits a prompt while a turn is running, `ConversationStore` queues it (`pendingPromptCount` reflects this) but the transcript doesn't render the queued prompts. There's no per-prompt affordance to cancel a single queued prompt before it sends — only `clearPendingPrompts()`, which drops the whole queue.
@@ -2919,10 +2933,12 @@ Render queued prompts inline in the transcript with a cancel (×) button on each
 ## 110: Verify prompt caching is enabled and effective across all providers
 
 +++
-status: new
+status: open
 priority: medium
 kind: task
+labels: effort:s
 created: 2026-07-13T17:35:12Z
+updated: 2026-07-13T17:37:13Z
 +++
 
 Anthropic has `promptCaching: Bool = true` and inserts `cache_control` breakpoints on the stable request prefix. OpenAI has no explicit prompt-caching handling — it relies on server-side automatic caching, with no client-side verification that it's actually engaging (or surfacing the resulting hit/miss stats). No coverage or docs for future providers.
@@ -2934,10 +2950,12 @@ Audit whether prompt caching is actually working end-to-end for each supported p
 ## 111: Clarify default behavior for parallel/batch tool calls across providers
 
 +++
-status: new
+status: open
 priority: medium
 kind: task
+labels: effort:xs
 created: 2026-07-13T17:35:12Z
+updated: 2026-07-13T17:37:13Z
 +++
 
 OpenAI exposes `parallelToolCalls: Bool?` (nil = provider default, which is enabled). Anthropic has no equivalent knob, so we implicitly accept the API default (parallel tool use enabled). There's no shared, documented stance on whether CollaborationKit opts in to parallel/batch tool dispatch, and no cross-provider way to disable it. Related to #106 (parallel tool dispatch within a single assistant turn).
@@ -2947,10 +2965,12 @@ OpenAI exposes `parallelToolCalls: Bool?` (nil = provider default, which is enab
 ## 112: Demo doesn't showcase batched / parallel tool usage
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:s
 created: 2026-07-13T17:35:49Z
+updated: 2026-07-13T17:37:14Z
 +++
 
 When the model emits multiple tool calls in one assistant turn, the demo tabs (notes, sketch, doc) render them as a plain sequence of tool rows. There's no visual indication that they were dispatched as a batch, and no example workflow in the demo that exercises batching to make the behavior visible.
