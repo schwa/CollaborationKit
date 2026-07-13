@@ -137,26 +137,48 @@ extension Backend {
     )
 
     /// The OpenAI API (or an OpenAI-compatible server) via an API key.
-    public static let openAI = Backend(
-        id: Builtin.openAI.id,
-        displayName: Builtin.openAI.displayName,
-        defaultModel: "gpt-4o",
-        hasCredentials: { store in
-            if case .found(let v) = store.openAIAPIKey(), !v.isEmpty { return true }
-            return false
-        },
-        makeProvider: { store, model, maxTokens, baseURL in
-            let key = try Backend.readAPIKey(
-                store.openAIAPIKey(),
-                id: Builtin.openAI.id,
-                displayName: Builtin.openAI.displayName
-            )
-            var config = OpenAIConfig(apiKey: key, model: model, maxTokens: maxTokens)
-            if let baseURL { config.baseURL = baseURL }
-            return OpenAIProvider(config: config)
-        },
-        modelFilter: Backend.openAIChatFilter
-    )
+    ///
+    /// Uses the server's default for parallel tool calls. Hosts running
+    /// agentic loops that need sequential tool calls should use
+    /// ``openAI(parallelToolCalls:)`` instead.
+    public static let openAI = Backend.openAI()
+
+    /// The OpenAI API (or an OpenAI-compatible server) via an API key,
+    /// with control over parallel tool calls.
+    ///
+    /// - Parameter parallelToolCalls: Passed straight to
+    ///   ``OpenAIConfig/parallelToolCalls``. `nil` (the default) lets the
+    ///   server decide — the same behavior as the ``openAI`` static value.
+    ///   Set to `false` to serialize tool calls, which is useful for
+    ///   agentic edit/read/compile loops where a blind tool call alongside
+    ///   another can operate on stale state.
+    public static func openAI(parallelToolCalls: Bool? = nil) -> Backend {
+        Backend(
+            id: Builtin.openAI.id,
+            displayName: Builtin.openAI.displayName,
+            defaultModel: "gpt-4o",
+            hasCredentials: { store in
+                if case .found(let v) = store.openAIAPIKey(), !v.isEmpty { return true }
+                return false
+            },
+            makeProvider: { store, model, maxTokens, baseURL in
+                let key = try Backend.readAPIKey(
+                    store.openAIAPIKey(),
+                    id: Builtin.openAI.id,
+                    displayName: Builtin.openAI.displayName
+                )
+                var config = OpenAIConfig(
+                    apiKey: key,
+                    model: model,
+                    maxTokens: maxTokens,
+                    parallelToolCalls: parallelToolCalls
+                )
+                if let baseURL { config.baseURL = baseURL }
+                return OpenAIProvider(config: config)
+            },
+            modelFilter: Backend.openAIChatFilter
+        )
+    }
 
     /// The three built-in backends. Suitable as the default
     /// ``CollaborationSettingsView`` picker source.

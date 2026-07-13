@@ -99,7 +99,7 @@ extension ConversationStore {
         SessionExport(
             exportedAt: Date(),
             model: model,
-            system: nil,
+            system: session.system,
             usage: usage,
             messages: messages,
             transcript: items,

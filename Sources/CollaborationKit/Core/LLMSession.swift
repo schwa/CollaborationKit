@@ -41,7 +41,11 @@ public enum SessionError: Error, Sendable {
 /// Sessions are actors; their history is mutated only on the actor.
 public actor LLMSession {
     private let provider: ModelProvider
-    private let system: String?
+    /// The system prompt this session was created with, if any. Exposed so
+    /// hosts (e.g. debug-export bundles) can record the instructions the
+    /// model was given alongside the transcript. Immutable for the life of
+    /// the session.
+    nonisolated public let system: String?
     private let tools: [String: any Tool]
     private let toolSpecs: [ToolSpec]
     private let approval: @Sendable (ToolUse) async -> ToolApprovalDecision

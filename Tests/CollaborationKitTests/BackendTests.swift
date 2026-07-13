@@ -162,6 +162,23 @@ struct BackendTests {
         _ = try Backend.anthropicAPI.makeProvider(store, Backend.anthropicAPI.defaultModel, 1_024, nil)
     }
 
+    // MARK: - OpenAI factory
+
+    @Test
+    func openAIFactoryMatchesStaticValueByDefault() {
+        let factory = Backend.openAI()
+        #expect(factory.id == Backend.openAI.id)
+        #expect(factory.displayName == Backend.openAI.displayName)
+        #expect(factory.defaultModel == Backend.openAI.defaultModel)
+    }
+
+    @Test
+    func openAIFactoryBuildsProviderWithStoredKey() throws {
+        let store = InMemoryCredentialStore(openAIAPIKey: "sk-openai-test")
+        let backend = Backend.openAI(parallelToolCalls: false)
+        _ = try backend.makeProvider(store, backend.defaultModel, 1_024, nil)
+    }
+
     // MARK: - Base URL persistence
 
     @Test

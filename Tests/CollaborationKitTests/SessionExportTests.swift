@@ -33,6 +33,21 @@ struct SessionExportTests {
     }
 
     @Test
+    func exportCarriesSessionSystemPrompt() {
+        let session = LLMSession(provider: NullProvider(), system: "You are a helpful assistant.")
+        let store = ConversationStore(session: session)
+        let export = store.buildExport()
+        #expect(export.system == "You are a helpful assistant.")
+    }
+
+    @Test
+    func exportSystemIsNilWhenSessionHasNoSystemPrompt() {
+        let store = ConversationStore(session: LLMSession(provider: NullProvider()))
+        let export = store.buildExport()
+        #expect(export.system == nil)
+    }
+
+    @Test
     func exportCapturesLastError() {
         let store = ConversationStore(session: LLMSession(provider: NullProvider()))
         store.send("hi")

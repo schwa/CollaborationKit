@@ -75,17 +75,6 @@ struct ContentView: View {
             } label: {
                 Label("Assistant", systemImage: "bubble.left.and.text.bubble.right")
             }
-            if let store = activeStore {
-                ShareLink(
-                    item: SessionExportPayload(
-                        export: store.buildExport(model: credentials.selectedModel),
-                        suggestedFileName: "CollaborationDemo-\(selectedTab.exportSlug)-\(Int(Date().timeIntervalSince1970)).json"
-                    ),
-                    preview: SharePreview("Session Log", image: Image(systemName: "doc.text"))
-                ) {
-                    Label("Export Log", systemImage: "square.and.arrow.up")
-                }
-            }
         }
         .alert(
             "Allow tool call?",
@@ -128,7 +117,27 @@ struct ContentView: View {
 
     @ViewBuilder private var assistant: some View {
         if let store = activeStore {
-            CollaborationChatView(store: store, composerBorderStyle: .glow)
+            CollaborationChatView(
+                store: store,
+                composerBorderStyle: .glow,
+                showsDebugExportButton: true,
+                composerHeader: {
+                    Label(
+                        "\(credentials.backend.displayName) · \(credentials.selectedModel)",
+                        systemImage: "cpu"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .labelStyle(.titleAndIcon)
+                }
+            )
+            .sessionDebugExport(
+                store: store,
+                model: credentials.selectedModel,
+                defaultFilename: {
+                    "CollaborationDemo-\(selectedTab.exportSlug)-\(Int(Date().timeIntervalSince1970)).json"
+                }
+            )
         } else if let buildError {
             ContentUnavailableView("Couldn't Start Chat", systemImage: "exclamationmark.triangle", description: Text(buildError))
         } else {

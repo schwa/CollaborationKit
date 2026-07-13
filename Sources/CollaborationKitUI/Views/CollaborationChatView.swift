@@ -21,6 +21,13 @@ public struct CollaborationChatView: View {
     /// Composer border style (plain or glow).
     public let composerBorderStyle: ComposerBorderStyle
 
+    /// Whether the composer draws a ladybug affordance that invokes the
+    /// ambient ``ExportDebugLogAction`` (installed by
+    /// ``SwiftUICore/View/sessionDebugExport(store:model:defaultFilename:userInfo:)``).
+    /// The button hides itself when no action is available, so leaving
+    /// this on in production is safe.
+    public let showsDebugExportButton: Bool
+
     /// Called whenever the underlying store's ``ConversationStore/isGenerating``
     /// flag flips. Hosts can use this to disable other UI, pause compilation,
     /// or drive external indicators while a turn is in flight.
@@ -49,12 +56,14 @@ public struct CollaborationChatView: View {
         iconForTool: @escaping (String) -> String = ConversationRowView.defaultIcon(for:),
         allowsImageAttachments: Bool = true,
         composerBorderStyle: ComposerBorderStyle = .plain,
+        showsDebugExportButton: Bool = false,
         onGeneratingChange: @escaping (Bool) -> Void = { _ in }
     ) {
         self.store = store
         self.iconForTool = iconForTool
         self.allowsImageAttachments = allowsImageAttachments
         self.composerBorderStyle = composerBorderStyle
+        self.showsDebugExportButton = showsDebugExportButton
         self.onGeneratingChange = onGeneratingChange
         self.emptyPlaceholder = nil
         self.composerHeader = nil
@@ -66,6 +75,7 @@ public struct CollaborationChatView: View {
         iconForTool: @escaping (String) -> String = ConversationRowView.defaultIcon(for:),
         allowsImageAttachments: Bool = true,
         composerBorderStyle: ComposerBorderStyle = .plain,
+        showsDebugExportButton: Bool = false,
         onGeneratingChange: @escaping (Bool) -> Void = { _ in },
         @ViewBuilder emptyPlaceholder: @escaping () -> Placeholder
     ) {
@@ -73,6 +83,7 @@ public struct CollaborationChatView: View {
         self.iconForTool = iconForTool
         self.allowsImageAttachments = allowsImageAttachments
         self.composerBorderStyle = composerBorderStyle
+        self.showsDebugExportButton = showsDebugExportButton
         self.onGeneratingChange = onGeneratingChange
         self.emptyPlaceholder = { AnyView(emptyPlaceholder()) }
         self.composerHeader = nil
@@ -85,6 +96,7 @@ public struct CollaborationChatView: View {
         iconForTool: @escaping (String) -> String = ConversationRowView.defaultIcon(for:),
         allowsImageAttachments: Bool = true,
         composerBorderStyle: ComposerBorderStyle = .plain,
+        showsDebugExportButton: Bool = false,
         onGeneratingChange: @escaping (Bool) -> Void = { _ in },
         @ViewBuilder composerHeader: @escaping () -> ComposerHeader
     ) {
@@ -92,6 +104,7 @@ public struct CollaborationChatView: View {
         self.iconForTool = iconForTool
         self.allowsImageAttachments = allowsImageAttachments
         self.composerBorderStyle = composerBorderStyle
+        self.showsDebugExportButton = showsDebugExportButton
         self.onGeneratingChange = onGeneratingChange
         self.emptyPlaceholder = nil
         self.composerHeader = { AnyView(composerHeader()) }
@@ -104,6 +117,7 @@ public struct CollaborationChatView: View {
         iconForTool: @escaping (String) -> String = ConversationRowView.defaultIcon(for:),
         allowsImageAttachments: Bool = true,
         composerBorderStyle: ComposerBorderStyle = .plain,
+        showsDebugExportButton: Bool = false,
         onGeneratingChange: @escaping (Bool) -> Void = { _ in },
         @ViewBuilder emptyPlaceholder: @escaping () -> Placeholder,
         @ViewBuilder composerHeader: @escaping () -> ComposerHeader
@@ -112,6 +126,7 @@ public struct CollaborationChatView: View {
         self.iconForTool = iconForTool
         self.allowsImageAttachments = allowsImageAttachments
         self.composerBorderStyle = composerBorderStyle
+        self.showsDebugExportButton = showsDebugExportButton
         self.onGeneratingChange = onGeneratingChange
         self.emptyPlaceholder = { AnyView(emptyPlaceholder()) }
         self.composerHeader = { AnyView(composerHeader()) }
@@ -164,7 +179,8 @@ public struct CollaborationChatView: View {
             ComposerView(
                 store: store,
                 allowsImageAttachments: allowsImageAttachments,
-                borderStyle: composerBorderStyle
+                borderStyle: composerBorderStyle,
+                showsDebugExportButton: showsDebugExportButton
             ) {
                 composerHeader()
             }
@@ -172,7 +188,8 @@ public struct CollaborationChatView: View {
             ComposerView(
                 store: store,
                 allowsImageAttachments: allowsImageAttachments,
-                borderStyle: composerBorderStyle
+                borderStyle: composerBorderStyle,
+                showsDebugExportButton: showsDebugExportButton
             )
         }
     }

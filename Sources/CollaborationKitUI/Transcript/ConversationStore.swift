@@ -57,7 +57,10 @@ public final class ConversationStore {
 
     // MARK: - Wiring
 
-    private let session: LLMSession
+    /// The session driving this store. Read-only outside the store — only
+    ///  hosts inside `CollaborationKitUI` (e.g. `SessionExport.buildExport`)
+    ///  reach in to read immutable session facts like ``LLMSession/system``.
+    let session: LLMSession
     private let summarizeTool: @Sendable (ToolUse) -> String
     private var eventTask: Task<Void, Never>?
     private var sendTask: Task<Void, Never>?
