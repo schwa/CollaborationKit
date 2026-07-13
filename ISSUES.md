@@ -673,12 +673,13 @@ Related: RFC 0002, #13.
 ## 28: CollaborationKitUI: iOS platform support
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:m
 created: 2026-07-13T01:28:00Z
-updated: 2026-07-13T01:49:58Z
+updated: 2026-07-13T02:46:09Z
+closed: 2026-07-13T02:46:09Z
 +++
 
 Package currently declares only macOS 14. RFC 0002 calls for macOS 14+ AND iOS 17+.
@@ -692,6 +693,15 @@ Work:
 - Add an iOS destination to the demo app scheme and smoke-test.
 
 Related: RFC 0002, #13.
+
+- `2026-07-13T02:46:09Z`: Landed. Package.swift now declares .iOS(.v17). Changes:
+
+- CredentialStore.init falls back to Application Support / collaborationkit/ on iOS (homeDirectoryForCurrentUser is unavailable there).
+- collab-cli sources gated with #if os(macOS); on iOS the executable target compiles to a stub whose main() fatalErrors so linkage stays valid.
+- CollaborationChatView.SettingsLink was already macOS-guarded.
+- BrowserOpener, AttachmentThumbnailsView, Attachment already had UIKit paths under #if canImport(UIKit).
+
+Verified: xcodebuild against a generic iOS Simulator destination builds the CollaborationKitUI scheme cleanly, and macOS 'swift build' + 76-test suite continue to pass.
 
 ---
 

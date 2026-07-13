@@ -1,3 +1,5 @@
+#if os(macOS)
+
 import ArgumentParser
 import CollaborationKit
 import Foundation
@@ -70,3 +72,5 @@ struct Login: AsyncParsableCommand {
         return readLine(strippingNewline: true)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 }
+
+#endif

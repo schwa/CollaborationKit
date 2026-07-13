@@ -1,3 +1,5 @@
+#if os(macOS)
+
 import ArgumentParser
 import CollaborationKit
 import Foundation
@@ -221,3 +223,5 @@ struct Chat: AsyncParsableCommand {
         return object.keys.sorted().joined(separator: ", ")
     }
 }
+
+#endif

@@ -15,14 +15,36 @@ public struct CredentialStore: Sendable {
     /// Creates a store rooted at the given directory.
     ///
     /// - Parameter directory: The containing directory. Defaults to
-    ///   `~/.config/collaborationkit`.
+    ///   `~/.config/collaborationkit` on macOS, and to Application Support /
+    ///   `collaborationkit/` on iOS.
     public init(directory: URL? = nil) {
-        let base = directory ?? FileManager.default
+        let base = directory ?? Self.defaultDirectory()
+        self.directory = base
+        self.fileURL = base.appendingPathComponent("credentials.json")
+    }
+
+    /// Platform-appropriate default directory. Uses `homeDirectoryForCurrentUser`
+    /// on macOS (matching the classic dotfile layout) and falls back to the
+    /// app sandbox's Application Support directory on iOS, where
+    /// `homeDirectoryForCurrentUser` is unavailable.
+    private static func defaultDirectory() -> URL {
+        #if os(macOS)
+        return FileManager.default
             .homeDirectoryForCurrentUser
             .appendingPathComponent(".config", isDirectory: true)
             .appendingPathComponent("collaborationkit", isDirectory: true)
-        self.directory = base
-        self.fileURL = base.appendingPathComponent("credentials.json")
+        #else
+        // iOS / tvOS / watchOS: use the app's Application Support directory.
+        // Falls back to a per-user temporary directory if the FileManager
+        // can't resolve one (shouldn't happen in a properly-configured app).
+        let appSupport = (try? FileManager.default.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )) ?? URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+        return appSupport.appendingPathComponent("collaborationkit", isDirectory: true)
+        #endif
     }
 
     private struct Stored: Codable {
