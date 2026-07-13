@@ -86,12 +86,13 @@ send() is not easily cancellable mid-turn and the session events stream never fi
 ## 5: Preserve partial work when maxIterations is exceeded
 
 +++
-status: open
+status: closed
 priority: medium
 kind: enhancement
 labels: enhancement, effort:s
 created: 2026-06-23T23:14:14Z
-updated: 2026-07-13T06:20:00Z
+updated: 2026-07-13T14:57:36Z
+closed: 2026-07-13T14:57:36Z
 +++
 
 SessionError.maxIterationsExceeded throws out of send() and discards the partial turn (accumulated text, tool calls/results so far are lost to the caller, though history is mutated). Consider returning what happened instead of throwing it away — e.g. include the partial assistant text in the error, or return a result type that distinguishes 'completed' vs 'hit iteration cap'.

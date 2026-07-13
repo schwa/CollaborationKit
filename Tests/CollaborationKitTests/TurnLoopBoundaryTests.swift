@@ -162,9 +162,15 @@ func multiToolTurnEmitsAllToolCallsBeforeAnyToolResults() async throws {
 
 /// A provider that always returns the same single tool call — the
 /// canonical "never completes" case for the maxIterations guard test.
+/// Optionally emits a snippet of assistant prose before each tool call so
+/// the partial-text preservation path (#5) has something to accumulate.
 private actor LoopingToolProvider: ModelProvider {
     private let use: ToolUse
-    init(use: ToolUse) { self.use = use }
+    private let preamble: String?
+    init(use: ToolUse, preamble: String? = nil) {
+        self.use = use
+        self.preamble = preamble
+    }
 
     nonisolated func send(
         messages _: [Message],
@@ -172,7 +178,11 @@ private actor LoopingToolProvider: ModelProvider {
         tools _: [ToolSpec]
     ) -> AsyncThrowingStream<ProviderStreamEvent, Error> {
         let use = use
+        let preamble = preamble
         return AsyncThrowingStream { continuation in
+            if let preamble {
+                continuation.yield(.text(preamble))
+            }
             continuation.yield(.toolUse(use))
             continuation.yield(.messageComplete(stopReason: "tool_use"))
             continuation.finish()
@@ -197,4 +207,35 @@ func maxIterationsExceededWhenProviderNeverCompletes() async {
     await #expect(throws: SessionError.self) {
         _ = try await session.send("loop forever")
     }
+}
+
+@Test
+func maxIterationsExceededPreservesPartialText() async throws {
+    // Regression for #5: hitting the iteration cap must hand the caller
+    // whatever prose the model already produced. The provider yields "tick"
+    // + one tool call per turn; after `maxIterations` rounds the loop
+    // should throw `maxIterationsExceeded` carrying the concatenated text.
+    let toolA = RecordingTool(name: "a")
+    let provider = LoopingToolProvider(
+        use: ToolUse(id: "x", name: "a", input: .object(["tag": .string("t")])),
+        preamble: "tick"
+    )
+    let session = LLMSession(
+        provider: provider,
+        tools: [toolA.eraseToAnyTool()],
+        maxIterations: 3
+    )
+    do {
+        _ = try await session.send("loop forever")
+        Issue.record("expected maxIterationsExceeded")
+    } catch SessionError.maxIterationsExceeded(let iterations, let partialText) {
+        #expect(iterations == 3)
+        // Three iterations, one "tick" preamble per iteration.
+        #expect(partialText == "tickticktick")
+    }
+    // Domain history is still intact: three assistant messages, each with
+    // its text block, tool call, and dispatched tool result.
+    let messages = await session.messages
+    // 1 user + 3 assistant = 4 messages minimum.
+    #expect(messages.count == 4)
 }

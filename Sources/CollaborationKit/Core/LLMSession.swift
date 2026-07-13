@@ -9,7 +9,17 @@ public enum SessionError: Error, Sendable {
     case unknownTool(String)
 
     /// The tool loop exceeded ``LLMSession/maxIterations`` without completing.
-    case maxIterationsExceeded(Int)
+    ///
+    /// - Parameters:
+    ///   - iterations: The cap that was hit (equal to
+    ///     ``LLMSession/maxIterations`` at the time of the call).
+    ///   - partialText: All assistant prose produced across the exhausted
+    ///     turns, concatenated in order. Empty when the model only ever
+    ///     emitted tool calls and no text. The full domain history — every
+    ///     assistant message, tool call, and tool result the loop managed to
+    ///     produce before hitting the cap — remains available on
+    ///     ``LLMSession/messages``.
+    case maxIterationsExceeded(iterations: Int, partialText: String)
 
     /// A second ``LLMSession/send(_:)`` call arrived while another turn was
     /// still in flight on the same session.
@@ -155,18 +165,25 @@ public actor LLMSession {
     /// effect — event fan-out, history mutation, tool dispatch — lives
     /// inside the helpers below; this method is pure control flow.
     private func runLoop() async throws -> String {
+        // Accumulate every needsMoreTurns text delta so a maxIterations
+        // failure can hand the caller whatever prose the model managed to
+        // produce before the cap tripped. The success path keeps its
+        // pre-existing semantics of returning only the final turn's text —
+        // the domain history on `messages` still holds every earlier block.
+        var partialText = ""
         for _ in 0..<maxIterations {
             switch try await runTurn() {
             case .complete(let text):
                 eventContinuation.yield(.turnComplete(text: text))
                 return text
 
-            case .needsMoreTurns:
+            case .needsMoreTurns(let text):
+                partialText += text
                 continue
             }
         }
 
-        throw SessionError.maxIterationsExceeded(maxIterations)
+        throw SessionError.maxIterationsExceeded(iterations: maxIterations, partialText: partialText)
     }
 
     /// The three parts of an assistant message produced by one provider
