@@ -5,23 +5,51 @@ import CollaborationKitUI
 struct ContentView: View {
     @Environment(CollaborationCredentials.self) private var credentials
     @State private var notes = DemoNotes()
-    @State private var session: LLMSession?
     @State private var store: ConversationStore?
     @State private var buildError: String?
     @State private var showAssistant: Bool = true
+    @State private var editing: Editing?
+
+    private struct Editing: Identifiable {
+        let id: Note.ID
+    }
 
     var body: some View {
-        NotesListView(notes: notes)
-            .navigationTitle("Notes")
-            .inspector(isPresented: $showAssistant) { assistant }
-            .toolbar {
-                Button {
-                    showAssistant.toggle()
-                } label: {
-                    Label("Assistant", systemImage: "bubble.left.and.text.bubble.right")
-                }
+        NotesListView(
+            notes: notes,
+            onSelect: { editing = Editing(id: $0) },
+            onDelete: { id in notes.notes.removeAll { $0.id == id } }
+        )
+        .navigationTitle("Notes")
+        .inspector(isPresented: $showAssistant) { assistant }
+        .toolbar {
+            Button {
+                let id: Note.ID = "n\(notes.nextID)"
+                notes.nextID += 1
+                notes.notes.append(Note(id: id, title: "", body: "", tag: nil, color: nil))
+                editing = Editing(id: id)
+            } label: {
+                Label("New Note", systemImage: "plus")
             }
-            .task(id: "\(credentials.backend.rawValue)-\(credentials.hasCredentials)") { rebuild() }
+            Button {
+                showAssistant.toggle()
+            } label: {
+                Label("Assistant", systemImage: "bubble.left.and.text.bubble.right")
+            }
+        }
+        .sheet(item: $editing) { editing in
+            if let index = notes.notes.firstIndex(where: { $0.id == editing.id }) {
+                NoteEditor(
+                    note: $notes.notes[index],
+                    onDelete: {
+                        notes.notes.remove(at: index)
+                        self.editing = nil
+                    },
+                    onDismiss: { self.editing = nil }
+                )
+            }
+        }
+        .task(id: "\(credentials.backend.rawValue)-\(credentials.hasCredentials)") { rebuild() }
     }
 
     @ViewBuilder
@@ -42,7 +70,6 @@ struct ContentView: View {
     }
 
     private func rebuild() {
-        session = nil
         store = nil
         buildError = nil
         guard credentials.hasCredentials else { return }
@@ -58,7 +85,6 @@ struct ContentView: View {
                 """,
                 tools: notes.collaborationTools
             )
-            self.session = session
             self.store = ConversationStore(session: session)
         } catch {
             buildError = error.localizedDescription

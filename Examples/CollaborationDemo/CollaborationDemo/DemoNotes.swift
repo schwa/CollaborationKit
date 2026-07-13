@@ -2,6 +2,15 @@ import Foundation
 import Observation
 import CollaborationKit
 
+struct Note: Identifiable, Sendable, Equatable, Codable {
+    typealias ID = String
+    let id: ID
+    var title: String
+    var body: String
+    var tag: Tag?
+    var color: NoteColor?
+}
+
 enum Tag: String, Codable, CollaborationSchemaConvertible, CaseIterable, Sendable {
     case idea, todo, question, journal, followUp = "follow-up"
 
@@ -24,17 +33,8 @@ enum NoteColor: String, Codable, CollaborationSchemaConvertible, CaseIterable, S
 @Observable
 @CollaborationTools
 final class DemoNotes {
-    struct Note: Identifiable, Sendable, Equatable, Codable {
-        typealias ID = String
-        let id: ID
-        var title: String
-        var body: String
-        var tag: Tag?
-        var color: NoteColor?
-    }
-
-    private(set) var notes: [Note] = []
-    private var nextID: Int = 1
+    var notes: [Note] = []
+    var nextID: Int = 1
 
     @CollaborationTool("List every note, oldest first, as a JSON array.")
     func list() async -> [Note] {
