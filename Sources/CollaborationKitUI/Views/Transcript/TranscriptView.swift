@@ -14,18 +14,13 @@ public struct TranscriptView: View {
     /// Optional per-tool icon lookup forwarded to ``ConversationRowView``.
     public let iconForTool: (String) -> String
 
-    /// Host-provided view shown when the transcript is empty and no turn is
-    /// in flight. When `nil`, a generic "Start the conversation" placeholder
-    /// is used. Hosts should override this to describe what their assistant
-    /// can actually do — the default text is intentionally minimal because
-    /// the built-in view has no way of knowing the host's tools or workflow.
-    public let emptyPlaceholder: (() -> AnyView)?
-
     /// Optional handler invoked when file URLs are dropped onto the
     /// transcript. When `nil`, the transcript accepts no drops. Hosts using
     /// ``CollaborationChatView`` get this wired up automatically to route
     /// image drops into the composer.
     public let onDropURLs: (([URL]) -> Bool)?
+
+    @Environment(\.collaborationEmptyPlaceholder) private var emptyPlaceholder
 
     public init(
         store: ConversationStore,
@@ -34,20 +29,6 @@ public struct TranscriptView: View {
     ) {
         self.store = store
         self.iconForTool = iconForTool
-        self.emptyPlaceholder = nil
-        self.onDropURLs = onDropURLs
-    }
-
-    /// Creates a transcript with a custom empty-state placeholder.
-    public init<Placeholder: View>(
-        store: ConversationStore,
-        iconForTool: @escaping (String) -> String = ConversationRowView.defaultIcon(for:),
-        onDropURLs: (([URL]) -> Bool)? = nil,
-        @ViewBuilder emptyPlaceholder: @escaping () -> Placeholder
-    ) {
-        self.store = store
-        self.iconForTool = iconForTool
-        self.emptyPlaceholder = { AnyView(emptyPlaceholder()) }
         self.onDropURLs = onDropURLs
     }
 
@@ -120,7 +101,7 @@ public struct TranscriptView: View {
     @ViewBuilder private var emptyState: some View {
         if store.isEmpty, !store.isGenerating {
             if let emptyPlaceholder {
-                emptyPlaceholder()
+                emptyPlaceholder.content()
             } else {
                 ContentUnavailableView {
                     Label("Start the Conversation", systemImage: "sparkles")

@@ -8,7 +8,19 @@ import SwiftUI
 /// ```swift
 /// CollaborationChatView(store: store)
 ///     .environment(credentials)
+///     .collaborationComposerBorderStyle(.glow)
+///     .collaborationComposerHeader { … }
+///     .collaborationEmptyPlaceholder { … }
+///     .collaborationMissingCredentialsPlaceholder { … }
+///     .collaborationShowsDebugExportButton()
 /// ```
+///
+/// The composer's border style, header caption, empty-transcript
+/// placeholder, missing-credentials placeholder, and the built-in
+/// debug-export ladybug button are all supplied via environment modifiers
+/// on ``SwiftUICore/View`` (see the `collaboration…` family), so this view
+/// takes a minimal initializer surface. Wire the debug export target with
+/// ``SwiftUICore/View/collaborationDebugExport(store:model:defaultFilename:userInfo:)``.
 public struct CollaborationChatView: View {
     public var store: ConversationStore
 
@@ -18,33 +30,15 @@ public struct CollaborationChatView: View {
     /// Whether the composer exposes the paperclip/image importer.
     public let allowsImageAttachments: Bool
 
-    /// Composer border style (plain or glow).
-    public let composerBorderStyle: ComposerBorderStyle
-
-    /// Whether the composer draws a ladybug affordance that invokes the
-    /// ambient ``ExportDebugLogAction`` (installed by
-    /// ``SwiftUICore/View/sessionDebugExport(store:model:defaultFilename:userInfo:)``).
-    /// The button hides itself when no action is available, so leaving
-    /// this on in production is safe.
-    public let showsDebugExportButton: Bool
-
     /// Called whenever the underlying store's ``ConversationStore/isGenerating``
     /// flag flips. Hosts can use this to disable other UI, pause compilation,
     /// or drive external indicators while a turn is in flight.
     public let onGeneratingChange: (Bool) -> Void
 
-    /// Host-provided empty-state view forwarded to ``TranscriptView``. When
-    /// `nil`, the transcript uses its generic default placeholder. Hosts
-    /// should override this to describe what their assistant actually does.
-    public let emptyPlaceholder: (() -> AnyView)?
-
-    /// Host-provided caption view forwarded to the composer. Typically shows
-    /// the active backend and model. When `nil`, the composer draws no
-    /// header.
-    public let composerHeader: (() -> AnyView)?
-
     @Environment(CollaborationCredentials.self)
     private var credentials
+    @Environment(\.collaborationMissingCredentialsPlaceholder)
+    private var missingCredentialsPlaceholder
 
     /// Shared attachment buffer plumbed into the composer and used as the
     /// sink for transcript image drops, so drags from Finder onto the
@@ -55,89 +49,27 @@ public struct CollaborationChatView: View {
         store: ConversationStore,
         iconForTool: @escaping (String) -> String = ConversationRowView.defaultIcon(for:),
         allowsImageAttachments: Bool = true,
-        composerBorderStyle: ComposerBorderStyle = .plain,
-        showsDebugExportButton: Bool = false,
         onGeneratingChange: @escaping (Bool) -> Void = { _ in }
     ) {
         self.store = store
         self.iconForTool = iconForTool
         self.allowsImageAttachments = allowsImageAttachments
-        self.composerBorderStyle = composerBorderStyle
-        self.showsDebugExportButton = showsDebugExportButton
         self.onGeneratingChange = onGeneratingChange
-        self.emptyPlaceholder = nil
-        self.composerHeader = nil
-    }
-
-    /// Creates a chat view with a custom empty-state placeholder.
-    public init<Placeholder: View>(
-        store: ConversationStore,
-        iconForTool: @escaping (String) -> String = ConversationRowView.defaultIcon(for:),
-        allowsImageAttachments: Bool = true,
-        composerBorderStyle: ComposerBorderStyle = .plain,
-        showsDebugExportButton: Bool = false,
-        onGeneratingChange: @escaping (Bool) -> Void = { _ in },
-        @ViewBuilder emptyPlaceholder: @escaping () -> Placeholder
-    ) {
-        self.store = store
-        self.iconForTool = iconForTool
-        self.allowsImageAttachments = allowsImageAttachments
-        self.composerBorderStyle = composerBorderStyle
-        self.showsDebugExportButton = showsDebugExportButton
-        self.onGeneratingChange = onGeneratingChange
-        self.emptyPlaceholder = { AnyView(emptyPlaceholder()) }
-        self.composerHeader = nil
-    }
-
-    /// Creates a chat view with a custom composer header caption (e.g. the
-    /// active backend and model).
-    public init<ComposerHeader: View>(
-        store: ConversationStore,
-        iconForTool: @escaping (String) -> String = ConversationRowView.defaultIcon(for:),
-        allowsImageAttachments: Bool = true,
-        composerBorderStyle: ComposerBorderStyle = .plain,
-        showsDebugExportButton: Bool = false,
-        onGeneratingChange: @escaping (Bool) -> Void = { _ in },
-        @ViewBuilder composerHeader: @escaping () -> ComposerHeader
-    ) {
-        self.store = store
-        self.iconForTool = iconForTool
-        self.allowsImageAttachments = allowsImageAttachments
-        self.composerBorderStyle = composerBorderStyle
-        self.showsDebugExportButton = showsDebugExportButton
-        self.onGeneratingChange = onGeneratingChange
-        self.emptyPlaceholder = nil
-        self.composerHeader = { AnyView(composerHeader()) }
-    }
-
-    /// Creates a chat view with both a custom empty-state placeholder and a
-    /// custom composer header.
-    public init<Placeholder: View, ComposerHeader: View>(
-        store: ConversationStore,
-        iconForTool: @escaping (String) -> String = ConversationRowView.defaultIcon(for:),
-        allowsImageAttachments: Bool = true,
-        composerBorderStyle: ComposerBorderStyle = .plain,
-        showsDebugExportButton: Bool = false,
-        onGeneratingChange: @escaping (Bool) -> Void = { _ in },
-        @ViewBuilder emptyPlaceholder: @escaping () -> Placeholder,
-        @ViewBuilder composerHeader: @escaping () -> ComposerHeader
-    ) {
-        self.store = store
-        self.iconForTool = iconForTool
-        self.allowsImageAttachments = allowsImageAttachments
-        self.composerBorderStyle = composerBorderStyle
-        self.showsDebugExportButton = showsDebugExportButton
-        self.onGeneratingChange = onGeneratingChange
-        self.emptyPlaceholder = { AnyView(emptyPlaceholder()) }
-        self.composerHeader = { AnyView(composerHeader()) }
     }
 
     public var body: some View {
         VStack(spacing: 0) {
             if credentials.hasCredentials {
-                transcript
+                TranscriptView(
+                    store: store,
+                    iconForTool: iconForTool,
+                    onDropURLs: dropHandler
+                )
                 Divider()
-                composer
+                ComposerView(
+                    store: store,
+                    allowsImageAttachments: allowsImageAttachments
+                )
             } else {
                 missingCredentials
             }
@@ -145,24 +77,6 @@ public struct CollaborationChatView: View {
         .environment(\.composerAttachmentBuffer, allowsImageAttachments ? attachmentBuffer : nil)
         .onChange(of: store.isGenerating) { _, isGenerating in
             onGeneratingChange(isGenerating)
-        }
-    }
-
-    @ViewBuilder private var transcript: some View {
-        if let emptyPlaceholder {
-            TranscriptView(
-                store: store,
-                iconForTool: iconForTool,
-                onDropURLs: dropHandler
-            ) {
-                emptyPlaceholder()
-            }
-        } else {
-            TranscriptView(
-                store: store,
-                iconForTool: iconForTool,
-                onDropURLs: dropHandler
-            )
         }
     }
 
@@ -174,37 +88,21 @@ public struct CollaborationChatView: View {
         }
     }
 
-    @ViewBuilder private var composer: some View {
-        if let composerHeader {
-            ComposerView(
-                store: store,
-                allowsImageAttachments: allowsImageAttachments,
-                borderStyle: composerBorderStyle,
-                showsDebugExportButton: showsDebugExportButton
-            ) {
-                composerHeader()
-            }
+    @ViewBuilder private var missingCredentials: some View {
+        if let missingCredentialsPlaceholder {
+            missingCredentialsPlaceholder.content()
         } else {
-            ComposerView(
-                store: store,
-                allowsImageAttachments: allowsImageAttachments,
-                borderStyle: composerBorderStyle,
-                showsDebugExportButton: showsDebugExportButton
-            )
+            ContentUnavailableView {
+                Label("Sign in to Continue", systemImage: "key.horizontal")
+            } description: {
+                Text("Add credentials for the selected provider in Settings.")
+            } actions: {
+                #if os(macOS)
+                SettingsLink { Text("Open Settings…") }
+                #endif
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-    }
-
-    private var missingCredentials: some View {
-        ContentUnavailableView {
-            Label("Sign in to Continue", systemImage: "key.horizontal")
-        } description: {
-            Text("Add credentials for the selected provider in Settings.")
-        } actions: {
-            #if os(macOS)
-            SettingsLink { Text("Open Settings…") }
-            #endif
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

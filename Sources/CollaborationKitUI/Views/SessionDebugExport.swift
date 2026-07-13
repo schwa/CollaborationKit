@@ -7,7 +7,7 @@ import UniformTypeIdentifiers
 /// A callable value that triggers a session debug-log export.
 ///
 /// Attached to the environment and to the focused scene by
-/// ``SwiftUICore/View/sessionDebugExport(store:model:defaultFilename:userInfo:)``.
+/// ``SwiftUICore/View/collaborationDebugExport(store:model:defaultFilename:userInfo:)``.
 /// Descendant views (typically the composer's ladybug affordance) read the
 /// action from ``EnvironmentValues/exportDebugLogAction``; a `File` menu
 /// command reads it from ``FocusedValues/exportDebugLog``. Invoking the
@@ -55,7 +55,7 @@ extension FocusedValues {
 extension EnvironmentValues {
     /// The session-debug-export action available to descendants, if any.
     ///
-    /// Set by ``SwiftUICore/View/sessionDebugExport(store:model:defaultFilename:userInfo:)``.
+    /// Set by ``SwiftUICore/View/collaborationDebugExport(store:model:defaultFilename:userInfo:)``.
     /// Views inside the modified subtree read this to expose their own
     /// export affordance without owning the file-exporter state.
     @Entry public var exportDebugLogAction: ExportDebugLogAction? = nil
@@ -67,7 +67,7 @@ extension EnvironmentValues {
 /// focused-scene action, and exposes the environment action.
 ///
 /// Instances are created by
-/// ``SwiftUICore/View/sessionDebugExport(store:model:defaultFilename:userInfo:)``;
+/// ``SwiftUICore/View/collaborationDebugExport(store:model:defaultFilename:userInfo:)``;
 /// the type is `public` so hosts can `.modifier(SessionDebugExportModifier(...))`
 /// directly if they prefer that spelling.
 public struct SessionDebugExportModifier: ViewModifier {
@@ -132,9 +132,10 @@ extension View {
     /// ``EnvironmentValues/exportDebugLogAction``, and to the focused scene
     /// via ``FocusedValues/exportDebugLog``. Attach it once at the chat
     /// container (or higher, if you want a `File` menu command to reach
-    /// it) and the composer's built-in ladybug button and any
-    /// `@FocusedValue(\.exportDebugLog)` menu command will both trigger the
-    /// same export.
+    /// it) and the composer's built-in ladybug button (enabled with
+    /// ``SwiftUICore/View/collaborationShowsDebugExportButton(_:)``) and
+    /// any `@FocusedValue(\.exportDebugLog)` menu command will both
+    /// trigger the same export.
     ///
     /// - Parameters:
     ///   - store: The ``ConversationStore`` whose transcript to export.
@@ -146,7 +147,7 @@ extension View {
     ///   - userInfo: Called each time the export is built, so the host can
     ///     drop in fresh metadata (current shader source, build id, active
     ///     panel, whatever). Defaults to empty.
-    public func sessionDebugExport(
+    public func collaborationDebugExport(
         store: ConversationStore,
         model: String? = nil,
         defaultFilename: @escaping @Sendable () -> String = { SessionDebugExportModifier.timestampedFilename() },

@@ -21,7 +21,7 @@ public enum ComposerBorderStyle: Sendable {
     case glow
 }
 
-public struct ComposerView<Header: View>: View {
+public struct ComposerView: View {
     public var store: ConversationStore
 
     /// Placeholder shown in the empty prompt field.
@@ -31,27 +31,15 @@ public struct ComposerView<Header: View>: View {
     /// backends where images aren't supported.
     public let allowsImageAttachments: Bool
 
-    /// How the prompt field is bordered. Defaults to ``ComposerBorderStyle/plain``.
-    public let borderStyle: ComposerBorderStyle
-
-    /// Whether to draw a ladybug affordance that invokes the ambient
-    /// ``ExportDebugLogAction`` (installed by
-    /// ``SwiftUICore/View/sessionDebugExport(store:model:defaultFilename:userInfo:)``).
-    /// The button hides itself when no action is available, so leaving
-    /// this on in production is safe.
-    public let showsDebugExportButton: Bool
-
-    /// Optional caption drawn above the prompt field. Hosts typically use this
-    /// to show the active backend and model ("cpu · OpenAI · gpt-4o"), but any
-    /// view is allowed.
-    private let header: () -> Header
-
     @State private var prompt: String = ""
     @State private var ownedBuffer = ComposerAttachmentBuffer()
     @State private var showImporter: Bool = false
     @FocusState private var promptFocused: Bool
     @Environment(\.composerAttachmentBuffer) private var injectedBuffer
     @Environment(\.exportDebugLogAction) private var exportDebugLogAction
+    @Environment(\.collaborationComposerHeader) private var header
+    @Environment(\.collaborationComposerBorderStyle) private var borderStyle
+    @Environment(\.collaborationShowsDebugExportButton) private var showsDebugExportButton
 
     private var buffer: ComposerAttachmentBuffer {
         injectedBuffer ?? ownedBuffer
@@ -62,22 +50,18 @@ public struct ComposerView<Header: View>: View {
     public init(
         store: ConversationStore,
         placeholder: LocalizedStringKey = "Message…",
-        allowsImageAttachments: Bool = true,
-        borderStyle: ComposerBorderStyle = .plain,
-        showsDebugExportButton: Bool = false,
-        @ViewBuilder header: @escaping () -> Header
+        allowsImageAttachments: Bool = true
     ) {
         self.store = store
         self.placeholder = placeholder
         self.allowsImageAttachments = allowsImageAttachments
-        self.borderStyle = borderStyle
-        self.showsDebugExportButton = showsDebugExportButton
-        self.header = header
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            header()
+            if let header {
+                header.content()
+            }
             promptField
         }
         .padding(12)
@@ -334,26 +318,6 @@ private struct PromptFieldBackground: ViewModifier {
     }
 }
 
-extension ComposerView where Header == EmptyView {
-    /// Convenience initializer for composers without a header caption.
-    public init(
-        store: ConversationStore,
-        placeholder: LocalizedStringKey = "Message…",
-        allowsImageAttachments: Bool = true,
-        borderStyle: ComposerBorderStyle = .plain,
-        showsDebugExportButton: Bool = false
-    ) {
-        self.init(
-            store: store,
-            placeholder: placeholder,
-            allowsImageAttachments: allowsImageAttachments,
-            borderStyle: borderStyle,
-            showsDebugExportButton: showsDebugExportButton,
-            header: { EmptyView() }
-        )
-    }
-}
-
 private actor _PreviewNullProvider: ModelProvider {
     nonisolated func send(
         messages _: [Message],
@@ -373,13 +337,16 @@ private func _previewStore() -> ConversationStore {
     ComposerView(store: _previewStore()).frame(width: 520)
 }
 #Preview("Glow") {
-    ComposerView(store: _previewStore(), borderStyle: .glow).frame(width: 520)
+    ComposerView(store: _previewStore())
+        .collaborationComposerBorderStyle(.glow)
+        .frame(width: 520)
 }
 #Preview("With Header") {
-    ComposerView(store: _previewStore()) {
-        Label("cpu · OpenAI · gpt-4o", systemImage: "cpu")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-    }
-    .frame(width: 520)
+    ComposerView(store: _previewStore())
+        .collaborationComposerHeader {
+            Label("cpu · OpenAI · gpt-4o", systemImage: "cpu")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(width: 520)
 }

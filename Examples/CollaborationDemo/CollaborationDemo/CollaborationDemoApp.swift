@@ -6,6 +6,7 @@ import SwiftUI
 struct CollaborationDemoApp: App {
     @State private var credentials = CollaborationCredentials(
         store: KeychainCredentialStore(service: "io.schwa.CollaborationDemo"),
+        backends: Backend.allBuiltin + [.lmStudio(), .ollama()],
         defaultsKey: "collaborationDemo.backend"
     )
 

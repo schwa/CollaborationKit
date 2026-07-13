@@ -117,11 +117,10 @@ struct ContentView: View {
 
     @ViewBuilder private var assistant: some View {
         if let store = activeStore {
-            CollaborationChatView(
-                store: store,
-                composerBorderStyle: .glow,
-                showsDebugExportButton: true,
-                composerHeader: {
+            CollaborationChatView(store: store)
+                .collaborationComposerBorderStyle(.glow)
+                .collaborationShowsDebugExportButton()
+                .collaborationComposerHeader {
                     Label(
                         "\(credentials.backend.displayName) · \(credentials.selectedModel)",
                         systemImage: "cpu"
@@ -130,14 +129,13 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
                     .labelStyle(.titleAndIcon)
                 }
-            )
-            .sessionDebugExport(
-                store: store,
-                model: credentials.selectedModel,
-                defaultFilename: {
-                    "CollaborationDemo-\(selectedTab.exportSlug)-\(Int(Date().timeIntervalSince1970)).json"
-                }
-            )
+                .collaborationDebugExport(
+                    store: store,
+                    model: credentials.selectedModel,
+                    defaultFilename: {
+                        "CollaborationDemo-\(selectedTab.exportSlug)-\(Int(Date().timeIntervalSince1970)).json"
+                    }
+                )
         } else if let buildError {
             ContentUnavailableView("Couldn't Start Chat", systemImage: "exclamationmark.triangle", description: Text(buildError))
         } else {
