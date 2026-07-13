@@ -1583,12 +1583,13 @@ The abstraction the code presents (pluggable `Backend`) is not the abstraction t
 ## 58: SessionExport shadow types silently drop new domain fields
 
 +++
-status: new
+status: closed
 priority: low
 kind: task
 labels: architecture, effort:m
 created: 2026-07-13T04:21:00Z
-updated: 2026-07-13T04:25:37Z
+updated: 2026-07-13T04:40:14Z
+closed: 2026-07-13T04:40:14Z
 +++
 
 `SessionExport` (in `CollaborationKitUI/Transcript/SessionExport.swift`, 233 lines) is a hand-maintained parallel schema for every serialisable domain type in the package:
@@ -1615,5 +1616,7 @@ Consequences:
 Delete the shadow types. Put `Codable` directly on `Message`, `ContentBlock`, `ToolCall`, `ToolResult`, `ConversationItem`, and `TokenUsage` with hand-written `init(from:)` / `encode(to:)` where the on-disk shape needs to differ from the in-memory shape. Add a round-trip test so a dropped field fails the build.
 
 See the `swift-no-shadow-types` skill.
+
+- `2026-07-13T04:40:14Z`: Deleted the shadow types in SessionExport (MessageExport, ContentBlockExport, ToolCallExport, ToolResultExport, ItemExport, UsageExport). Added Codable directly to Message, ImageContent, ToolUse, ToolResult, ToolCall, ContentBlock, TokenUsage, ConversationItem, ItemID, and Kind. SessionExport now stores domain types directly (233 -> 92 lines). Added round-trip tests that fail if a new field is added without wiring.
 
 ---

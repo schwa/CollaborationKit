@@ -28,13 +28,50 @@ public enum ContentBlock: Sendable, Equatable {
     case toolCall(ToolCall)
 }
 
+extension ContentBlock: Codable {
+    private enum CodingKeys: String, CodingKey {
+        case type, text, image, toolCall
+    }
+
+    private enum Kind: String, Codable {
+        case text, image, toolCall
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        switch try container.decode(Kind.self, forKey: .type) {
+        case .text:
+            self = .text(try container.decode(String.self, forKey: .text))
+        case .image:
+            self = .image(try container.decode(ImageContent.self, forKey: .image))
+        case .toolCall:
+            self = .toolCall(try container.decode(ToolCall.self, forKey: .toolCall))
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .text(let value):
+            try container.encode(Kind.text, forKey: .type)
+            try container.encode(value, forKey: .text)
+        case .image(let image):
+            try container.encode(Kind.image, forKey: .type)
+            try container.encode(image, forKey: .image)
+        case .toolCall(let call):
+            try container.encode(Kind.toolCall, forKey: .type)
+            try container.encode(call, forKey: .toolCall)
+        }
+    }
+}
+
 /// A tool invocation paired with its result.
 ///
 /// `result` is `nil` between the moment the model requests the call and the
 /// moment the tool finishes. The session fills it in; the UI can show a pending
 /// row until then. Keeping the request and result together is what lets callers
 /// render one row per tool instead of correlating two separate messages by id.
-public struct ToolCall: Sendable, Equatable {
+public struct ToolCall: Sendable, Equatable, Codable {
     /// The model's request to invoke a tool.
     public var use: ToolUse
     /// The result of running it, or `nil` while still pending.
@@ -51,7 +88,7 @@ public struct ToolCall: Sendable, Equatable {
 /// Images are carried as base64-encoded data together with their media type,
 /// which both Anthropic and OpenAI accept natively. This representation stays
 /// provider-agnostic; wire encoders translate it into each provider's shape.
-public struct ImageContent: Sendable, Equatable {
+public struct ImageContent: Sendable, Equatable, Codable {
     /// The IANA media type of the image, e.g. `"image/png"` or `"image/jpeg"`.
     public let mediaType: String
     /// The base64-encoded image data (without a data-URL prefix).
@@ -70,7 +107,7 @@ public struct ImageContent: Sendable, Equatable {
 }
 
 /// A request from the model to invoke a tool.
-public struct ToolUse: Sendable, Equatable {
+public struct ToolUse: Sendable, Equatable, Codable {
     /// A provider-assigned identifier correlating this call with its result.
     public let id: String
     /// The name of the tool the model wishes to invoke.
@@ -86,7 +123,7 @@ public struct ToolUse: Sendable, Equatable {
 }
 
 /// The result of invoking a tool, sent back to the model.
-public struct ToolResult: Sendable, Equatable {
+public struct ToolResult: Sendable, Equatable, Codable {
     /// The identifier of the ``ToolUse`` this result corresponds to.
     public let toolUseID: String
     /// The textual content of the result.
@@ -106,7 +143,7 @@ public struct ToolResult: Sendable, Equatable {
 /// Carries a stable identity and a creation timestamp so UIs can key list rows
 /// and show timing without maintaining a parallel side-table. Both are assigned
 /// at construction and never change.
-public struct Message: Identifiable, Sendable, Equatable {
+public struct Message: Identifiable, Sendable, Equatable, Codable {
     /// Stable identity for the lifetime of this message value.
     public let id: UUID
     /// When this message was created.

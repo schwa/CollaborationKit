@@ -5,7 +5,7 @@ import Foundation
 /// Values are best-effort: providers report what they can, and some local
 /// servers omit usage entirely (in which case counts are zero). Counts describe
 /// a single turn unless accumulated, e.g. via ``LLMSession/totalUsage``.
-public struct TokenUsage: Sendable, Equatable {
+public struct TokenUsage: Sendable, Equatable, Codable {
     /// Tokens in the request (the prompt and conversation so far).
     public var inputTokens: Int
     /// Tokens generated in the response.
