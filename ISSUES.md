@@ -337,3 +337,209 @@ Design work: pick one of
 Related: RFC 0002 (CollaborationKitUI).
 
 ---
+
+## 16: RFC 0003: FoundationModels bridge for @Generable types and cross-backend tool reuse
+
++++
+status: new
+priority: medium
+kind: feature
+depends: 14, 15
+created: 2026-07-13T01:02:34Z
++++
+
+Slice 1 has no awareness of FoundationModels. A @Generable value used as a tool parameter or return type is rejected as an unsupported type; there is no way to reuse the schema FoundationModels already generates.
+
+Missing per RFC 0003 §3.1:
+- Recognise @Generable types in the macro's parameter/return handling and reuse their generated schema.
+- A companion macro (or utility) that exposes a FoundationModels session's own tools through the CollaborationKit Tool surface, so an app can share one toolbox across backends.
+- OS-version gating in the bridge module.
+
+Depends on the CollaborationSchemaConvertible / schema-lookup mechanism from #15.
+
+---
+
+## 17: RFC 0003: SwiftData bridge synthesizes CRUD tools for @Model types
+
++++
+status: new
+priority: medium
+kind: feature
+depends: 14, 15
+created: 2026-07-13T01:02:41Z
++++
+
+Slice 1 does not know about SwiftData @Model types. Annotating a @Model with @CollaborationTools does nothing useful — the user still has to hand-write list/fetch/create/update/delete tools.
+
+Missing per RFC 0003 §3.2:
+- Derived CRUD tools (list, fetch(id:), create, update(id:, ...), delete(id:)) for a @Model type.
+- @CollaborationField(.readOnly | .hidden | .writable) per property to control the derived surface.
+- Predicate parameter → declarative filter schema (not full Predicate DSL).
+- A collaborationTools(in: ModelContext) accessor variant, since these tools need a ModelContext.
+- Hand-written @CollaborationTool methods on the same @Model override the derived tool of the same name.
+- OS-version gating in the bridge module.
+
+---
+
+## 18: RFC 0003: AppIntents bridge exposes AppIntent.perform() as a tool
+
++++
+status: new
+priority: medium
+kind: feature
+depends: 14, 15
+created: 2026-07-13T01:02:46Z
++++
+
+Slice 1 does not know about AppIntent. A type conforming to AppIntent isn't recognised by the macro; parameters declared with @Parameter are ignored.
+
+Missing per RFC 0003 §3.3:
+- Recognise AppIntent-conforming types and expose perform() as a tool.
+- Derive tool parameters from @Parameter metadata (title, description, default value, options).
+- Parameter summaries / localised titles feed the tool description.
+- IntentResult flows through CollaborationResultConvertible (dialog text → tool result string; opened content → structured result).
+- In-process invocation only — no need to route through the system.
+- OS-version gating in the bridge module.
+
+---
+
+## 19: RFC 0003: doc-comment mining feeds tool descriptions
+
++++
+status: new
+priority: low
+kind: enhancement
+depends: 14
+created: 2026-07-13T01:02:51Z
++++
+
+Every @CollaborationTool method has to repeat its description in the attribute argument, even when the method already has a /// doc comment saying the same thing.
+
+Missing per RFC 0003 open question 2:
+- If the attribute has no description argument, use the member's /// doc comment as the tool description.
+- Explicit attribute string always wins.
+- Requires enabling doc-comment trivia access in the macro.
+
+---
+
+## 20: RFC 0003: tool-name prefixing and collision handling across multiple annotated types
+
++++
+status: new
+priority: medium
+kind: enhancement
+depends: 14
+created: 2026-07-13T01:02:56Z
++++
+
+Slice 1 uses the bare Swift member name as the tool name. When two @CollaborationTools types both expose e.g. 'create', the model sees two tools with the same name and one wins silently.
+
+Missing per RFC 0003 open question 5:
+- Default naming prefixes the tool name with the owning type name (or a shortened form of it).
+- Per-attribute override to force a specific tool name.
+- Documented guidance for hosts that merge tools from multiple stores.
+
+---
+
+## 21: RFC 0003: nested @CollaborationTools objects as parameters (ID reference vs value)
+
++++
+status: new
+priority: low
+kind: feature
+depends: 14, 15
+created: 2026-07-13T01:03:03Z
++++
+
+There is no defined behaviour when a @CollaborationTool method takes a value of another @CollaborationTools-annotated type as a parameter, or returns one. Right now such a parameter fails schema derivation.
+
+Missing per RFC 0003 open question 3:
+- Decide and document: nested types are passed by ID, not by inlined value.
+- Macro emits a schema referencing the ID type; the tool body dereferences on entry.
+- What 'ID type' means for a given store is user-declared, likely via a small protocol.
+- Test that the model sees a stable ID schema and not the full nested object.
+
+---
+
+## 22: RFC 0003: expose per-tool metadata (e.g. requiresApproval) for host-side gating
+
++++
+status: new
+priority: low
+kind: feature
+depends: 14
+created: 2026-07-13T01:03:09Z
++++
+
+Derived tools frequently have side effects (delete, update, perform an intent). CollaborationKit intentionally leaves approval / gating to the host, but Slice 1 doesn't surface any metadata for a host to key off.
+
+Missing per RFC 0003 open question 6:
+- Attribute-level flag (e.g. requiresApproval) on @CollaborationTool.
+- SwiftData bridge marks derived mutating tools (create/update/delete) automatically; AppIntents bridge marks intent execution similarly.
+- Metadata exposed on AnyTool (or a companion struct) so a host UI can find it without re-inspecting Swift types.
+
+---
+
+## 23: RFC 0003: macro-expansion tests via SwiftSyntaxMacrosTestSupport
+
++++
+status: new
+priority: low
+kind: task
+depends: 14
+created: 2026-07-13T01:03:17Z
++++
+
+Slice 1 tests exercise the macro through its runtime output (collaborationTools, call, LLMSession loop). There are no assertions against the actual expanded source, so regressions in codegen shape are only caught indirectly.
+
+Missing per RFC 0003 open question 7:
+- Add SwiftSyntaxMacrosTestSupport-based expansion tests for CollaborationToolsMacro covering: empty type, single method, all supported parameter kinds, async/throws/actor call sites, and diagnostic-emitting cases (non-type target, unsupported parameter type).
+- Keep the runtime tests too; the two catch different bugs.
+
+---
+
+## 24: RFC 0003: expand built-in schema derivation to enums, tuples, and generic wrappers
+
++++
+status: new
+priority: low
+kind: enhancement
+depends: 14
+created: 2026-07-13T01:03:25Z
++++
+
+Slice 1's built-in schema derivation covers primitives, Optional, Array, and [String: T]. Anything else falls through to CollaborationSchemaConvertible (#15) or errors.
+
+RFC 0003 open question 1 asks how far the built-in derivation should go before requiring the escape hatch. Candidates to decide on:
+- String-backed enums (map to 'enum' in JSON Schema).
+- Enums with associated values.
+- Tuples with labels.
+- User-declared generic wrappers.
+
+Whichever we support should have expansion tests and a clear line vs. the escape hatch.
+
+---
+
+## 25: RFC 0003: CollaborationSchemaConvertible escape hatch for custom parameter/return types
+
++++
+status: new
+priority: medium
+kind: feature
+depends: 14
+created: 2026-07-13T01:02:28Z
+updated: 2026-07-13T01:24:08Z
++++
+
+Slice 1 only supports primitives + Optional/Array/[String: T]. Anything else (user structs, enums, tuples, generics) fails macro expansion with 'Unsupported parameter/return type'.
+
+Per RFC 0003 §3 the intended escape hatch is a CollaborationSchemaConvertible protocol: user value types opt in and provide their own JSON Schema fragment, and the macro emits a reference to it rather than trying to derive one.
+
+Missing:
+- The CollaborationSchemaConvertible protocol in CollaborationKit.
+- Schema-derivation lookup so unknown types check for the conformance before erroring.
+- @CollaborationSchema attached macro that emits the conformance (or documents how to write it by hand).
+
+See rfcs/0003-model-object-tool-macro.md, sections 'Supported parameter/return types (initial)' and '3.4 User-sprinkled macros'.
+
+---
