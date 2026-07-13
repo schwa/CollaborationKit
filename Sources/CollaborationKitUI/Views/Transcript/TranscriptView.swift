@@ -26,28 +26,23 @@ public struct TranscriptView: View {
 
     public var body: some View {
         ScrollViewReader { proxy in
-            List {
-                ForEach(store.items) { item in
-                    ConversationRowView(item: item, iconForTool: iconForTool)
-                        .id(item.id)
-                        .listRowSeparator(.hidden)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 10) {
+                    ForEach(store.items) { item in
+                        ConversationRowView(item: item, iconForTool: iconForTool)
+                            .id(item.id)
+                    }
+                    if store.isGenerating {
+                        thinkingRow
+                    }
+                    // Stable sentinel at the bottom; always the scroll target
+                    // so streaming content (which changes row ids/heights)
+                    // still pins to the end.
+                    Color.clear.frame(height: 1).id(Self.bottomID)
                 }
-                if store.isGenerating {
-                    thinkingRow
-                        .listRowSeparator(.hidden)
-                }
-                // Stable sentinel at the bottom; always the scroll target so
-                // streaming content (which changes row ids/heights) still
-                // pins to the end.
-                HStack {
-                    Spacer()
-                    Image(systemName: "sparkle").foregroundStyle(.secondary)
-                    Spacer()
-                }
-                .id(Self.bottomID)
-                .listRowSeparator(.hidden)
+                .padding(12)
             }
-            .listStyle(.plain)
+            .background(.background.secondary)
             .overlay { emptyState }
             .onChange(of: store.items.count) { _, _ in scrollToEnd(proxy) }
             .onChange(of: store.isGenerating) { _, _ in scrollToEnd(proxy) }
@@ -90,7 +85,13 @@ public struct TranscriptView: View {
                 .foregroundStyle(.secondary)
             Spacer()
         }
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.background, in: .rect(cornerRadius: 10))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(Color.secondary.opacity(0.25), lineWidth: 1)
+        }
     }
 
     private func scrollToEnd(_ proxy: ScrollViewProxy) {

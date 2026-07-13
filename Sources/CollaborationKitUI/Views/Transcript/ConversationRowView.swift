@@ -7,9 +7,9 @@ import AppKit
 
 /// One transcript row, styled per ``ConversationItem/Kind``.
 ///
-/// User prompts render as right-aligned accent bubbles, assistant prose as
-/// left-aligned secondary bubbles, tool activity as compact rows with an icon
-/// and argument summary, and harness errors as red-tinted bubbles.
+/// Each row is a distinct card with a role header (icon + label + latency)
+/// and content underneath, so a scrolling transcript reads as a series of
+/// clearly separated blocks rather than a wall of bubbles.
 public struct ConversationRowView: View {
     public let item: ConversationItem
 
@@ -28,7 +28,77 @@ public struct ConversationRowView: View {
     }
 
     public var body: some View {
-        content.textSelection(.enabled)
+        VStack(alignment: .leading, spacing: 6) {
+            header
+            content
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(background, in: .rect(cornerRadius: 10))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(borderColor, lineWidth: 1)
+        }
+        .textSelection(.enabled)
+    }
+
+    // MARK: - Header
+
+    private var header: some View {
+        HStack(spacing: 6) {
+            Image(systemName: headerIcon)
+                .foregroundStyle(accent)
+                .font(.caption)
+                .frame(width: 14)
+            Text(headerLabel)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(accent)
+                .textCase(.uppercase)
+                .tracking(0.4)
+            Spacer(minLength: 4)
+            durationLabel
+        }
+    }
+
+    private var headerIcon: String {
+        switch item.kind {
+        case .user: return "person.crop.circle"
+        case .assistant: return "sparkles"
+        case .tool(let name, _, _, let isError):
+            return isError ? "exclamationmark.triangle" : iconForTool(name)
+        case .error: return "exclamationmark.triangle.fill"
+        }
+    }
+
+    private var headerLabel: String {
+        switch item.kind {
+        case .user: return "You"
+        case .assistant: return "Assistant"
+        case .tool(let name, _, _, _): return "Tool · \(name)"
+        case .error: return "Error"
+        }
+    }
+
+    private var accent: Color {
+        switch item.kind {
+        case .user: return .accentColor
+        case .assistant: return .indigo
+        case .tool(_, _, _, let isError): return isError ? .red : .blue
+        case .error: return .red
+        }
+    }
+
+    private var background: Color {
+        switch item.kind {
+        case .user: return Color.accentColor.opacity(0.06)
+        case .assistant: return Color.indigo.opacity(0.05)
+        case .tool(_, _, _, let isError): return (isError ? Color.red : Color.blue).opacity(0.05)
+        case .error: return Color.red.opacity(0.08)
+        }
+    }
+
+    private var borderColor: Color {
+        accent.opacity(0.25)
     }
 
     // MARK: - Content dispatch
@@ -37,91 +107,77 @@ public struct ConversationRowView: View {
     private var content: some View {
         switch item.kind {
         case .user(let text, let images):
-            userBubble(text: text, images: images)
+            userContent(text: text, images: images)
 
         case .assistant(let text):
-            assistantBubble(text: text)
+            assistantContent(text: text)
 
         case .tool(let name, let summary, let result, let isError):
-            toolRow(name: name, summary: summary, result: result, isError: isError)
+            toolContent(name: name, summary: summary, result: result, isError: isError)
 
         case .error(let message):
-            errorBubble(message: message)
+            errorContent(message: message)
         }
     }
 
-    // MARK: - Bubbles
+    // MARK: - Content
 
-    private func userBubble(text: String, images: [ImageContent]) -> some View {
-        bubble(alignment: .trailing, background: Color.accentColor.opacity(0.18)) {
-            VStack(alignment: .trailing, spacing: 6) {
-                if !images.isEmpty {
-                    AttachmentThumbnailsView(images: images)
-                }
-                if !text.isEmpty {
-                    Text(text).fixedSize(horizontal: false, vertical: true)
-                }
+    private func userContent(text: String, images: [ImageContent]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !images.isEmpty {
+                AttachmentThumbnailsView(images: images)
             }
-        }
-    }
-
-    private func assistantBubble(text: String) -> some View {
-        bubble(alignment: .leading, background: Color.secondary.opacity(0.10)) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(text.isEmpty ? "…" : text)
+            if !text.isEmpty {
+                Text(text)
                     .fixedSize(horizontal: false, vertical: true)
-                durationLabel
             }
         }
     }
 
-    private func errorBubble(message: String) -> some View {
-        bubble(alignment: .leading, background: Color.red.opacity(0.12)) {
-            Label(message, systemImage: "exclamationmark.triangle")
-                .font(.caption)
-                .foregroundStyle(.red)
-                .fixedSize(horizontal: false, vertical: true)
-        }
+    private func assistantContent(text: String) -> some View {
+        Text(text.isEmpty ? "…" : text)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
-    private func toolRow(name: String, summary: String, result: String?, isError: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+    private func toolContent(name: String, summary: String, result: String?, isError: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Image(systemName: iconForTool(name))
-                    .foregroundStyle(isError ? .red : .secondary)
                 Text(summary)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
+                    .font(.callout)
+                    .foregroundStyle(.primary)
                 Spacer(minLength: 4)
                 if result == nil {
                     ProgressView().controlSize(.mini)
-                } else {
-                    durationLabel
                 }
             }
             if let result, resultWorthShowing(name: name, result: result, isError: isError) {
                 Text(result)
-                    .font(.system(.caption2, design: .monospaced))
+                    .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(isError ? .red : .secondary)
                     .lineLimit(8)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.black.opacity(0.04), in: .rect(cornerRadius: 6))
             }
         }
-        .padding(8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background((isError ? Color.red : Color.blue).opacity(0.08), in: .rect(cornerRadius: 8))
+    }
+
+    private func errorContent(message: String) -> some View {
+        Text(message)
+            .font(.callout)
+            .foregroundStyle(.red)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     // MARK: - Duration
 
-    /// The round-trip wait before this item appeared, e.g. "1.2s" — the time
-    /// the user actually waited for the model/network, not the block-render
-    /// time. Empty when unknown (first item of a turn, or still in flight).
+    /// The round-trip wait before this item appeared, e.g. "1.2s".
     @ViewBuilder
     private var durationLabel: some View {
         if let latency = item.latency {
             Text(Self.durationText(latency))
-                .font(.caption2)
+                .font(.caption2.monospacedDigit())
                 .foregroundStyle(.tertiary)
         }
     }
@@ -131,25 +187,8 @@ public struct ConversationRowView: View {
         return String(format: "%.1fs", seconds)
     }
 
-    // MARK: - Layout helpers
-
-    private func bubble<Content: View>(
-        alignment: HorizontalAlignment,
-        background: Color,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        HStack {
-            if alignment == .trailing { Spacer(minLength: 24) }
-            content()
-                .padding(10)
-                .background(background, in: .rect(cornerRadius: 10))
-                .frame(maxWidth: .infinity, alignment: alignment == .trailing ? .trailing : .leading)
-            if alignment == .leading { Spacer(minLength: 24) }
-        }
-    }
-
     /// Only show a tool result when it carries useful detail. For unknown
-    /// tools, show it when the tool errored or when it looks like a read.
+    /// tools, show when the tool errored or looks like a read.
     private func resultWorthShowing(name: String, result: String, isError: Bool) -> Bool {
         if isError { return true }
         switch name {
@@ -158,8 +197,8 @@ public struct ConversationRowView: View {
         }
     }
 
-    /// Default SF Symbol for a tool name. Covers the built-in `read`/
-    /// `write`/`edit` file tools; unknown tools get a generic wrench.
+    /// Default SF Symbol for a tool name. Covers the built-in
+    /// `read`/`write`/`edit` file tools; unknown tools get a generic wrench.
     public nonisolated static func defaultIcon(for name: String) -> String {
         switch name {
         case "read": return "doc.text"

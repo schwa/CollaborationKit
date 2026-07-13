@@ -651,3 +651,42 @@ Concretely:
 Related: RFC 0002, #13.
 
 ---
+
+## 31: Tool approval
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T01:34:27Z
++++
+
+Add a mechanism for the host to approve (or deny) tool invocations before they run. Related to #22 (per-tool metadata like requiresApproval).
+
+---
+
+## 32: Path approval
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T01:34:27Z
++++
+
+Add a mechanism for the host to approve (or deny) filesystem path access by built-in file tools (read/write/edit).
+
+---
+
+## 33: Copy progress/stop button from Phosphor to CollaborationKitUI
+
++++
+status: new
+priority: medium
+kind: task
+created: 2026-07-13T01:36:39Z
++++
+
+Port the progress/stop button UI component from the Phosphor project into the CollaborationKitUI target. Used to indicate an in-flight LLM turn and let the user cancel it.
+
+---
