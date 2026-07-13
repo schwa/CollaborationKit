@@ -8,11 +8,11 @@ File format: <https://github.com/schwa/issues-format>
 
 +++
 status: open
-priority: medium
+priority: low
 kind: task
 labels: testing, effort:m
 created: 2026-06-23T23:13:55Z
-updated: 2026-07-13T01:54:13Z
+updated: 2026-07-13T06:19:52Z
 +++
 
 All provider tests are parser-level (StreamAccumulator / OpenAIStreamAccumulator). Nothing exercises AnthropicProvider/OpenAIProvider end-to-end over a real URLSession. Add a MockURLProtocol that feeds canned SSE byte streams through the actual providers to verify: request construction (auth headers, anthropic-beta/user-agent for OAuth, x-api-key vs Bearer), HTTP status handling (non-2xx -> httpError with body), and partial-line SSE buffering. Largest gap: the networking layer is unproven by tests, only manually verified against LM Studio and Anthropic.
@@ -86,11 +86,11 @@ send() is not easily cancellable mid-turn and the session events stream never fi
 
 +++
 status: open
-priority: low
+priority: medium
 kind: enhancement
 labels: enhancement, effort:s
 created: 2026-06-23T23:14:14Z
-updated: 2026-07-13T01:49:39Z
+updated: 2026-07-13T06:20:00Z
 +++
 
 SessionError.maxIterationsExceeded throws out of send() and discards the partial turn (accumulated text, tool calls/results so far are lost to the caller, though history is mutated). Consider returning what happened instead of throwing it away — e.g. include the partial assistant text in the error, or return a result type that distinguishes 'completed' vs 'hit iteration cap'.
@@ -101,11 +101,11 @@ SessionError.maxIterationsExceeded throws out of send() and discards the partial
 
 +++
 status: open
-priority: low
+priority: medium
 kind: enhancement
 labels: enhancement, effort:s
 created: 2026-06-23T23:14:14Z
-updated: 2026-07-13T01:49:39Z
+updated: 2026-07-13T06:20:04Z
 +++
 
 Usage is emitted per model response (SessionEvent.usage), but there is no single turn-level summary: total tokens for the turn plus the stop reason. turnComplete currently carries only the final text. Consider enriching turnComplete (or adding a new event) with aggregated TokenUsage for the turn and the provider stop reason, so callers don't have to sum usage events themselves.
@@ -217,11 +217,11 @@ Note: lower priority — cohesion/readability win, not a correctness or testabil
 
 +++
 status: open
-priority: medium
+priority: high
 kind: task
 labels: effort:m
 created: 2026-06-24T01:10:58Z
-updated: 2026-07-13T01:49:39Z
+updated: 2026-07-13T06:20:13Z
 +++
 
 LLMSession.runLoop mixes three responsibilities in one method:
@@ -419,12 +419,12 @@ Depends on the CollaborationSchemaConvertible / schema-lookup mechanism from #15
 
 +++
 status: open
-priority: medium
+priority: low
 kind: feature
 labels: effort:l
 depends: 14, 15
 created: 2026-07-13T01:02:41Z
-updated: 2026-07-13T01:49:52Z
+updated: 2026-07-13T06:20:19Z
 +++
 
 Slice 1 does not know about SwiftData @Model types. Annotating a @Model with @CollaborationTools does nothing useful — the user still has to hand-write list/fetch/create/update/delete tools.
@@ -658,11 +658,11 @@ See rfcs/0003-model-object-tool-macro.md, sections 'Supported parameter/return t
 
 +++
 status: open
-priority: medium
+priority: high
 kind: feature
 labels: effort:l
 created: 2026-07-13T01:28:00Z
-updated: 2026-07-13T01:49:58Z
+updated: 2026-07-13T06:20:23Z
 +++
 
 Phosphor's ConversationStore lets a user roll back the session to just before a prior user prompt: it snapshots host state (in Phosphor's case, the shader source) alongside the pre-turn history depth, then restores both on demand and truncates the LLMSession history.
@@ -682,11 +682,11 @@ Related: RFC 0002, #13.
 
 +++
 status: open
-priority: low
+priority: none
 kind: feature
 labels: effort:m
 created: 2026-07-13T01:28:00Z
-updated: 2026-07-13T01:49:58Z
+updated: 2026-07-13T06:20:30Z
 +++
 
 RFC 0002 calls for a small Theme struct (colors, spacing, corner radii, typography) read from the environment, with hosts overriding per-view or per-tree. Currently ConversationRowView and ComposerView hard-code accent/secondary/red colors and 10/12/16pt spacing.
@@ -929,7 +929,7 @@ priority: low
 kind: feature
 labels: effort:s
 created: 2026-07-13T01:40:35Z
-updated: 2026-07-13T01:49:58Z
+updated: 2026-07-13T06:19:05Z
 +++
 
 Phosphor's transcript accepts image file drops (URLs) directly onto the scroll area and routes them into the pending composer attachments. CollaborationKitUI's TranscriptView has no dropDestination — users must go through the paperclip importer.
@@ -941,6 +941,8 @@ Design:
 
 Blocks: parity with Phosphor's drag-drop experience.
 Related: RFC 0002, #13.
+
+- `2026-07-13T06:19:05Z`: Related: #66 (paste) and #67 (drag) on the composer.
 
 ---
 
@@ -1104,10 +1106,13 @@ Related: RFC 0003, #14, #24 (enums/tuples/generics), #25 (custom escape hatch).
 ## 42: Increase test coverage
 
 +++
-status: new
+status: closed
 priority: medium
 kind: task
+labels: effort:l
 created: 2026-07-13T02:02:44Z
+updated: 2026-07-13T06:21:05Z
+closed: 2026-07-13T06:21:05Z
 +++
 
 Test coverage across CollaborationKit is insufficient. Audit current coverage, identify uncovered code paths (especially in core sync/collaboration logic), and add tests to reach an acceptable coverage level.
@@ -1151,10 +1156,13 @@ Review Swift concurrency usage across CollaborationKit for correctness and moder
 ## 45: Investigate using Apple Passwords API to retrieve Claude/OpenAI API keys
 
 +++
-status: new
+status: closed
 priority: low
 kind: feature
+labels: effort:s
 created: 2026-07-13T02:07:18Z
+updated: 2026-07-13T06:21:08Z
+closed: 2026-07-13T06:21:08Z
 +++
 
 Explore whether the Apple Passwords API can be used to fetch stored API keys (e.g. Claude, OpenAI) instead of requiring the user to enter/store them separately. Feasibility unknown — Passwords API may not expose arbitrary secrets or non-website credentials.
@@ -1164,10 +1172,12 @@ Explore whether the Apple Passwords API can be used to fetch stored API keys (e.
 ## 46: Replace AnyTool type-erasure wrapper with existential `any Tool`
 
 +++
-status: new
+status: open
 priority: medium
 kind: enhancement
+labels: effort:s
 created: 2026-07-13T03:15:57Z
+updated: 2026-07-13T06:18:59Z
 +++
 
 `AnyTool` predates / duplicates Swift's built-in existential support. Now that the codebase can rely on `any Tool`, the hand-rolled wrapper is redundant.
@@ -1279,10 +1289,12 @@ Nit: demo Editing → EditingNote.
 ## 49: Skills support
 
 +++
-status: new
+status: open
 priority: low
 kind: feature
+labels: effort:xl
 created: 2026-07-13T03:33:06Z
+updated: 2026-07-13T06:18:59Z
 +++
 
 CollaborationKit has no concept of skills — bundles of instructions (and optionally scripts/resources) the model can load on demand to specialize its behavior for a task.
@@ -1653,11 +1665,12 @@ See the `swift-no-shadow-types` skill.
 ## 59: Credential layer is shallow: fixed-slot CredentialStore protocol undercuts Backend extensibility
 
 +++
-status: new
-priority: medium
-kind: none
-labels: architecture
+status: open
+priority: high
+kind: enhancement
+labels: architecture, effort:l
 created: 2026-07-13T05:06:25Z
+updated: 2026-07-13T06:21:19Z
 +++
 
 CredentialStore has 9 methods hard-coding three slots (anthropicKey/openAIKey/anthropicOAuth) as read/save/clear trios. Every new backend requires widening the protocol and all four conformers (InMemoryCredentialStore, KeychainCredentialStore, CLICredentialStore, test fakes), contradicting the Backend docs' claim that adding a backend is 'one value declaration — no library edits'. Seven files co-own 'am I signed in' (CredentialStore, InMemoryCredentialStore, KeychainCredentialStore, CLICredentialStore, CollaborationCredentials, Backend closures, AnthropicOAuth). The KeychainReadResult typealias fossil shows this seam has already shifted once. Keychain and CLI conformers have no tests.
@@ -1667,11 +1680,12 @@ CredentialStore has 9 methods hard-coding three slots (anthropicKey/openAIKey/an
 ## 60: Transcript pipeline duplicates the message-history reducer; risky orchestration in ConversationStore is untested
 
 +++
-status: new
+status: open
 priority: high
-kind: none
-labels: architecture, testing
+kind: enhancement
+labels: architecture, testing, effort:xl
 created: 2026-07-13T05:06:25Z
+updated: 2026-07-13T06:18:59Z
 +++
 
 LLMSession.history and MessageMirror each independently implement 'append assistant blocks, attach tool result by toolUseID' (LLMSession.attachResult vs MessageMirror.attachResultToMirror/appendToolUseToMirror) with different merge rules — a latent divergence seam. Understanding one model turn requires bouncing across six files (LLMSession → SessionEvent → ConversationStore → MessageMirror → TranscriptProjection → views). The pure parts (MessageMirror, TranscriptProjection) are unit-tested, but the risky logic is untested: ConversationStore event-pump ordering (startPump races vs send appending directly to the mirror), reproject() mutating mirror.compact, cancellation/'Stopped.' overlay handling, and usage apparently accumulated twice (from .usage events in handle() and re-read from session.totalUsage in run()). No test constructs ConversationStore against a fake ModelProvider end-to-end. Related: issue #10 (runLoop decomposition) and #7 (history compaction) will stress this dual-history seam.
@@ -1681,11 +1695,12 @@ LLMSession.history and MessageMirror each independently implement 'append assist
 ## 61: Provider construction logic duplicated between Backend (UI target) and collab-cli; OAuth spoofing constants split across three files
 
 +++
-status: new
-priority: medium
-kind: none
-labels: architecture
+status: open
+priority: high
+kind: enhancement
+labels: architecture, effort:m
 created: 2026-07-13T05:06:25Z
+updated: 2026-07-13T06:21:23Z
 +++
 
 Backend lives in CollaborationKitUI although it is a provider-registry concept, so collab-cli cannot import it and re-derives makeProvider logic by hand in Chat.run(). Credential errors are split across targets (CollaborationCredentialsError in UI's Backend.swift, AnthropicOAuthTokenError in core). The fragile Anthropic OAuth external contract has three owners: AnthropicWire.claudeCodeIdentity, AnthropicProvider.oauthBetas/oauthUserAgent/x-app headers, and AnthropicOAuth. Backend itself is a struct of 4 public closures exposing its entire implementation strategy; the actual work is in internal helpers (readAPIKey, model filters).
@@ -1695,11 +1710,12 @@ Backend lives in CollaborationKitUI although it is a provider-registry concept, 
 ## 62: FileTools hand-writes JSON schemas the @CollaborationTools macro automates; tool call() bodies untested
 
 +++
-status: new
-priority: low
-kind: none
-labels: architecture, testing
+status: open
+priority: high
+kind: enhancement
+labels: architecture, testing, effort:m
 created: 2026-07-13T05:06:25Z
+updated: 2026-07-13T06:21:26Z
 +++
 
 FileTools.swift predates the @CollaborationTools macro (RFC 0003) and hand-declares name/description/inputSchema/call for each tool, giving an interface/implementation ratio near 1:1. The Read/Write/EditTool call() bodies are untested (e.g. EditTool's uniqueness counting via components(separatedBy:)); only PathPolicy has test coverage.
@@ -1709,11 +1725,12 @@ FileTools.swift predates the @CollaborationTools macro (RFC 0003) and hand-decla
 ## 63: Demo app doesn't wire up tool approval
 
 +++
-status: new
+status: open
 priority: medium
-kind: none
+kind: task
+labels: effort:m
 created: 2026-07-13T04:58:55Z
-updated: 2026-07-13T05:08:42Z
+updated: 2026-07-13T06:18:59Z
 +++
 
 DemoNotes marks delete as requiresApproval: true, but the demo's LLMSession is created without an approval closure, so the default allow-all applies and approval-gated tools run without any user prompt. The demo has no UI for approving/denying tool calls.
@@ -1723,10 +1740,12 @@ DemoNotes marks delete as requiresApproval: true, but the demo's LLMSession is c
 ## 64: Composer is disabled while assistant is responding; queue prompts instead
 
 +++
-status: new
+status: open
 priority: medium
-kind: none
+kind: feature
+labels: effort:m
 created: 2026-07-13T05:44:43Z
+updated: 2026-07-13T06:18:59Z
 +++
 
 During an active conversation turn (assistant streaming, tools running, etc.) the composer input is locked. The user has to wait for the whole turn to finish before typing the next prompt.
@@ -1738,10 +1757,12 @@ Instead, allow typing at any time and queue up prompts. When the current turn fi
 ## 65: Empty-conversation placeholder shows hard-coded instructions that don't match most apps
 
 +++
-status: new
-priority: medium
-kind: none
+status: open
+priority: high
+kind: enhancement
+labels: effort:s
 created: 2026-07-13T05:44:57Z
+updated: 2026-07-13T06:21:34Z
 +++
 
 The empty-conversation placeholder view renders a fixed instructional string. It's baked into CollaborationKit rather than provided by the host app, so it's wrong for the ~99% of integrations whose UI, tools, and workflow don't match what the placeholder describes.
@@ -1753,30 +1774,38 @@ The placeholder text (and probably the whole placeholder view) needs to be host-
 ## 66: Composer doesn't accept pasted images or file attachments
 
 +++
-status: new
+status: open
 priority: medium
-kind: none
+kind: feature
+labels: effort:m
 created: 2026-07-13T05:57:23Z
+updated: 2026-07-13T06:19:04Z
 +++
 
 Pasting an image (or any file) into the composer's text field does nothing. Users have no way to attach visual/document content to a prompt short of describing it in words.
 
 The composer should accept pasted images and file attachments from the clipboard, surface them as attachment chips in the composer, and include them in the outgoing message.
 
+- `2026-07-13T06:19:05Z`: Related: #67 (drag attachments on composer) and #36 (image drop on transcript).
+
 ---
 
 ## 67: Composer doesn't accept dragged images or file attachments
 
 +++
-status: new
+status: open
 priority: medium
-kind: none
+kind: feature
+labels: effort:m
 created: 2026-07-13T05:57:24Z
+updated: 2026-07-13T06:19:05Z
 +++
 
 Dragging an image or file onto the composer's text field does nothing. Users can't drop a screenshot, PDF, or other document onto the input to attach it.
 
 The composer should accept dragged images and file attachments, surface them as attachment chips in the composer, and include them in the outgoing message.
+
+- `2026-07-13T06:19:05Z`: Related: #66 (paste attachments on composer) and #36 (image drop on transcript).
 
 ---
 
@@ -1810,10 +1839,12 @@ The Settings surface should look and behave like a native macOS Settings window 
 ## 69: Consider using a WebView for the conversation view
 
 +++
-status: new
-priority: medium
+status: open
+priority: low
 kind: feature
+labels: effort:l
 created: 2026-07-13T05:59:52Z
+updated: 2026-07-13T06:19:47Z
 +++
 
 The current conversation view has limited text selection and other interaction affordances. Investigate rendering the conversation as a WebView to get better native selection, copy, find, and rich-content rendering.
@@ -1823,10 +1854,12 @@ The current conversation view has limited text selection and other interaction a
 ## 70: ComposerView: no way to show a backend/model header
 
 +++
-status: new
+status: open
 priority: medium
 kind: enhancement
+labels: effort:s
 created: 2026-07-13T06:13:38Z
+updated: 2026-07-13T06:18:59Z
 +++
 
 Phosphor's composer shows a small caption above the prompt field: "cpu · <Backend display name> · <selected model id>". CollaborationKit's `ComposerView` has no slot for this and no built-in rendering of the active backend/model.
@@ -1838,10 +1871,12 @@ Hosts currently have to fork the whole composer to add it.
 ## 71: CollaborationChatView: no onGeneratingChange callback
 
 +++
-status: new
-priority: medium
+status: open
+priority: high
 kind: enhancement
+labels: effort:xs
 created: 2026-07-13T06:14:12Z
+updated: 2026-07-13T06:21:42Z
 +++
 
 Phosphor's GeneratePanel takes an `onGeneratingChange: (Bool) -> Void` closure and fires it via `.onChange(of: store.isGenerating)`, so the host can react (disable UI, pause compilation, etc.) when a turn starts or ends.
@@ -1853,10 +1888,12 @@ Phosphor's GeneratePanel takes an `onGeneratingChange: (Bool) -> Void` closure a
 ## 72: CollaborationKitUI: built-in UI for session debug export
 
 +++
-status: new
+status: open
 priority: medium
 kind: enhancement
+labels: effort:m
 created: 2026-07-13T06:14:17Z
+updated: 2026-07-13T06:18:59Z
 +++
 
 #35 landed the `SessionExport` data model and `ConversationStore.buildExport(model:userInfo:)`, but hosts still have to hand-wire the UI to trigger it.
