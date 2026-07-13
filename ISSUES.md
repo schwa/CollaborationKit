@@ -2303,10 +2303,12 @@ Switch the default trigger to be token-based (e.g. compact when cumulative or la
 ## 86: Investigate apple/foundation-models-utilities for reuse in CollaborationKit
 
 +++
-status: new
+status: open
 priority: medium
 kind: task
+labels: effort:m
 created: 2026-07-13T15:46:36Z
+updated: 2026-07-13T16:42:21Z
 +++
 
 Apple published https://github.com/apple/foundation-models-utilities — a set of utilities for the Foundation Models framework.
@@ -2324,11 +2326,12 @@ Tasks:
 ## 87: CollaborationKitUI: transcript-row customization hooks (per-tool icon, per-tool result filter)
 
 +++
-status: new
+status: open
 priority: medium
 kind: enhancement
 labels: effort:m, phosphor-adoption
 created: 2026-07-13T15:49:46Z
+updated: 2026-07-13T16:42:09Z
 +++
 
 For Phosphor to drop its hand-rolled ConversationRow, CollaborationKitUI's transcript row needs host-supplied hooks for per-tool presentation.
@@ -2354,11 +2357,12 @@ Blocker for the Phosphor migration umbrella.
 ## 88: CollaborationKitUI: empty-state customization slot for the transcript
 
 +++
-status: new
+status: open
 priority: medium
 kind: enhancement
 labels: effort:s, phosphor-adoption
 created: 2026-07-13T15:49:59Z
+updated: 2026-07-13T16:42:09Z
 +++
 
 For Phosphor to drop its hand-rolled GeneratePanel, CollaborationKitUI's transcript needs a host-supplied empty state.
@@ -2383,11 +2387,12 @@ Child of the Phosphor adoption umbrella.
 ## 89: CollaborationKitUI: composer status/model-info slot above the prompt field
 
 +++
-status: new
+status: open
 priority: medium
 kind: enhancement
 labels: effort:s, phosphor-adoption
 created: 2026-07-13T15:50:08Z
+updated: 2026-07-13T16:42:09Z
 +++
 
 For Phosphor to drop its hand-rolled composer, CollaborationKitUI's composer needs a host-supplied status strip above the prompt field.
@@ -2417,11 +2422,12 @@ Child of the Phosphor adoption umbrella.
 ## 90: Public API surface audit for Phosphor adoption
 
 +++
-status: new
+status: open
 priority: medium
 kind: task
 labels: effort:m, phosphor-adoption, api
 created: 2026-07-13T15:50:17Z
+updated: 2026-07-13T16:42:09Z
 +++
 
 Before Phosphor migrates off its hand-rolled UI/store onto CollaborationKit + CollaborationKitUI, inventory the surface it will consume and make sure everything is public, documented, and stable.
@@ -2446,12 +2452,13 @@ Child of the Phosphor adoption umbrella.
 ## 91: Prepare for Phosphor Adoption
 
 +++
-status: new
+status: open
 priority: high
 kind: task
-labels: epic, phosphor-adoption
+labels: epic, phosphor-adoption, effort:xl
 depends: 37, 27, 73, 74, 78, 87, 88, 89, 90
 created: 2026-07-13T15:50:39Z
+updated: 2026-07-13T16:42:21Z
 +++
 
 Umbrella tracking the work needed so Phosphor can retire its hand-rolled GeneratePanel / ConversationStore / ExportDebugLogCommand and consume CollaborationKit + CollaborationKitUI directly.
@@ -2529,10 +2536,12 @@ Follows: #85 (added `triggerAtTokens`; this issue completes the transition).
 ## 93: Support pi as a chat backend/mode
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:l
 created: 2026-07-13T16:38:44Z
+updated: 2026-07-13T16:42:21Z
 +++
 
 Add a new chat backend alongside the existing remote providers (Anthropic, OpenAI) that talks to a locally running `pi` model over a Unix domain socket.
@@ -2546,10 +2555,12 @@ Distinct enough from the remote HTTP providers that it likely warrants its own b
 ## 94: Support slash commands in the composer
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:m
 created: 2026-07-13T16:38:45Z
+updated: 2026-07-13T16:42:21Z
 +++
 
 Let the user type slash commands (e.g. `/clear`, `/model …`, `/export`) in the composer to trigger app or session actions without a tool round-trip.
@@ -2564,10 +2575,12 @@ Needs:
 ## 95: Send a notification when a conversation turn finishes
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:s
 created: 2026-07-13T16:39:20Z
+updated: 2026-07-13T16:42:21Z
 +++
 
 When the assistant finishes a turn (or errors), post a user notification so the user can leave the window in the background and come back when work is done.
@@ -2579,11 +2592,12 @@ Should probably only fire when the app/window is unfocused.
 ## 96: Support local LLM servers (LM Studio, Ollama, etc.)
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:m
 created: 2026-07-13T16:39:46Z
-updated: 2026-07-13T16:39:58Z
+updated: 2026-07-13T16:42:21Z
 +++
 
 Support talking to local LLM servers that expose HTTP APIs — e.g. LM Studio, Ollama, llama.cpp server, vLLM.
@@ -2597,10 +2611,12 @@ Distinct from #93 (which is native `pi` over a Unix socket) — this issue cover
 ## 97: Support extended thinking / reasoning content
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:l
 created: 2026-07-13T16:40:20Z
+updated: 2026-07-13T16:42:21Z
 +++
 
 Handle models that emit thinking / reasoning content separately from the assistant response — Anthropic extended thinking, OpenAI o-series reasoning tokens, etc.
@@ -2616,10 +2632,12 @@ Needs:
 ## 98: Support some form of tool batching
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:l
 created: 2026-07-13T16:40:46Z
+updated: 2026-07-13T16:42:21Z
 +++
 
 Right now every tool call is its own round-trip: model emits one `tool_use`, we run it, send back one `tool_result`, repeat. For tasks with lots of small independent calls (list + read a dozen files, fetch several notes, etc.) this is slow and burns tokens on repeated context.
@@ -2639,7 +2657,9 @@ Exact design is open — the goal is fewer round-trips for embarrassingly-parall
 status: new
 priority: medium
 kind: bug
+labels: effort:s, needs-info
 created: 2026-07-13T16:41:24Z
+updated: 2026-07-13T16:42:21Z
 +++
 
 The transcript should show how long each tool call took (the duration label in the row header), but it is missing on some tool rows.
