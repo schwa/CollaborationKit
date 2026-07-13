@@ -2821,13 +2821,14 @@ Surfaced by the #90 public-API audit for Phosphor adoption. Child of #73.
 ## 105: CollaborationChatView: missing-credentials placeholder is not host-customizable
 
 +++
-status: open
+status: closed
 priority: medium
 kind: enhancement
 labels: phosphor-adoption, effort:s
 depends: 91
 created: 2026-07-13T17:04:35Z
-updated: 2026-07-13T17:37:13Z
+updated: 2026-07-13T18:10:23Z
+closed: 2026-07-13T18:10:23Z
 +++
 
 CollaborationChatView shows a hard-coded ContentUnavailableView ("Sign in to Continue" + SettingsLink) when the ambient CollaborationCredentials reports no stored credentials for the current backend.
@@ -2835,6 +2836,8 @@ CollaborationChatView shows a hard-coded ContentUnavailableView ("Sign in to Con
 Hosts have no way to replace or customize this view. Phosphor, for example, wants "Sign in to Generate" with a shader-specific hint. #88 added an emptyPlaceholder slot for the empty-transcript case; the credentials-missing case is a separate, still-uncustomizable state.
 
 Companion to #88 (which shipped only the empty-transcript slot). Child of the #91 Phosphor adoption umbrella.
+
+- `2026-07-13T18:10:23Z`: Fixed in 6f6caa77.
 
 ---
 
@@ -3049,14 +3052,18 @@ Any host wiring `Backend.openAI` into an agentic loop has to either accept paral
 ## 115: No UI to configure LM Studio (or other local LLM servers)
 
 +++
-status: new
+status: closed
 priority: medium
 kind: enhancement
 created: 2026-07-13T17:57:29Z
+updated: 2026-07-13T18:10:23Z
+closed: 2026-07-13T18:10:23Z
 +++
 
 Settings has no way to point CollaborationKit at a local LM Studio server. The provider picker only shows the hosted backends (Claude Subscription, Anthropic API, OpenAI); LM Studio isn't offered, so there's no place to enter the base URL or pick a local model from the UI.
 
 Same story for other local OpenAI-compatible servers (Ollama).
+
+- `2026-07-13T18:10:23Z`: Fixed in 6f6caa77.
 
 ---
