@@ -117,41 +117,43 @@ struct Chat: AsyncParsableCommand {
     }
 
     /// Builds the configured provider, sourcing credentials as needed.
+    ///
+    /// Delegates the anthropic/openai cases to the shared ``Backend``
+    /// factories so credential lookup and provider construction stay in one
+    /// place. Only the `lmstudio` case is bespoke here — there's no built-in
+    /// backend for it because it doesn't require credentials.
     private func makeProvider() throws -> ModelProvider {
+        let baseURL = try baseURL.map(parseURL)
         switch provider {
         case .anthropic:
             let store = CLICredentialStore()
-            let auth: AnthropicAuth
-            if store.oauthCredentials() != nil {
-                let tokenProvider = anthropicOAuthTokenProvider(store: store)
-                auth = .oauth { try await tokenProvider() }
-            } else if let apiKey = store.apiKey() {
-                auth = .apiKey(apiKey)
-            } else {
+            // Prefer the OAuth backend when subscription credentials are
+            // stored; fall back to the API-key backend otherwise. Mirrors
+            // the priority the pre-Backend hand-rolled path used.
+            let backend: Backend = store.oauthCredentials() != nil
+                ? .claudeSubscription
+                : .anthropicAPI
+            guard backend.hasCredentials(store) else {
                 throw ValidationError("No credentials found. Run `collab-cli login` or `collab-cli login --oauth` first.")
             }
-            var config = AnthropicConfig(
-                auth: auth,
-                model: model ?? "claude-sonnet-4-5",
-                maxTokens: maxTokens
-            )
-            if let baseURL { config.baseURL = try parseURL(baseURL) }
-            return AnthropicProvider(config: config)
+            return try backend.makeProvider(store, model ?? backend.defaultModel, maxTokens, baseURL)
 
         case .openai:
-            let apiKey = try requireStoredKey()
             guard let model else {
                 throw ValidationError("--model is required for the openai provider.")
             }
-            var config = OpenAIConfig(apiKey: apiKey, model: model, maxTokens: maxTokens)
-            if let baseURL { config.baseURL = try parseURL(baseURL) }
-            return OpenAIProvider(config: config)
+            // OpenAI credentials for the CLI are stored under the Anthropic
+            // slot today (see CLICredentialStore + Login), so route the
+            // stored API key into the OpenAI backend by hand.
+            let apiKey = try requireStoredKey()
+            let store = InMemoryCredentialStore(openAIAPIKey: apiKey)
+            return try Backend.openAI.makeProvider(store, model, maxTokens, baseURL)
 
         case .lmstudio:
             guard let model else {
                 throw ValidationError("--model is required for the lmstudio provider (the model loaded in LM Studio).")
             }
-            let serverURL = try baseURL.map(parseURL) ?? URL(string: "http://localhost:1234")!
+            let serverURL = baseURL ?? URL(string: "http://localhost:1234")!
             // LM Studio ignores the API key; no login required.
             let config = OpenAIConfig.lmStudio(model: model, baseURL: serverURL, maxTokens: maxTokens)
             return OpenAIProvider(config: config)

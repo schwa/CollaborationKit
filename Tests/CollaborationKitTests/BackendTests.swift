@@ -52,7 +52,7 @@ struct BackendTests {
             displayName: "Test Mock",
             defaultModel: "mock-1",
             hasCredentials: { _ in true },
-            makeProvider: { _, _, _ in throw MockError.notImplemented },
+            makeProvider: { _, _, _, _ in throw MockError.notImplemented },
             modelFilter: { $0.hasPrefix("mock-") }
         )
         #expect(custom.modelDefaultsKey == "collaborationkit.model.test.mock")
@@ -103,7 +103,7 @@ struct BackendTests {
         let store = InMemoryCredentialStore()
         for backend in Backend.allBuiltin {
             #expect(throws: CollaborationCredentialsError.self) {
-                _ = try backend.makeProvider(store, backend.defaultModel, 1_024)
+                _ = try backend.makeProvider(store, backend.defaultModel, 1_024, nil)
             }
         }
     }
@@ -111,7 +111,7 @@ struct BackendTests {
     @Test
     func makeProviderBuildsForAnthropicAPIWithStoredKey() throws {
         let store = InMemoryCredentialStore(anthropicAPIKey: "sk-ant-test")
-        _ = try Backend.anthropicAPI.makeProvider(store, Backend.anthropicAPI.defaultModel, 1_024)
+        _ = try Backend.anthropicAPI.makeProvider(store, Backend.anthropicAPI.defaultModel, 1_024, nil)
     }
 
     // MARK: - Error carries backend metadata

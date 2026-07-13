@@ -1,11 +1,39 @@
 import Foundation
 
-/// Encodes ``Message`` values into the Anthropic Messages API request body.
-enum AnthropicWire {
-    /// Builds the JSON request body for the Messages API streaming endpoint.
+/// The set of values Anthropic's OAuth (Claude subscription) endpoint
+/// expects requests to carry so it treats them as coming from the official
+/// Claude Code CLI.
+///
+/// These are the fragile bits of the unofficial OAuth contract: the system
+/// identity block, the `anthropic-beta` list, the `user-agent`, and the
+/// `x-app` tag. Keep them together so a single edit updates every callsite
+/// (previously they were duplicated across ``AnthropicWire`` and
+/// ``AnthropicProvider``).
+enum ClaudeCodeIdentity {
     /// The identity block Claude Code's OAuth endpoint requires as the first
     /// system block; the subscription endpoint rejects requests without it.
-    static let claudeCodeIdentity = "You are Claude Code, Anthropic's official CLI for Claude."
+    static let systemPrompt = "You are Claude Code, Anthropic's official CLI for Claude."
+
+    /// Beta features Claude Code's OAuth endpoint expects on requests.
+    static let betas = [
+        "claude-code-20250219",
+        "oauth-2025-04-20",
+        "fine-grained-tool-streaming-2025-05-14",
+        "interleaved-thinking-2025-05-14"
+    ].joined(separator: ",")
+
+    /// The `user-agent` value Claude Code sends on OAuth-authenticated calls.
+    static let userAgent = "claude-code/2.1.97"
+
+    /// The `x-app` value Claude Code sends on OAuth-authenticated calls.
+    static let app = "cli"
+}
+
+/// Encodes ``Message`` values into the Anthropic Messages API request body.
+enum AnthropicWire {
+    /// Deprecated alias for ``ClaudeCodeIdentity/systemPrompt``. Kept because
+    /// tests reference it under the old name.
+    static var claudeCodeIdentity: String { ClaudeCodeIdentity.systemPrompt }
 
     /// A `cache_control` marker for an ephemeral (5-minute) cache breakpoint.
     private static let ephemeralCacheControl: JSONValue =
@@ -29,7 +57,7 @@ enum AnthropicWire {
         if oauth {
             // OAuth requires the identity block first, as structured system blocks.
             var blocks: [JSONValue] = [
-                .object(["type": "text", "text": .string(claudeCodeIdentity)])
+                .object(["type": "text", "text": .string(ClaudeCodeIdentity.systemPrompt)])
             ]
             if let system, !system.isEmpty {
                 blocks.append(.object(["type": "text", "text": .string(system)]))

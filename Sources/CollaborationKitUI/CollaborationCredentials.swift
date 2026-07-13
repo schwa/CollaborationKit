@@ -111,8 +111,12 @@ public final class CollaborationCredentials {
     ///
     /// Uses ``selectedModel`` (the persisted user choice, or the backend
     /// default) when `model` is `nil`.
-    public func makeProvider(model: String? = nil, maxTokens: Int = 4_096) throws -> any ModelProvider {
-        try backend.makeProvider(store, model ?? selectedModel, maxTokens)
+    public func makeProvider(
+        model: String? = nil,
+        maxTokens: Int = 4_096,
+        baseURL: URL? = nil
+    ) throws -> any ModelProvider {
+        try backend.makeProvider(store, model ?? selectedModel, maxTokens, baseURL)
     }
 
     // MARK: - Model selection persistence

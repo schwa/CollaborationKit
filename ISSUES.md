@@ -1695,12 +1695,13 @@ LLMSession.history and MessageMirror each independently implement 'append assist
 ## 61: Provider construction logic duplicated between Backend (UI target) and collab-cli; OAuth spoofing constants split across three files
 
 +++
-status: open
+status: closed
 priority: high
 kind: enhancement
 labels: architecture, effort:m
 created: 2026-07-13T05:06:25Z
-updated: 2026-07-13T06:21:23Z
+updated: 2026-07-13T06:29:42Z
+closed: 2026-07-13T06:29:42Z
 +++
 
 Backend lives in CollaborationKitUI although it is a provider-registry concept, so collab-cli cannot import it and re-derives makeProvider logic by hand in Chat.run(). Credential errors are split across targets (CollaborationCredentialsError in UI's Backend.swift, AnthropicOAuthTokenError in core). The fragile Anthropic OAuth external contract has three owners: AnthropicWire.claudeCodeIdentity, AnthropicProvider.oauthBetas/oauthUserAgent/x-app headers, and AnthropicOAuth. Backend itself is a struct of 4 public closures exposing its entire implementation strategy; the actual work is in internal helpers (readAPIKey, model filters).

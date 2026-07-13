@@ -1,4 +1,3 @@
-import CollaborationKit
 import Foundation
 
 /// A provider the app can talk to.
@@ -31,9 +30,11 @@ public struct Backend: Sendable, Identifiable, Hashable {
     /// caller never falsely reports "signed in" when the item can't be read.
     public let hasCredentials: @Sendable (any CredentialStore) -> Bool
 
-    /// Builds a ``ModelProvider`` from the store, model id, and max-token
-    /// budget. Throws when credentials are missing or unreadable.
-    public let makeProvider: @Sendable (any CredentialStore, String, Int) throws -> any ModelProvider
+    /// Builds a ``ModelProvider`` from the store, model id, max-token budget,
+    /// and optional base-URL override. Throws when credentials are missing or
+    /// unreadable. `baseURL` is provider-specific; ignore it if it does not
+    /// apply.
+    public let makeProvider: @Sendable (any CredentialStore, String, Int, URL?) throws -> any ModelProvider
 
     /// Whether a model id is worth showing in the picker. Called with
     /// lowercased ids; drop non-chat families (embeddings, audio…) here.
@@ -45,7 +46,7 @@ public struct Backend: Sendable, Identifiable, Hashable {
         displayName: String,
         defaultModel: String,
         hasCredentials: @escaping @Sendable (any CredentialStore) -> Bool,
-        makeProvider: @escaping @Sendable (any CredentialStore, String, Int) throws -> any ModelProvider,
+        makeProvider: @escaping @Sendable (any CredentialStore, String, Int, URL?) throws -> any ModelProvider,
         modelFilter: @escaping @Sendable (String) -> Bool
     ) {
         self.id = id
@@ -78,13 +79,15 @@ extension Backend {
         hasCredentials: { store in
             store.anthropicOAuthCredentials() != nil
         },
-        makeProvider: { store, model, maxTokens in
+        makeProvider: { store, model, maxTokens, baseURL in
             guard store.anthropicOAuthCredentials() != nil else {
                 throw CollaborationCredentialsError.missingCredentials(id: "claudeSubscription", displayName: "Claude Subscription")
             }
             let tokenProvider = anthropicOAuthTokenProvider(store: store)
             let auth = AnthropicAuth.oauth { try await tokenProvider() }
-            return AnthropicProvider(config: AnthropicConfig(auth: auth, model: model, maxTokens: maxTokens))
+            var config = AnthropicConfig(auth: auth, model: model, maxTokens: maxTokens)
+            if let baseURL { config.baseURL = baseURL }
+            return AnthropicProvider(config: config)
         },
         modelFilter: Backend.claudePrefixFilter
     )
@@ -98,9 +101,11 @@ extension Backend {
             if case .found(let v) = store.anthropicAPIKey(), !v.isEmpty { return true }
             return false
         },
-        makeProvider: { store, model, maxTokens in
+        makeProvider: { store, model, maxTokens, baseURL in
             let key = try Backend.readAPIKey(store.anthropicAPIKey(), id: "anthropicAPI", displayName: "Anthropic API")
-            return AnthropicProvider(config: AnthropicConfig(apiKey: key, model: model, maxTokens: maxTokens))
+            var config = AnthropicConfig(apiKey: key, model: model, maxTokens: maxTokens)
+            if let baseURL { config.baseURL = baseURL }
+            return AnthropicProvider(config: config)
         },
         modelFilter: Backend.claudePrefixFilter
     )
@@ -114,9 +119,11 @@ extension Backend {
             if case .found(let v) = store.openAIAPIKey(), !v.isEmpty { return true }
             return false
         },
-        makeProvider: { store, model, maxTokens in
+        makeProvider: { store, model, maxTokens, baseURL in
             let key = try Backend.readAPIKey(store.openAIAPIKey(), id: "openAI", displayName: "OpenAI")
-            return OpenAIProvider(config: OpenAIConfig(apiKey: key, model: model, maxTokens: maxTokens))
+            var config = OpenAIConfig(apiKey: key, model: model, maxTokens: maxTokens)
+            if let baseURL { config.baseURL = baseURL }
+            return OpenAIProvider(config: config)
         },
         modelFilter: Backend.openAIChatFilter
     )

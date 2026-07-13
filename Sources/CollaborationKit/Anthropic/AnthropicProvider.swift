@@ -76,15 +76,6 @@ public struct AnthropicProvider: WireProvider {
 
     // MARK: - Auth headers
 
-    /// Beta features Claude Code's OAuth endpoint expects.
-    private static let oauthBetas = [
-        "claude-code-20250219",
-        "oauth-2025-04-20",
-        "fine-grained-tool-streaming-2025-05-14",
-        "interleaved-thinking-2025-05-14"
-    ].joined(separator: ",")
-    private static let oauthUserAgent = "claude-code/2.1.97"
-
     private func applyAuthHeaders(to request: inout URLRequest) async throws {
         request.setValue(config.apiVersion, forHTTPHeaderField: "anthropic-version")
         switch config.auth {
@@ -94,9 +85,9 @@ public struct AnthropicProvider: WireProvider {
         case .oauth(let tokenProvider):
             let token = try await tokenProvider()
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            request.setValue(Self.oauthBetas, forHTTPHeaderField: "anthropic-beta")
-            request.setValue(Self.oauthUserAgent, forHTTPHeaderField: "user-agent")
-            request.setValue("cli", forHTTPHeaderField: "x-app")
+            request.setValue(ClaudeCodeIdentity.betas, forHTTPHeaderField: "anthropic-beta")
+            request.setValue(ClaudeCodeIdentity.userAgent, forHTTPHeaderField: "user-agent")
+            request.setValue(ClaudeCodeIdentity.app, forHTTPHeaderField: "x-app")
             request.setValue("true", forHTTPHeaderField: "anthropic-dangerous-direct-browser-access")
         }
     }
