@@ -3,57 +3,124 @@ import Foundation
 import Security
 #endif
 
-/// A credential source for the backends CollaborationKit talks to.
+/// A generic UTF-8 credential store.
 ///
-/// The three named slots correspond to the built-in ``Backend`` values in
-/// `CollaborationKitUI` — an Anthropic API key, an OpenAI API key, and the
-/// JSON-encoded ``OAuthCredentials`` from a Claude subscription login. The
-/// protocol exists so a `Backend` can be exercised against any store: the
-/// production ``KeychainCredentialStore``, the CLI's `UserDefaults`-backed
-/// store, or an ``InMemoryCredentialStore`` in tests.
+/// The protocol has three methods: read, write, delete — each parameterized
+/// by an opaque `String` key. That's it. Everything backend-specific — the
+/// Anthropic API key, the Claude subscription OAuth tokens, an OpenAI key,
+/// or whatever a new custom ``Backend`` needs — is layered on as an
+/// **extension** method on `CredentialStore` that reads/writes a well-known
+/// key string. This is what lets the ``Backend`` docs' promise hold: adding
+/// a new backend is one value declaration plus (optionally) a new key
+/// constant, with **no protocol change and no conformer edits**.
 ///
 /// Failure semantics are deliberately split from "not present": reads return
-/// ``CredentialReadResult`` so a transient Keychain error (locked, permission
-/// denied) doesn't look like a missing credential. Stores that can't fail
-/// transiently simply never emit `.failed`.
+/// ``CredentialReadResult`` so a transient failure (Keychain locked,
+/// permission denied) doesn't look like a missing credential. Stores that
+/// can't fail transiently simply never emit `.failed`.
 public protocol CredentialStore: Sendable {
+    /// Reads the UTF-8 value stored under `key`.
+    func readCredential(forKey key: String) -> CredentialReadResult
+
+    /// Writes `value` under `key`. An empty string deletes the entry.
+    /// Returns `true` on success.
+    @discardableResult
+    func writeCredential(_ value: String, forKey key: String) -> Bool
+
+    /// Deletes the value stored under `key`. Returns `true` on success or
+    /// when the value was already absent.
+    @discardableResult
+    func deleteCredential(forKey key: String) -> Bool
+}
+
+// MARK: - Standard keys
+
+/// The well-known credential keys the built-in ``Backend`` values use.
+///
+/// Custom backends read/write their own credentials through the three
+/// ``CredentialStore`` methods with any key string of their choice; adding
+/// a `static let` here (in an extension) is optional and merely groups the
+/// key names with the built-ins.
+public enum CredentialStoreKey {
+    /// A billed Anthropic API key.
+    public static let anthropicAPIKey = "anthropic.apiKey"
+    /// JSON-encoded ``OAuthCredentials`` for a Claude subscription login.
+    public static let anthropicOAuth = "anthropic.oauth"
+    /// A billed OpenAI API key.
+    public static let openAIAPIKey = "openai.apiKey"
+}
+
+extension CredentialStore {
+    /// Alias for ``CredentialStoreKey``; lets callers write
+    /// `CredentialStore.StandardKey.anthropicAPIKey`.
+    public typealias StandardKey = CredentialStoreKey
+}
+
+// MARK: - Named-slot accessors (built-in backends)
+
+extension CredentialStore {
     /// Reads the Anthropic API key slot.
-    func anthropicAPIKey() -> CredentialReadResult
+    public func anthropicAPIKey() -> CredentialReadResult {
+        readCredential(forKey: CredentialStoreKey.anthropicAPIKey)
+    }
 
     /// Writes the Anthropic API key. Empty string deletes the entry.
-    /// Returns `true` on success.
     @discardableResult
-    func saveAnthropicAPIKey(_ key: String) -> Bool
+    public func saveAnthropicAPIKey(_ key: String) -> Bool {
+        writeCredential(key, forKey: CredentialStoreKey.anthropicAPIKey)
+    }
 
-    /// Deletes the Anthropic API key. Returns `true` on success or absence.
+    /// Deletes the Anthropic API key.
     @discardableResult
-    func clearAnthropicAPIKey() -> Bool
+    public func clearAnthropicAPIKey() -> Bool {
+        deleteCredential(forKey: CredentialStoreKey.anthropicAPIKey)
+    }
 
     /// Reads the OpenAI API key slot.
-    func openAIAPIKey() -> CredentialReadResult
+    public func openAIAPIKey() -> CredentialReadResult {
+        readCredential(forKey: CredentialStoreKey.openAIAPIKey)
+    }
 
     /// Writes the OpenAI API key. Empty string deletes the entry.
-    /// Returns `true` on success.
     @discardableResult
-    func saveOpenAIAPIKey(_ key: String) -> Bool
+    public func saveOpenAIAPIKey(_ key: String) -> Bool {
+        writeCredential(key, forKey: CredentialStoreKey.openAIAPIKey)
+    }
 
-    /// Deletes the OpenAI API key. Returns `true` on success or absence.
+    /// Deletes the OpenAI API key.
     @discardableResult
-    func clearOpenAIAPIKey() -> Bool
+    public func clearOpenAIAPIKey() -> Bool {
+        deleteCredential(forKey: CredentialStoreKey.openAIAPIKey)
+    }
 
     /// Reads and decodes stored Anthropic subscription credentials.
     ///
     /// Returns `nil` for both "nothing stored" and "stored value is
     /// unreadable/undecodable" so a broken slot doesn't wedge the caller.
-    func anthropicOAuthCredentials() -> OAuthCredentials?
+    public func anthropicOAuthCredentials() -> OAuthCredentials? {
+        guard case .found(let json) = readCredential(forKey: CredentialStoreKey.anthropicOAuth),
+              let data = json.data(using: .utf8),
+              let credentials = try? JSONDecoder().decode(OAuthCredentials.self, from: data) else {
+            return nil
+        }
+        return credentials
+    }
 
     /// Persists Anthropic subscription credentials.
     @discardableResult
-    func saveAnthropicOAuthCredentials(_ credentials: OAuthCredentials) -> Bool
+    public func saveAnthropicOAuthCredentials(_ credentials: OAuthCredentials) -> Bool {
+        guard let data = try? JSONEncoder().encode(credentials),
+              let json = String(data: data, encoding: .utf8) else {
+            return false
+        }
+        return writeCredential(json, forKey: CredentialStoreKey.anthropicOAuth)
+    }
 
     /// Deletes stored Anthropic subscription credentials (logout).
     @discardableResult
-    func clearAnthropicOAuthCredentials() -> Bool
+    public func clearAnthropicOAuthCredentials() -> Bool {
+        deleteCredential(forKey: CredentialStoreKey.anthropicOAuth)
+    }
 }
 
 // MARK: - Anthropic OAuth token provider

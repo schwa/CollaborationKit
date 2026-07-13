@@ -1665,12 +1665,13 @@ See the `swift-no-shadow-types` skill.
 ## 59: Credential layer is shallow: fixed-slot CredentialStore protocol undercuts Backend extensibility
 
 +++
-status: open
+status: closed
 priority: high
 kind: enhancement
 labels: architecture, effort:l
 created: 2026-07-13T05:06:25Z
-updated: 2026-07-13T06:21:19Z
+updated: 2026-07-13T06:36:31Z
+closed: 2026-07-13T06:36:31Z
 +++
 
 CredentialStore has 9 methods hard-coding three slots (anthropicKey/openAIKey/anthropicOAuth) as read/save/clear trios. Every new backend requires widening the protocol and all four conformers (InMemoryCredentialStore, KeychainCredentialStore, CLICredentialStore, test fakes), contradicting the Backend docs' claim that adding a backend is 'one value declaration — no library edits'. Seven files co-own 'am I signed in' (CredentialStore, InMemoryCredentialStore, KeychainCredentialStore, CLICredentialStore, CollaborationCredentials, Backend closures, AnthropicOAuth). The KeychainReadResult typealias fossil shows this seam has already shifted once. Keychain and CLI conformers have no tests.

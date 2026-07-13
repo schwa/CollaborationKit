@@ -3,106 +3,63 @@ import Foundation
 /// An in-memory ``CredentialStore`` for tests, previews, and hosts that
 /// deliberately don't want to persist credentials to disk.
 ///
-/// Uses a lock so `@Sendable` closures can read/write freely from any
-/// isolation domain. Everything lives in RAM — closing the process throws
-/// the credentials away.
+/// Backed by a plain `[String: String]` under a lock, so it supports any key
+/// a ``Backend`` needs — the built-in slots are just three well-known
+/// entries in the same map.
+///
+/// Everything lives in RAM — closing the process throws the credentials away.
 public final class InMemoryCredentialStore: CredentialStore, @unchecked Sendable {
-    private struct State {
-        var anthropicAPIKey: String?
-        var openAIAPIKey: String?
-        var anthropicOAuth: OAuthCredentials?
-    }
-
     private let lock = NSLock()
-    private var state = State()
+    private var storage: [String: String] = [:]
 
     /// Creates an empty in-memory store.
     public init() {}
 
-    /// Creates an in-memory store pre-populated with the given values.
+    /// Creates an in-memory store pre-populated with the standard built-in
+    /// slots. Convenience for tests; equivalent to constructing an empty
+    /// store and calling the corresponding `save…` extension methods.
     public init(
         anthropicAPIKey: String? = nil,
         openAIAPIKey: String? = nil,
         anthropicOAuth: OAuthCredentials? = nil
     ) {
-        state.anthropicAPIKey = anthropicAPIKey
-        state.openAIAPIKey = openAIAPIKey
-        state.anthropicOAuth = anthropicOAuth
+        if let anthropicAPIKey {
+            saveAnthropicAPIKey(anthropicAPIKey)
+        }
+        if let openAIAPIKey {
+            saveOpenAIAPIKey(openAIAPIKey)
+        }
+        if let anthropicOAuth {
+            saveAnthropicOAuthCredentials(anthropicOAuth)
+        }
     }
 
-    private func withLock<T>(_ body: (inout State) -> T) -> T {
+    public func readCredential(forKey key: String) -> CredentialReadResult {
         lock.lock()
         defer { lock.unlock() }
-        return body(&state)
-    }
-
-    // MARK: - Anthropic API key
-
-    public func anthropicAPIKey() -> CredentialReadResult {
-        withLock { state in
-            state.anthropicAPIKey.map { .found($0) } ?? .notFound
+        if let value = storage[key] {
+            return .found(value)
         }
+        return .notFound
     }
 
     @discardableResult
-    public func saveAnthropicAPIKey(_ key: String) -> Bool {
-        withLock { state in
-            state.anthropicAPIKey = key.isEmpty ? nil : key
-            return true
+    public func writeCredential(_ value: String, forKey key: String) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        if value.isEmpty {
+            storage[key] = nil
+        } else {
+            storage[key] = value
         }
+        return true
     }
 
     @discardableResult
-    public func clearAnthropicAPIKey() -> Bool {
-        withLock { state in
-            state.anthropicAPIKey = nil
-            return true
-        }
-    }
-
-    // MARK: - OpenAI API key
-
-    public func openAIAPIKey() -> CredentialReadResult {
-        withLock { state in
-            state.openAIAPIKey.map { .found($0) } ?? .notFound
-        }
-    }
-
-    @discardableResult
-    public func saveOpenAIAPIKey(_ key: String) -> Bool {
-        withLock { state in
-            state.openAIAPIKey = key.isEmpty ? nil : key
-            return true
-        }
-    }
-
-    @discardableResult
-    public func clearOpenAIAPIKey() -> Bool {
-        withLock { state in
-            state.openAIAPIKey = nil
-            return true
-        }
-    }
-
-    // MARK: - Anthropic OAuth
-
-    public func anthropicOAuthCredentials() -> OAuthCredentials? {
-        withLock { $0.anthropicOAuth }
-    }
-
-    @discardableResult
-    public func saveAnthropicOAuthCredentials(_ credentials: OAuthCredentials) -> Bool {
-        withLock { state in
-            state.anthropicOAuth = credentials
-            return true
-        }
-    }
-
-    @discardableResult
-    public func clearAnthropicOAuthCredentials() -> Bool {
-        withLock { state in
-            state.anthropicOAuth = nil
-            return true
-        }
+    public func deleteCredential(forKey key: String) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        storage[key] = nil
+        return true
     }
 }

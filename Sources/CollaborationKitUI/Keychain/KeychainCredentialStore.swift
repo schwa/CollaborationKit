@@ -10,14 +10,10 @@ import Security
 /// application can partition its Keychain namespace from other tools that also
 /// use CollaborationKit.
 ///
-/// Three named slots satisfy the ``CredentialStore`` protocol:
-///
-/// - Anthropic API key
-/// - Anthropic subscription OAuth credentials (JSON-encoded ``OAuthCredentials``)
-/// - OpenAI API key
-///
-/// Additional slots can be read/written through ``readResult(account:)`` /
-/// ``write(_:account:)``.
+/// Since ``CredentialStore``'s API is a plain key/value surface, this store
+/// works for the three built-in ``Backend`` slots (``CredentialStore/StandardKey``)
+/// and for any custom backend that reads or writes its own key strings — no
+/// widening of this type required.
 public struct KeychainCredentialStore: CredentialStore, Sendable {
     /// The Keychain `kSecAttrService` string. Defaults to
     /// `"io.collaborationkit.credentials"`; override to partition per app.
@@ -29,90 +25,24 @@ public struct KeychainCredentialStore: CredentialStore, Sendable {
         self.service = service
     }
 
-    // MARK: - Named slots
-
     /// Standard account names used by ``KeychainCredentialStore``.
+    ///
+    /// Retained for source compatibility with pre-refactor code. New code
+    /// should use ``CredentialStoreKey`` (the values are the same).
     public enum Account {
-        public static let anthropicAPIKey = "anthropic.apiKey"
+        public static let anthropicAPIKey = CredentialStoreKey.anthropicAPIKey
         /// JSON-encoded ``OAuthCredentials`` for a Claude subscription login.
-        public static let anthropicOAuth = "anthropic.oauth"
-        public static let openAIAPIKey = "openai.apiKey"
+        public static let anthropicOAuth = CredentialStoreKey.anthropicOAuth
+        public static let openAIAPIKey = CredentialStoreKey.openAIAPIKey
     }
 
-    /// Reads the Anthropic API key.
-    public func anthropicAPIKey() -> CredentialReadResult {
-        readResult(account: Account.anthropicAPIKey)
-    }
+    // MARK: - CredentialStore
 
-    /// Writes the Anthropic API key. Empty string deletes the entry.
-    @discardableResult
-    public func saveAnthropicAPIKey(_ key: String) -> Bool {
-        write(key, account: Account.anthropicAPIKey)
-    }
-
-    /// Deletes the Anthropic API key.
-    @discardableResult
-    public func clearAnthropicAPIKey() -> Bool {
-        delete(account: Account.anthropicAPIKey)
-    }
-
-    /// Reads the OpenAI API key.
-    public func openAIAPIKey() -> CredentialReadResult {
-        readResult(account: Account.openAIAPIKey)
-    }
-
-    /// Writes the OpenAI API key. Empty string deletes the entry.
-    @discardableResult
-    public func saveOpenAIAPIKey(_ key: String) -> Bool {
-        write(key, account: Account.openAIAPIKey)
-    }
-
-    /// Deletes the OpenAI API key.
-    @discardableResult
-    public func clearOpenAIAPIKey() -> Bool {
-        delete(account: Account.openAIAPIKey)
-    }
-
-    /// Reads and decodes stored Anthropic subscription credentials.
-    ///
-    /// Returns `nil` if none are stored, or if the stored JSON is unreadable
-    /// (which is treated as "missing" so a broken slot doesn't wedge the UI).
-    public func anthropicOAuthCredentials() -> OAuthCredentials? {
-        guard case .found(let json) = readResult(account: Account.anthropicOAuth),
-              let data = json.data(using: .utf8),
-              let credentials = try? JSONDecoder().decode(OAuthCredentials.self, from: data) else {
-            return nil
-        }
-        return credentials
-    }
-
-    /// Persists Anthropic subscription credentials.
-    @discardableResult
-    public func saveAnthropicOAuthCredentials(_ credentials: OAuthCredentials) -> Bool {
-        guard let data = try? JSONEncoder().encode(credentials),
-              let json = String(data: data, encoding: .utf8) else {
-            Self.logger.error("Failed to encode OAuthCredentials before saving to Keychain")
-            return false
-        }
-        return write(json, account: Account.anthropicOAuth)
-    }
-
-    /// Deletes the stored Anthropic subscription credentials (logout).
-    @discardableResult
-    public func clearAnthropicOAuthCredentials() -> Bool {
-        delete(account: Account.anthropicOAuth)
-    }
-
-    // MARK: - Raw read/write (any account)
-
-    /// Reads a raw value from the Keychain.
-    ///
-    /// Prefer the named-slot accessors above; use this for custom slots.
-    public func readResult(account: String) -> CredentialReadResult {
+    public func readCredential(forKey key: String) -> CredentialReadResult {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
+            kSecAttrAccount as String: key,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
@@ -122,7 +52,7 @@ public struct KeychainCredentialStore: CredentialStore, Sendable {
         case errSecSuccess:
             guard let data = item as? Data,
                   let string = String(data: data, encoding: .utf8) else {
-                Self.logger.error("Keychain read for '\(account, privacy: .public)' succeeded but the value was not decodable")
+                Self.logger.error("Keychain read for '\(key, privacy: .public)' succeeded but the value was not decodable")
                 return .failed(status)
             }
             return .found(string)
@@ -131,31 +61,27 @@ public struct KeychainCredentialStore: CredentialStore, Sendable {
             return .notFound
 
         default:
-            Self.logger.error("Keychain read for '\(account, privacy: .public)' failed with OSStatus \(status)")
+            Self.logger.error("Keychain read for '\(key, privacy: .public)' failed with OSStatus \(status)")
             return .failed(status)
         }
     }
 
-    /// Writes a raw value. Replaces any existing value for the same account.
-    ///
-    /// Empty `value` deletes the entry (call ``delete(account:)`` if that is
-    /// the intent, so failures at the call site are less ambiguous).
     @discardableResult
-    public func write(_ value: String, account: String) -> Bool {
+    public func writeCredential(_ value: String, forKey key: String) -> Bool {
         if value.isEmpty {
-            return delete(account: account)
+            return deleteCredential(forKey: key)
         }
         let data = Data(value.utf8)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: account
+            kSecAttrAccount as String: key
         ]
         let updateAttrs: [String: Any] = [kSecValueData as String: data]
         let updateStatus = SecItemUpdate(query as CFDictionary, updateAttrs as CFDictionary)
         if updateStatus == errSecSuccess { return true }
         if updateStatus != errSecItemNotFound {
-            Self.logger.error("Keychain update for '\(account, privacy: .public)' failed with OSStatus \(updateStatus)")
+            Self.logger.error("Keychain update for '\(key, privacy: .public)' failed with OSStatus \(updateStatus)")
             return false
         }
 
@@ -166,20 +92,41 @@ public struct KeychainCredentialStore: CredentialStore, Sendable {
         addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
         let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
         if addStatus != errSecSuccess {
-            Self.logger.error("Keychain add for '\(account, privacy: .public)' failed with OSStatus \(addStatus)")
+            Self.logger.error("Keychain add for '\(key, privacy: .public)' failed with OSStatus \(addStatus)")
         }
         return addStatus == errSecSuccess
     }
 
-    /// Deletes a value. Returns `true` if it was deleted or already absent.
     @discardableResult
-    public func delete(account: String) -> Bool {
+    public func deleteCredential(forKey key: String) -> Bool {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: account
+            kSecAttrAccount as String: key
         ]
         let status = SecItemDelete(query as CFDictionary)
         return status == errSecSuccess || status == errSecItemNotFound
+    }
+
+    // MARK: - Legacy raw accessors (pre-refactor names)
+
+    /// Deprecated alias for ``readCredential(forKey:)``.
+    @available(*, deprecated, renamed: "readCredential(forKey:)")
+    public func readResult(account: String) -> CredentialReadResult {
+        readCredential(forKey: account)
+    }
+
+    /// Deprecated alias for ``writeCredential(_:forKey:)``.
+    @available(*, deprecated, renamed: "writeCredential(_:forKey:)")
+    @discardableResult
+    public func write(_ value: String, account: String) -> Bool {
+        writeCredential(value, forKey: account)
+    }
+
+    /// Deprecated alias for ``deleteCredential(forKey:)``.
+    @available(*, deprecated, renamed: "deleteCredential(forKey:)")
+    @discardableResult
+    public func delete(account: String) -> Bool {
+        deleteCredential(forKey: account)
     }
 }

@@ -10,17 +10,13 @@ import Foundation
 /// free — the values land in the standard preferences plist for this
 /// executable's bundle id, which is preserved across launches on macOS.
 ///
-/// The UI target (`CollaborationKitUI`) uses ``KeychainCredentialStore``
-/// instead. Both conform to ``CredentialStore``, so the shared
-/// ``anthropicOAuthTokenProvider(store:oauth:)`` handles refresh for either.
-///
-/// OpenAI is currently unimplemented for the CLI: the API-key slot is stored
-/// under the Anthropic key today (see ``Login``), so the `openAIAPIKey` slot
-/// here always reports `.notFound`.
+/// Because ``CredentialStore`` is a plain key/value surface, this store
+/// works with the three built-in ``Backend`` slots and any custom key a
+/// new backend registers. The two historical UserDefaults keys
+/// (`collab.anthropic.apiKey`, `collab.anthropic.oauth`) are aliased from
+/// the new ``CredentialStore/StandardKey`` values so previously-signed-in
+/// users keep their tokens across the refactor.
 struct CLICredentialStore: CredentialStore, @unchecked Sendable {
-    private static let apiKeyKey = "collab.anthropic.apiKey"
-    private static let oauthKey = "collab.anthropic.oauth"
-
     // UserDefaults itself isn't Sendable, but .standard is thread-safe for
     // this workload. Marking @unchecked so the `@Sendable` token provider
     // closure can capture `self` cleanly.
@@ -28,6 +24,46 @@ struct CLICredentialStore: CredentialStore, @unchecked Sendable {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+    }
+
+    // MARK: - CredentialStore
+
+    func readCredential(forKey key: String) -> CredentialReadResult {
+        let defaultsKey = Self.defaultsKey(for: key)
+        guard let value = defaults.string(forKey: defaultsKey), !value.isEmpty else {
+            return .notFound
+        }
+        return .found(value)
+    }
+
+    @discardableResult
+    func writeCredential(_ value: String, forKey key: String) -> Bool {
+        let defaultsKey = Self.defaultsKey(for: key)
+        if value.isEmpty {
+            defaults.removeObject(forKey: defaultsKey)
+        } else {
+            defaults.set(value, forKey: defaultsKey)
+        }
+        return true
+    }
+
+    @discardableResult
+    func deleteCredential(forKey key: String) -> Bool {
+        defaults.removeObject(forKey: Self.defaultsKey(for: key))
+        return true
+    }
+
+    /// Translates a generic ``CredentialStore`` key into the on-disk
+    /// UserDefaults key. Preserves the historical keys for the two slots
+    /// that existed before the ``CredentialStore`` refactor so already-
+    /// signed-in users keep their credentials. Any other key round-trips
+    /// verbatim under the `collab.` prefix.
+    private static func defaultsKey(for key: String) -> String {
+        switch key {
+        case CredentialStoreKey.anthropicAPIKey: return "collab.anthropic.apiKey"
+        case CredentialStoreKey.anthropicOAuth: return "collab.anthropic.oauth"
+        default: return "collab.\(key)"
+        }
     }
 
     // MARK: - Legacy convenience accessors (unwrapped strings)
@@ -43,8 +79,7 @@ struct CLICredentialStore: CredentialStore, @unchecked Sendable {
         anthropicOAuthCredentials()
     }
 
-    /// Persist an API key (throws are legacy; the underlying slot never
-    /// fails, but Login's call site catches for symmetry with `save(oauth:)`).
+    /// Persist an API key.
     func save(apiKey: String) {
         saveAnthropicAPIKey(apiKey)
     }
@@ -58,63 +93,6 @@ struct CLICredentialStore: CredentialStore, @unchecked Sendable {
 
     func clearOAuth() {
         clearAnthropicOAuthCredentials()
-    }
-
-    // MARK: - CredentialStore
-
-    func anthropicAPIKey() -> CredentialReadResult {
-        let value = defaults.string(forKey: Self.apiKeyKey)
-        guard let value, !value.isEmpty else { return .notFound }
-        return .found(value)
-    }
-
-    @discardableResult
-    func saveAnthropicAPIKey(_ key: String) -> Bool {
-        if key.isEmpty {
-            defaults.removeObject(forKey: Self.apiKeyKey)
-        } else {
-            defaults.set(key, forKey: Self.apiKeyKey)
-        }
-        return true
-    }
-
-    @discardableResult
-    func clearAnthropicAPIKey() -> Bool {
-        defaults.removeObject(forKey: Self.apiKeyKey)
-        return true
-    }
-
-    // OpenAI slot: unused by the CLI today; report notFound and no-op writes.
-    // Kept present so `CLICredentialStore` satisfies `CredentialStore` in
-    // full and can be swapped in wherever the protocol is expected.
-    func openAIAPIKey() -> CredentialReadResult { .notFound }
-    @discardableResult
-    func saveOpenAIAPIKey(_: String) -> Bool { false }
-    @discardableResult
-    func clearOpenAIAPIKey() -> Bool { true }
-
-    func anthropicOAuthCredentials() -> OAuthCredentials? {
-        guard let json = defaults.string(forKey: Self.oauthKey),
-              let data = json.data(using: .utf8) else {
-            return nil
-        }
-        return try? JSONDecoder().decode(OAuthCredentials.self, from: data)
-    }
-
-    @discardableResult
-    func saveAnthropicOAuthCredentials(_ credentials: OAuthCredentials) -> Bool {
-        guard let data = try? JSONEncoder().encode(credentials),
-              let json = String(data: data, encoding: .utf8) else {
-            return false
-        }
-        defaults.set(json, forKey: Self.oauthKey)
-        return true
-    }
-
-    @discardableResult
-    func clearAnthropicOAuthCredentials() -> Bool {
-        defaults.removeObject(forKey: Self.oauthKey)
-        return true
     }
 }
 
