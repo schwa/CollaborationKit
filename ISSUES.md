@@ -118,12 +118,13 @@ Usage is emitted per model response (SessionEvent.usage), but there is no single
 ## 7: Conversation history compaction with user-defined strategy
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:l
 created: 2026-06-24T01:06:10Z
-updated: 2026-07-13T01:49:39Z
+updated: 2026-07-13T15:09:45Z
+closed: 2026-07-13T15:09:45Z
 +++
 
 LLMSession.history grows unbounded and is sent in full every turn; there is no compaction, truncation, or summarization, so long sessions will eventually exceed the provider's context window.

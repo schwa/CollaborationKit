@@ -45,6 +45,7 @@ public actor LLMSession {
     private let tools: [String: any Tool]
     private let toolSpecs: [ToolSpec]
     private let approval: @Sendable (ToolUse) async -> ToolApprovalDecision
+    private let compactionStrategy: any CompactionStrategy
 
     /// The maximum number of model/tool round-trips per ``send(_:)`` call.
     public let maxIterations: Int
@@ -66,13 +67,20 @@ public actor LLMSession {
     ///     the model receives an `is_error` tool result carrying the reason
     ///     and can adapt. Defaults to allow-all.
     ///   - maxIterations: A cap on model/tool round-trips per turn.
+    ///   - compactionStrategy: The strategy consulted at the top of every
+    ///     model round-trip to trim the conversation history before it is
+    ///     sent to the provider. Defaults to ``NoCompactionStrategy``
+    ///     (never compacts) so existing callers are unaffected. Supply a
+    ///     ``KeepRecentCompactionStrategy`` or a custom ``CompactionStrategy``
+    ///     to bound the request size on long-running sessions.
     @preconcurrency
     public init(
         provider: ModelProvider,
         system: String? = nil,
         tools: [any Tool] = [],
         approval: @escaping @Sendable (ToolUse) async -> ToolApprovalDecision = { _ in .allow },
-        maxIterations: Int = 32
+        maxIterations: Int = 32,
+        compactionStrategy: any CompactionStrategy = NoCompactionStrategy()
     ) {
         self.provider = provider
         self.system = system
@@ -80,6 +88,7 @@ public actor LLMSession {
         self.toolSpecs = tools.map { ToolSpec(name: $0.name, description: $0.description, inputSchema: $0.inputSchema) }
         self.approval = approval
         self.maxIterations = maxIterations
+        self.compactionStrategy = compactionStrategy
 
         var continuation: AsyncStream<SessionEvent>.Continuation!
         self.events = AsyncStream { continuation = $0 }
@@ -214,6 +223,12 @@ public actor LLMSession {
     /// here — before the provider is called — without disturbing the
     /// turn-loop control flow above.
     private func runTurn() async throws -> TurnOutcome {
+        // Compaction pass (#7): the strategy sees the current history and
+        // may return a trimmed version to replace it. Runs before the
+        // provider stream so the wire request reflects the compacted
+        // shape. NoCompactionStrategy is a passthrough.
+        history = await compactionStrategy.compact(history: history, usage: accumulatedUsage)
+
         let parts = try await streamAssistantMessage()
         let assistantIndex = history.count
         history.append(Message(role: .assistant, content: parts.blocks))
