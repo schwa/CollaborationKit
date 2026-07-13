@@ -741,12 +741,13 @@ Verified: xcodebuild against a generic iOS Simulator destination builds the Coll
 ## 29: CollaborationKitUI: tool-presenter registry for custom row content
 
 +++
-status: open
+status: closed
 priority: high
 kind: feature
 labels: effort:m
 created: 2026-07-13T01:28:00Z
-updated: 2026-07-13T14:14:59Z
+updated: 2026-07-13T14:25:13Z
+closed: 2026-07-13T14:25:13Z
 +++
 
 Right now ConversationRowView renders every tool call the same way: icon + summary line + optional monospaced result. Rich hosts want per-tool custom content (e.g. Phosphor's compileShader row showing diagnostics inline, a diff view for edit results, an image preview for an image-gen tool).

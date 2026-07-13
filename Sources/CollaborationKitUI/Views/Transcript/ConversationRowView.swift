@@ -27,6 +27,12 @@ public struct ConversationRowView: View {
     /// Invoked when the user taps "Roll Back to Here" on this row.
     public let onRollBack: () -> Void
 
+    /// Optional host-installed registry of custom tool-row presenters. When
+    /// present and the current row's tool name is registered, the row body
+    /// is rendered by the presenter instead of the default summary/result
+    /// block. Unknown tools fall through to the default rendering.
+    @Environment(ToolPresenterRegistry.self) private var toolPresenters: ToolPresenterRegistry?
+
     public init(
         item: ConversationItem,
         iconForTool: @escaping (String) -> String = Self.defaultIcon(for:),
@@ -242,7 +248,17 @@ public struct ConversationRowView: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
+    @ViewBuilder
     private func toolContent(name: String, summary: String, result: String?, isError: Bool) -> some View {
+        let context = ToolRowContext(name: name, summary: summary, result: result, isError: isError)
+        if let custom = toolPresenters?.view(for: context) {
+            custom
+        } else {
+            defaultToolContent(name: name, summary: summary, result: result, isError: isError)
+        }
+    }
+
+    private func defaultToolContent(name: String, summary: String, result: String?, isError: Bool) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Text(summary)
@@ -323,6 +339,41 @@ public struct ConversationRowView: View {
 
 private func previewItem(id: ConversationItem.ID, kind: ConversationItem.Kind, duration: TimeInterval? = nil, latency: TimeInterval? = nil) -> ConversationItem {
     ConversationItem(id: id, kind: kind, timestamp: .now, duration: duration, latency: latency)
+}
+
+#Preview("Custom tool presenter") {
+    let toolId = UUID().uuidString
+    let samples = [
+        previewItem(
+            id: .tool(toolId),
+            kind: .tool(name: "generateImage", summary: "Rendered a sunset", result: "http://example.com/img.png", isError: false)
+        )
+    ]
+    let registry = ToolPresenterRegistry()
+        .presenter(for: "generateImage") { ctx in
+            HStack(spacing: 8) {
+                Image(systemName: "photo")
+                    .foregroundStyle(.blue)
+                VStack(alignment: .leading) {
+                    Text(ctx.summary).font(.callout)
+                    if let url = ctx.result {
+                        Text(url)
+                            .font(.caption2.monospaced())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    return ScrollView {
+        VStack(spacing: 10) {
+            ForEach(samples) { item in
+                ConversationRowView(item: item)
+            }
+        }
+        .padding()
+    }
+    .environment(registry)
+    .frame(width: 520, height: 200)
 }
 
 #Preview("Row samples") {
