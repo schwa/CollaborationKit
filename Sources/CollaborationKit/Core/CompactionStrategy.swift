@@ -4,9 +4,18 @@ import Foundation
 /// before it is sent to the provider.
 ///
 /// The session invokes ``compact(history:usage:)`` at the top of every model
-/// round-trip, so a strategy can react to the current message count or
-/// accumulated usage and decide whether to shrink the history. Returning the
-/// input unchanged means "no compaction this time".
+/// round-trip, so a strategy can react to the accumulated token usage and
+/// decide whether to shrink the history. Returning the input unchanged
+/// means "no compaction this time".
+///
+/// ## Token counts, not message counts
+///
+/// Compaction decisions must be driven by provider-reported token usage,
+/// never by message count. Message count is a poor proxy for context-window
+/// pressure — a handful of long tool_result blocks can blow the window
+/// while many short turns stay well within it. Custom strategies should
+/// derive their trigger from ``TokenUsage/inputTokens`` (or an equivalent
+/// token source) rather than counting messages.
 ///
 /// ## Preserving message validity
 ///
@@ -31,6 +40,50 @@ public protocol CompactionStrategy: Sendable {
     /// - Returns: The new history. Must be provider-valid (whole turns only;
     ///   see the protocol overview).
     func compact(history: [Message], usage: TokenUsage) async -> [Message]
+
+    /// Reports how close the session is to triggering compaction.
+    ///
+    /// Hosts render this as a "tokens used / budget" chip or progress bar.
+    /// Returning `nil` (the default) tells the UI there is no meaningful
+    /// budget to show — either the strategy never compacts, or it does not
+    /// have a fixed token threshold.
+    ///
+    /// - Parameter usage: Cumulative token usage across the session so far.
+    /// - Returns: The current token count and the strategy's trigger
+    ///   threshold, or `nil` if no threshold applies.
+    func compactionProgress(usage: TokenUsage) -> CompactionProgress?
+}
+
+extension CompactionStrategy {
+    public func compactionProgress(usage _: TokenUsage) -> CompactionProgress? {
+        nil
+    }
+}
+
+// MARK: - Progress
+
+/// A snapshot of how close a session is to a compaction event.
+///
+/// Produced by ``CompactionStrategy/compactionProgress(usage:)``. `current`
+/// is the strategy's live measurement (typically ``TokenUsage/inputTokens``)
+/// and `limit` is the value at which it will start compacting.
+public struct CompactionProgress: Sendable, Equatable {
+    /// The current measurement (typically cumulative input tokens).
+    public var current: Int
+
+    /// The strategy's trigger threshold.
+    public var limit: Int
+
+    public init(current: Int, limit: Int) {
+        self.current = current
+        self.limit = limit
+    }
+
+    /// `current / limit` clamped to `0...1`. `0` when `limit` is non-positive.
+    public var fraction: Double {
+        guard limit > 0 else { return 0 }
+        return min(1, max(0, Double(current) / Double(limit)))
+    }
 }
 
 // MARK: - No-op
@@ -57,14 +110,11 @@ public struct NoCompactionStrategy: CompactionStrategy {
 ///
 /// ## Triggering
 ///
-/// By default the strategy triggers on message count
-/// (`minMessagesBeforeCompacting`). Message count is a poor proxy for
-/// context-window pressure — a few long tool_result blocks can blow the
-/// window while many short turns stay well within it. Set
-/// `triggerAtTokens` to switch to a token-based trigger driven by the
-/// session's cumulative input-token usage; `minMessagesBeforeCompacting`
-/// then acts as a floor guard so tiny histories aren't churned even after
-/// the token threshold is crossed.
+/// Compaction runs once the session's cumulative input tokens
+/// (``TokenUsage/inputTokens``, reported by the provider across all
+/// completed turns) reach or exceed ``triggerAtTokens``. If there are only
+/// ``keepLastTurns`` or fewer turns in the history there is nothing to
+/// trim, so compaction is a no-op regardless of the token count.
 public struct KeepRecentCompactionStrategy: CompactionStrategy {
     /// The number of trailing turns to keep. Must be at least one.
     public let keepLastTurns: Int
@@ -74,50 +124,28 @@ public struct KeepRecentCompactionStrategy: CompactionStrategy {
     /// see the original task framing.
     public let keepFirstUserMessage: Bool
 
-    /// Minimum message count before compaction runs. Useful to avoid
-    /// churning the history on short conversations. Defaults to the same
-    /// number of messages the strategy would leave behind after a trim,
-    /// so compaction is a no-op until it would actually shorten anything.
-    ///
-    /// When ``triggerAtTokens`` is set, this acts as a floor guard rather
-    /// than the primary trigger.
-    public let minMessagesBeforeCompacting: Int
-
-    /// When set, compaction runs once the session's cumulative input
-    /// tokens (as reported by the provider across all completed turns)
-    /// reach or exceed this value. Nil preserves the legacy
-    /// message-count-only behavior.
+    /// Compaction runs once the session's cumulative input tokens (as
+    /// reported by the provider across all completed turns) reach or
+    /// exceed this value.
     ///
     /// Pick a threshold that leaves enough headroom for the next round-
     /// trip below the model's context window — e.g. 70–80% of the window.
-    public let triggerAtTokens: Int?
+    public let triggerAtTokens: Int
 
     public init(
         keepLastTurns: Int,
         keepFirstUserMessage: Bool = false,
-        minMessagesBeforeCompacting: Int? = nil,
-        triggerAtTokens: Int? = nil
+        triggerAtTokens: Int
     ) {
         precondition(keepLastTurns >= 1, "keepLastTurns must be >= 1")
-        if let triggerAtTokens {
-            precondition(triggerAtTokens > 0, "triggerAtTokens must be > 0")
-        }
+        precondition(triggerAtTokens > 0, "triggerAtTokens must be > 0")
         self.keepLastTurns = keepLastTurns
         self.keepFirstUserMessage = keepFirstUserMessage
-        // Rough lower bound: at least `keepLastTurns * 2` messages before
-        // there's anything worth dropping.
-        self.minMessagesBeforeCompacting = minMessagesBeforeCompacting ?? (keepLastTurns * 2)
         self.triggerAtTokens = triggerAtTokens
     }
 
     public func compact(history: [Message], usage: TokenUsage) async -> [Message] {
-        // Token-based trigger takes priority when configured. The message
-        // count still acts as a floor guard so we don't thrash a tiny
-        // history the moment usage crosses the threshold.
-        if let triggerAtTokens {
-            guard usage.inputTokens >= triggerAtTokens else { return history }
-        }
-        guard history.count > minMessagesBeforeCompacting else { return history }
+        guard usage.inputTokens >= triggerAtTokens else { return history }
 
         let turns = Self.groupIntoTurns(history)
         guard turns.count > keepLastTurns else { return history }
@@ -135,6 +163,10 @@ public struct KeepRecentCompactionStrategy: CompactionStrategy {
         }
 
         return trailing
+    }
+
+    public func compactionProgress(usage: TokenUsage) -> CompactionProgress? {
+        CompactionProgress(current: usage.inputTokens, limit: triggerAtTokens)
     }
 
     /// Splits a message history into turn groups. A turn begins at each

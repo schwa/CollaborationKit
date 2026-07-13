@@ -45,7 +45,13 @@ public actor LLMSession {
     private let tools: [String: any Tool]
     private let toolSpecs: [ToolSpec]
     private let approval: @Sendable (ToolUse) async -> ToolApprovalDecision
-    private let compactionStrategy: any CompactionStrategy
+
+    /// The strategy consulted at the top of every model round-trip to trim
+    /// the conversation history before it is sent to the provider. Exposed
+    /// so hosts (e.g. ``CollaborationKitUI/ConversationStore``) can ask the
+    /// strategy for its ``CompactionProgress`` to render a
+    /// tokens-until-compaction indicator.
+    nonisolated public let compactionStrategy: any CompactionStrategy
 
     /// The maximum number of model/tool round-trips per ``send(_:)`` call.
     public let maxIterations: Int

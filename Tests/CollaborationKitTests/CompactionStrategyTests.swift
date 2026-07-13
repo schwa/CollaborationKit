@@ -20,15 +20,31 @@ struct CompactionStrategyTests {
         #expect(out == history)
     }
 
-    @Test("KeepRecentCompactionStrategy no-ops when there are fewer messages than the minimum")
-    func keepRecentBelowThresholdIsNoOp() async {
-        let history: [Message] = [.user("a"), .assistant("b")]
-        let strategy = KeepRecentCompactionStrategy(keepLastTurns: 2)
-        let out = await strategy.compact(history: history, usage: TokenUsage())
+    @Test("NoCompactionStrategy reports no compaction progress")
+    func noCompactionHasNoProgress() {
+        let strategy = NoCompactionStrategy()
+        #expect(strategy.compactionProgress(usage: TokenUsage(inputTokens: 12_345)) == nil)
+    }
+
+    @Test("KeepRecentCompactionStrategy no-ops when usage is below the token trigger")
+    func keepRecentBelowTokenTriggerIsNoOp() async {
+        // Four full turns — plenty to trim — but usage hasn't reached
+        // the threshold yet, so nothing happens.
+        let history: [Message] = [
+            .user("t1"), .assistant("r1"),
+            .user("t2"), .assistant("r2"),
+            .user("t3"), .assistant("r3"),
+            .user("t4"), .assistant("r4")
+        ]
+        let strategy = KeepRecentCompactionStrategy(keepLastTurns: 2, triggerAtTokens: 1_000)
+        let out = await strategy.compact(
+            history: history,
+            usage: TokenUsage(inputTokens: 500)
+        )
         #expect(out == history)
     }
 
-    @Test("KeepRecentCompactionStrategy keeps only the last N whole turns")
+    @Test("KeepRecentCompactionStrategy keeps only the last N whole turns once triggered")
     func keepRecentKeepsTrailingTurns() async {
         // Four full turns; keep only the last two.
         let history: [Message] = [
@@ -37,8 +53,11 @@ struct CompactionStrategyTests {
             .user("t3"), .assistant("r3"),
             .user("t4"), .assistant("r4")
         ]
-        let strategy = KeepRecentCompactionStrategy(keepLastTurns: 2, minMessagesBeforeCompacting: 0)
-        let out = await strategy.compact(history: history, usage: TokenUsage())
+        let strategy = KeepRecentCompactionStrategy(keepLastTurns: 2, triggerAtTokens: 1_000)
+        let out = await strategy.compact(
+            history: history,
+            usage: TokenUsage(inputTokens: 1_000)
+        )
         #expect(out.count == 4)
         // The kept slice starts at the third user turn.
         if case .text(let firstText) = out.first?.content.first ?? .text("") {
@@ -50,65 +69,12 @@ struct CompactionStrategyTests {
         #expect(out.last?.role == .assistant)
     }
 
-    @Test("KeepRecentCompactionStrategy with triggerAtTokens is a no-op below the threshold")
-    func keepRecentTokenTriggerBelowThresholdIsNoOp() async {
-        // Four full turns — message-count check would fire, but the
-        // token trigger should suppress compaction because usage is
-        // below the threshold.
-        let history: [Message] = [
-            .user("t1"), .assistant("r1"),
-            .user("t2"), .assistant("r2"),
-            .user("t3"), .assistant("r3"),
-            .user("t4"), .assistant("r4")
-        ]
-        let strategy = KeepRecentCompactionStrategy(
-            keepLastTurns: 2,
-            minMessagesBeforeCompacting: 0,
-            triggerAtTokens: 1_000
-        )
-        let out = await strategy.compact(
-            history: history,
-            usage: TokenUsage(inputTokens: 500)
-        )
-        #expect(out == history)
-    }
-
-    @Test("KeepRecentCompactionStrategy with triggerAtTokens compacts at or above the threshold")
-    func keepRecentTokenTriggerAtThresholdCompacts() async {
-        let history: [Message] = [
-            .user("t1"), .assistant("r1"),
-            .user("t2"), .assistant("r2"),
-            .user("t3"), .assistant("r3"),
-            .user("t4"), .assistant("r4")
-        ]
-        let strategy = KeepRecentCompactionStrategy(
-            keepLastTurns: 2,
-            minMessagesBeforeCompacting: 0,
-            triggerAtTokens: 1_000
-        )
-        let out = await strategy.compact(
-            history: history,
-            usage: TokenUsage(inputTokens: 1_000)
-        )
-        #expect(out.count == 4)
-        if case .text(let firstText) = out.first?.content.first ?? .text("") {
-            #expect(firstText == "t3")
-        } else {
-            Issue.record("expected first kept message to be a user text block")
-        }
-    }
-
-    @Test("KeepRecentCompactionStrategy honors minMessagesBeforeCompacting as a floor guard when token trigger fires")
-    func keepRecentTokenTriggerRespectsMessageFloor() async {
-        // Only two messages; even though the token trigger fires, the
-        // floor guard should suppress compaction because there's
-        // nothing worth trimming.
+    @Test("KeepRecentCompactionStrategy is a no-op when there aren't enough turns to trim")
+    func keepRecentTooFewTurnsIsNoOp() async {
+        // Only one turn; even though the token trigger fires, there's
+        // nothing to drop because turns.count <= keepLastTurns.
         let history: [Message] = [.user("t1"), .assistant("r1")]
-        let strategy = KeepRecentCompactionStrategy(
-            keepLastTurns: 1,
-            minMessagesBeforeCompacting: 4,
-            triggerAtTokens: 100
-        )
+        let strategy = KeepRecentCompactionStrategy(keepLastTurns: 1, triggerAtTokens: 100)
         let out = await strategy.compact(
             history: history,
             usage: TokenUsage(inputTokens: 10_000)
@@ -126,9 +92,12 @@ struct CompactionStrategyTests {
         let strategy = KeepRecentCompactionStrategy(
             keepLastTurns: 1,
             keepFirstUserMessage: true,
-            minMessagesBeforeCompacting: 0
+            triggerAtTokens: 1
         )
-        let out = await strategy.compact(history: history, usage: TokenUsage())
+        let out = await strategy.compact(
+            history: history,
+            usage: TokenUsage(inputTokens: 1_000)
+        )
         // 1 pinned + 2 in the trailing turn = 3 messages.
         #expect(out.count == 3)
         #expect(out.first?.role == .user)
@@ -149,11 +118,11 @@ struct CompactionStrategyTests {
             .assistant("running tool…"),
             .assistant("done")
         ]
-        let strategy = KeepRecentCompactionStrategy(
-            keepLastTurns: 1,
-            minMessagesBeforeCompacting: 0
+        let strategy = KeepRecentCompactionStrategy(keepLastTurns: 1, triggerAtTokens: 1)
+        let out = await strategy.compact(
+            history: history,
+            usage: TokenUsage(inputTokens: 1_000)
         )
-        let out = await strategy.compact(history: history, usage: TokenUsage())
         // Three messages of the last turn stay together.
         #expect(out.count == 3)
         #expect(out.map(\.role) == [.user, .assistant, .assistant])
@@ -175,11 +144,11 @@ struct CompactionStrategyTests {
             .user("do it"),
             assistantWithTool
         ]
-        let strategy = KeepRecentCompactionStrategy(
-            keepLastTurns: 1,
-            minMessagesBeforeCompacting: 0
+        let strategy = KeepRecentCompactionStrategy(keepLastTurns: 1, triggerAtTokens: 1)
+        let out = await strategy.compact(
+            history: history,
+            usage: TokenUsage(inputTokens: 1_000)
         )
-        let out = await strategy.compact(history: history, usage: TokenUsage())
         #expect(out.count == 2)
         let kept = out.last
         // The tool_call block (and its embedded result) is preserved.
@@ -189,6 +158,22 @@ struct CompactionStrategyTests {
         }
         #expect(call.use.id == "u1")
         #expect(call.result?.content == "ok")
+    }
+
+    @Test("KeepRecentCompactionStrategy reports (inputTokens, triggerAtTokens) as its progress")
+    func keepRecentReportsProgress() {
+        let strategy = KeepRecentCompactionStrategy(keepLastTurns: 2, triggerAtTokens: 1_000)
+        let progress = strategy.compactionProgress(usage: TokenUsage(inputTokens: 250))
+        #expect(progress == CompactionProgress(current: 250, limit: 1_000))
+        #expect(progress?.fraction == 0.25)
+    }
+
+    @Test("CompactionProgress fraction clamps to 0...1")
+    func compactionProgressFractionClamps() {
+        let over = CompactionProgress(current: 5_000, limit: 1_000)
+        #expect(over.fraction == 1)
+        let zeroLimit = CompactionProgress(current: 100, limit: 0)
+        #expect(zeroLimit.fraction == 0)
     }
 
     // MARK: - Session integration
@@ -221,23 +206,21 @@ struct CompactionStrategyTests {
     @Test("KeepRecentCompactionStrategy actually shrinks LLMSession history")
     func sessionKeepRecentTrimsHistory() async throws {
         // Build up ten turns of history, then send an eleventh turn with a
-        // keep-last-two strategy: after runTurn compaction the pre-turn
-        // history should have been trimmed to just the last two turns
-        // before the new user message + assistant reply were appended.
-        let provider = SingleTextProvider(text: "ack")
+        // keep-last-two strategy. The provider reports 1_000 input tokens
+        // per round so the token trigger fires after the very first turn,
+        // and every subsequent turn's compaction pass keeps the pre-turn
+        // history trimmed to the last two turns.
+        let provider = UsageReportingProvider(text: "ack", inputTokens: 1_000)
         let session = LLMSession(
             provider: provider,
             compactionStrategy: KeepRecentCompactionStrategy(
                 keepLastTurns: 2,
-                minMessagesBeforeCompacting: 0
+                triggerAtTokens: 500
             )
         )
         for i in 0..<10 {
             _ = try await session.send("q\(i)")
         }
-        // Sanity: no compaction happened yet? Actually compaction has run at
-        // the top of every turn. Baseline: history should be bounded by the
-        // strategy after each send.
         let sizeBefore = await session.messages.count
         #expect(sizeBefore <= 2 * 2 + 2, "history stayed bounded across sends")
 
@@ -266,6 +249,31 @@ private actor SingleTextProvider: ModelProvider {
         let text = text
         return AsyncThrowingStream { continuation in
             continuation.yield(.text(text))
+            continuation.yield(.messageComplete(stopReason: "end_turn"))
+            continuation.finish()
+        }
+    }
+}
+
+/// A ModelProvider that emits one text block plus a usage event, so
+/// token-triggered compaction strategies can be exercised end-to-end.
+private actor UsageReportingProvider: ModelProvider {
+    let text: String
+    let inputTokens: Int
+    init(text: String, inputTokens: Int) {
+        self.text = text
+        self.inputTokens = inputTokens
+    }
+    nonisolated func send(
+        messages _: [Message],
+        system _: String?,
+        tools _: [ToolSpec]
+    ) -> AsyncThrowingStream<ProviderStreamEvent, Error> {
+        let text = text
+        let inputTokens = inputTokens
+        return AsyncThrowingStream { continuation in
+            continuation.yield(.text(text))
+            continuation.yield(.usage(TokenUsage(inputTokens: inputTokens)))
             continuation.yield(.messageComplete(stopReason: "end_turn"))
             continuation.finish()
         }

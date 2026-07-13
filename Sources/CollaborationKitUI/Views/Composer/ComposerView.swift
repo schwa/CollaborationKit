@@ -134,6 +134,19 @@ public struct ComposerView<Header: View>: View {
                     .labelStyle(.titleAndIcon)
             }
 
+            if let progress = store.compactionProgress {
+                Label(
+                    "\(formatCompactionCount(progress.current)) / \(formatCompactionCount(progress.limit))",
+                    systemImage: "arrow.down.right.and.arrow.up.left"
+                )
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .labelStyle(.titleAndIcon)
+                .accessibilityLabel(
+                    "\(progress.current) of \(progress.limit) input tokens used before compaction"
+                )
+            }
+
             if allowsImageAttachments {
                 Button("Attach Image", systemImage: "paperclip") {
                     showImporter = true
@@ -213,6 +226,19 @@ public struct ComposerView<Header: View>: View {
 
     private func addAttachments(from urls: [URL]) {
         buffer.add(urls: urls)
+    }
+
+    /// Compact humanized formatter for the compaction chip: "12.3k",
+    /// "1.2M", or the raw integer under 1000.
+    private func formatCompactionCount(_ value: Int) -> String {
+        let n = Double(value)
+        if abs(n) >= 1_000_000 {
+            return String(format: "%.1fM", n / 1_000_000)
+        }
+        if abs(n) >= 1_000 {
+            return String(format: "%.1fk", n / 1_000)
+        }
+        return "\(value)"
     }
 }
 

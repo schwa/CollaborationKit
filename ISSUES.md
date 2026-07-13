@@ -2122,13 +2122,14 @@ Everything the issue named is already typed except the built-in `Backend` id dup
 ## 78: Show tokens/% remaining until compaction
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:s
 depends: 92
 created: 2026-07-13T15:10:34Z
-updated: 2026-07-13T15:51:34Z
+updated: 2026-07-13T16:29:55Z
+closed: 2026-07-13T16:29:55Z
 +++
 
 The composer should display how many input tokens have been consumed relative to the compaction threshold (e.g. `12.3k / 100k`), so users see how close they are to a compaction event.
@@ -2146,6 +2147,7 @@ Remaining open question: **UI placement.** Suggested default: a small caption ch
 - `2026-07-13T15:11:44Z`: Related to #7 (compaction landed Jul 12). Depends on the strategy exposing a 'progress toward compaction' signal — currently KeepRecentCompactionStrategy triggers on message count, not tokens, so the UI would need either a token-budget strategy or a strategy-agnostic 'how close am I' hook.
 - `2026-07-13T15:17:32Z`: Punting: the current `KeepRecentCompactionStrategy` triggers on message count, not tokens, so there's no natural 'tokens until compaction' number to show. To resolve this we'd need to (a) extend `CompactionStrategy` with a `progressTowardCompaction(history:usage:)` hook, (b) decide what 'progress' means for a count-based strategy (message count?), and (c) decide where the UI displays it (composer action row? a separate chip?). Those are three API/design decisions that need your call before writing code.
 - `2026-07-13T15:51:34Z`: Reframed: message-count fallback dropped (see #92). The strategy-progress API question is trivial now — only UI placement remains.
+- `2026-07-13T16:29:55Z`: Landed together: KeepRecentCompactionStrategy is now token-triggered only (triggerAtTokens required, minMessagesBeforeCompacting removed), and CompactionStrategy gains a compactionProgress(usage:) hook that KeepRecent implements. ConversationStore surfaces it as compactionProgress; ComposerView renders a 'used / limit' chip that hides itself when the strategy has no budget.
 
 ---
 
@@ -2491,12 +2493,13 @@ New:
 ## 92: Compaction strategies must count tokens, never messages
 
 +++
-status: new
+status: closed
 priority: high
 kind: enhancement
 labels: effort:s, architecture
 created: 2026-07-13T15:51:25Z
-updated: 2026-07-13T15:51:43Z
+updated: 2026-07-13T16:29:55Z
+closed: 2026-07-13T16:29:55Z
 +++
 
 Compaction decisions must be driven by token counts reported by the backend (or, in future, a caller-supplied estimator), never by message count. The backend is the only source of truth for context-window pressure — message count is a poor proxy that hides long tool_result blocks and over-triggers on chatty short turns.
@@ -2510,5 +2513,7 @@ Follow-ups (existing callers may break; no external consumers yet):
 
 Blocks: #78 (tokens/% until compaction — meaningless without a token-based trigger).
 Follows: #85 (added `triggerAtTokens`; this issue completes the transition).
+
+- `2026-07-13T16:29:55Z`: Landed together: KeepRecentCompactionStrategy is now token-triggered only (triggerAtTokens required, minMessagesBeforeCompacting removed), and CompactionStrategy gains a compactionProgress(usage:) hook that KeepRecent implements. ConversationStore surfaces it as compactionProgress; ComposerView renders a 'used / limit' chip that hides itself when the strategy has no budget.
 
 ---

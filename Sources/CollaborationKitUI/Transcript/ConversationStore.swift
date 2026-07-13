@@ -38,6 +38,14 @@ public final class ConversationStore {
     /// Cumulative token usage across the session.
     public private(set) var usage = TokenUsage()
 
+    /// Progress toward the next compaction event, as reported by the
+    /// session's ``CompactionStrategy``. `nil` when the strategy does not
+    /// expose a token budget (e.g. ``NoCompactionStrategy``); hosts should
+    /// hide any "tokens until compaction" affordance in that case.
+    public var compactionProgress: CompactionProgress? {
+        session.compactionStrategy.compactionProgress(usage: usage)
+    }
+
     /// The last harness error surfaced to the user (not a tool error).
     public private(set) var lastError: String?
 
