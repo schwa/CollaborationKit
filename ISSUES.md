@@ -8,11 +8,11 @@ File format: <https://github.com/schwa/issues-format>
 
 +++
 status: open
-priority: high
+priority: medium
 kind: task
 labels: testing, effort:m
 created: 2026-06-23T23:13:55Z
-updated: 2026-07-13T01:49:39Z
+updated: 2026-07-13T01:54:13Z
 +++
 
 All provider tests are parser-level (StreamAccumulator / OpenAIStreamAccumulator). Nothing exercises AnthropicProvider/OpenAIProvider end-to-end over a real URLSession. Add a MockURLProtocol that feeds canned SSE byte streams through the actual providers to verify: request construction (auth headers, anthropic-beta/user-agent for OAuth, x-api-key vs Bearer), HTTP status handling (non-2xx -> httpError with body), and partial-line SSE buffering. Largest gap: the networking layer is unproven by tests, only manually verified against LM Studio and Anthropic.
@@ -331,11 +331,11 @@ See rfcs/0003-model-object-tool-macro.md.
 
 +++
 status: open
-priority: medium
+priority: high
 kind: task
 labels: effort:m
 created: 2026-07-13T00:55:41Z
-updated: 2026-07-13T01:49:52Z
+updated: 2026-07-13T01:54:05Z
 +++
 
 Credential-related types now live in three places with overlapping responsibilities:
@@ -475,12 +475,12 @@ Missing per RFC 0003 open question 5:
 
 +++
 status: open
-priority: low
+priority: high
 kind: feature
 labels: effort:m
 depends: 14, 15
 created: 2026-07-13T01:03:03Z
-updated: 2026-07-13T01:49:52Z
+updated: 2026-07-13T01:53:09Z
 +++
 
 There is no defined behaviour when a @CollaborationTool method takes a value of another @CollaborationTools-annotated type as a parameter, or returns one. Right now such a parameter fails schema derivation.
@@ -518,12 +518,12 @@ Missing per RFC 0003 open question 6:
 
 +++
 status: open
-priority: low
+priority: high
 kind: task
 labels: effort:m
 depends: 14
 created: 2026-07-13T01:03:17Z
-updated: 2026-07-13T01:49:52Z
+updated: 2026-07-13T01:53:09Z
 +++
 
 Slice 1 tests exercise the macro through its runtime output (collaborationTools, call, LLMSession loop). There are no assertions against the actual expanded source, so regressions in codegen shape are only caught indirectly.
@@ -538,12 +538,12 @@ Missing per RFC 0003 open question 7:
 
 +++
 status: open
-priority: low
+priority: high
 kind: enhancement
 labels: effort:m
 depends: 14
 created: 2026-07-13T01:03:25Z
-updated: 2026-07-13T01:49:52Z
+updated: 2026-07-13T01:53:09Z
 +++
 
 Slice 1's built-in schema derivation covers primitives, Optional, Array, and [String: T]. Anything else falls through to CollaborationSchemaConvertible (#15) or errors.
@@ -562,12 +562,12 @@ Whichever we support should have expansion tests and a clear line vs. the escape
 
 +++
 status: open
-priority: medium
+priority: high
 kind: feature
 labels: effort:m
 depends: 14
 created: 2026-07-13T01:02:28Z
-updated: 2026-07-13T01:49:52Z
+updated: 2026-07-13T01:53:09Z
 +++
 
 Slice 1 only supports primitives + Optional/Array/[String: T]. Anything else (user structs, enums, tuples, generics) fails macro expansion with 'Unsupported parameter/return type'.
@@ -871,11 +871,11 @@ Related: RFC 0002, #13, #27 (theme).
 
 +++
 status: open
-priority: medium
+priority: high
 kind: enhancement
 labels: effort:s
 created: 2026-07-13T01:43:27Z
-updated: 2026-07-13T01:49:58Z
+updated: 2026-07-13T01:53:30Z
 +++
 
 Today `_ckStringify` (Sources/CollaborationKit/Macros/CollaborationResult.swift) handles a return type in this order:
@@ -902,11 +902,11 @@ Related: RFC 0003, #14, #25.
 
 +++
 status: open
-priority: low
+priority: high
 kind: enhancement
 labels: effort:s
 created: 2026-07-13T01:43:27Z
-updated: 2026-07-13T01:49:58Z
+updated: 2026-07-13T01:53:30Z
 +++
 
 Today `SchemaDerivationError.unsupportedType` (Sources/CollaborationKitMacros/SchemaDerivation.swift) surfaces as:
@@ -921,5 +921,44 @@ Actionable improvements:
 - Point at the RFC section that documents supported types.
 
 Related: RFC 0003, #14, #21, #25.
+
+---
+
+## 41: RFC 0003: support typed ID wrappers (RawRepresentable) as tool parameters
+
++++
+status: new
+priority: high
+kind: feature
+labels: effort:m
+created: 2026-07-13T01:52:23Z
+updated: 2026-07-13T01:53:09Z
++++
+
+The demo's DemoNotes today has:
+
+    func list() async -> String
+    func create(title: String, body: String) async -> String
+    func delete(id: String) async throws
+
+These would idiomatically be:
+
+    func list() async -> [Note]        // or [Note.ID]
+    func create(...) async -> Note.ID
+    func delete(id: Note.ID) async throws
+
+**Return side** — already works: `[Note]` conforming to `Codable` runs through `_ckStringify`'s Encodable path and produces JSON the model can parse. A typed `struct NoteID: RawRepresentable, Codable` returns as a JSON string. No macro change needed; the demo just doesn't use it.
+
+**Input side** — blocked by slice 1's primitives-only restriction. `Note.ID` (a `RawRepresentable` wrapper around `String` or `Int`) fails schema derivation with `unsupportedType`. This is the most common Swift pattern for tagged identifiers, and the current workaround (accept `String` everywhere, stringly-typed) forces every host to lose type safety at exactly the boundary where the model touches the domain.
+
+Design:
+
+- Recognise `T: RawRepresentable where T.RawValue: Codable` (or the primitive set slice 1 supports) as a parameter type.
+- Derive the JSON Schema from `RawValue`; decode by constructing `T(rawValue: decodedRaw)` and failing if `nil`.
+- Symmetric coverage for enums with raw values (`enum Priority: String, Codable`) — same pattern, likely folded into schema derivation for enums (#24).
+
+Update the demo to use `Note.ID` on `create` / `delete` and `[Note]` on `list` once inputs land.
+
+Related: RFC 0003, #14, #24 (enums/tuples/generics), #25 (custom escape hatch).
 
 ---
