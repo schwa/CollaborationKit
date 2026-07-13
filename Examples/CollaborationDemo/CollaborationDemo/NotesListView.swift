@@ -42,7 +42,7 @@ struct NotesListView: View {
                                 Text(note.title)
                                     .font(.body.weight(.medium))
                                 Spacer()
-                                Text(note.id)
+                                Text(note.id.rawValue)
                                     .font(.caption2.monospaced())
                                     .foregroundStyle(.tertiary)
                             }

@@ -1024,3 +1024,16 @@ created: 2026-07-13T02:02:45Z
 Review Swift concurrency usage across CollaborationKit for correctness and modern API usage. Look for actor isolation issues, Sendable violations, task lifetime bugs, unstructured Task usage, MainActor misuse, and other async/await pitfalls.
 
 ---
+
+## 45: Investigate using Apple Passwords API to retrieve Claude/OpenAI API keys
+
++++
+status: new
+priority: low
+kind: feature
+created: 2026-07-13T02:07:18Z
++++
+
+Explore whether the Apple Passwords API can be used to fetch stored API keys (e.g. Claude, OpenAI) instead of requiring the user to enter/store them separately. Feasibility unknown — Passwords API may not expose arbitrary secrets or non-website credentials.
+
+---

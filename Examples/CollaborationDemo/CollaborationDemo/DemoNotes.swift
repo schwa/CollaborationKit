@@ -9,12 +9,25 @@ import CollaborationKit
 /// ``notes`` in SwiftUI. The tool methods are `async` so the macro emits
 /// `await` — the LLMSession invokes them from its own actor context and the
 /// runtime hops to MainActor to run each tool.
+///
+/// Demonstrates the recommended patterns from RFC 0003:
+/// - **Referent objects pass ids.** ``delete(id:)`` takes a ``Note/ID``, a
+///   typed `RawRepresentable` wrapper — schema derived automatically via the
+///   default ``CollaborationSchemaConvertible`` conformance.
+/// - **Rich returns are fine.** ``list()`` returns `[Note]`; the macro
+///   stringifies it as JSON through `Encodable` so the model sees the whole
+///   snapshot.
 @MainActor
 @Observable
 @CollaborationTools
 final class DemoNotes {
-    struct Note: Identifiable, Sendable, Equatable {
-        let id: String
+    struct Note: Identifiable, Sendable, Equatable, Codable {
+        struct ID: RawRepresentable, Codable, CollaborationSchemaConvertible, Hashable, Sendable {
+            let rawValue: String
+            init(rawValue: String) { self.rawValue = rawValue }
+        }
+
+        let id: ID
         var title: String
         var body: String
     }
@@ -24,26 +37,23 @@ final class DemoNotes {
 
     // MARK: - Tools
 
-    @CollaborationTool("List all notes as \"id: title — body\" lines, oldest first. Returns \"(no notes)\" when the store is empty.")
-    func list() async -> String {
-        guard !notes.isEmpty else { return "(no notes)" }
-        return notes.map { note in
-            note.body.isEmpty ? "\(note.id): \(note.title)" : "\(note.id): \(note.title) — \(note.body)"
-        }.joined(separator: "\n")
+    @CollaborationTool("List every note, oldest first, as a JSON array of {id, title, body}. Empty array when there are none.")
+    func list() async -> [Note] {
+        notes
     }
 
-    @CollaborationTool("Create a new note with a title and an optional body. Returns the note's id.")
-    func create(title: String, body: String) async -> String {
-        let id = "n\(nextID)"
+    @CollaborationTool("Create a new note with a title and an optional body. Returns the new note's id.")
+    func create(title: String, body: String) async -> Note.ID {
+        let id = Note.ID(rawValue: "n\(nextID)")
         nextID += 1
         notes.append(Note(id: id, title: title, body: body))
         return id
     }
 
     @CollaborationTool("Delete the note with the given id. Errors if no note has that id.")
-    func delete(id: String) async throws {
+    func delete(id: Note.ID) async throws {
         guard let index = notes.firstIndex(where: { $0.id == id }) else {
-            throw ToolError("No note with id \(id).")
+            throw ToolError("No note with id \(id.rawValue).")
         }
         notes.remove(at: index)
     }

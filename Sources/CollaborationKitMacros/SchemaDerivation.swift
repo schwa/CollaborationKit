@@ -159,6 +159,12 @@ func parseParamType(_ type: TypeSyntax) throws -> ParamType {
         }
     }
 
+    // Nested / dotted names like `Note.ID` — treat as an opaque custom type
+    // and route through the CollaborationSchemaConvertible escape hatch.
+    if type.is(MemberTypeSyntax.self) {
+        return .custom(type.trimmedDescription)
+    }
+
     // Metatypes, function types, existentials, etc.: still unsupported.
     throw SchemaDerivationError.unsupportedType(type.trimmedDescription)
 }
