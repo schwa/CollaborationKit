@@ -2883,7 +2883,7 @@ When a tool marked `requiresApproval: true` runs, the user gets an Allow/Deny pr
 status: new
 priority: low
 kind: enhancement
-labels: ui,demo,effort:s
+labels: ui, demo, effort:s
 created: 2026-07-13T17:32:04Z
 +++
 
@@ -2897,5 +2897,64 @@ Observed problems (see `Documentation/Screenshots/approval-alert-ugly.png`):
 - Overall styling is default `.alert` chrome — no typography hierarchy, no monospaced/code styling for the payload, no truncation for large inputs.
 
 Investigate a better presentation for the approval confirm UI (tool name + human-readable summary of arguments, proper code formatting for the payload, clearer Allow/Deny affordances).
+
+---
+
+## 109: Queued prompts aren't shown in the transcript and can't be cancelled individually
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T17:33:35Z
++++
+
+When the user submits a prompt while a turn is running, `ConversationStore` queues it (`pendingPromptCount` reflects this) but the transcript doesn't render the queued prompts. There's no per-prompt affordance to cancel a single queued prompt before it sends — only `clearPendingPrompts()`, which drops the whole queue.
+
+## Proposed fix (per user)
+Render queued prompts inline in the transcript with a cancel (×) button on each row.
+
+---
+
+## 110: Verify prompt caching is enabled and effective across all providers
+
++++
+status: new
+priority: medium
+kind: task
+created: 2026-07-13T17:35:12Z
++++
+
+Anthropic has `promptCaching: Bool = true` and inserts `cache_control` breakpoints on the stable request prefix. OpenAI has no explicit prompt-caching handling — it relies on server-side automatic caching, with no client-side verification that it's actually engaging (or surfacing the resulting hit/miss stats). No coverage or docs for future providers.
+
+Audit whether prompt caching is actually working end-to-end for each supported provider, and document the stance.
+
+---
+
+## 111: Clarify default behavior for parallel/batch tool calls across providers
+
++++
+status: new
+priority: medium
+kind: task
+created: 2026-07-13T17:35:12Z
++++
+
+OpenAI exposes `parallelToolCalls: Bool?` (nil = provider default, which is enabled). Anthropic has no equivalent knob, so we implicitly accept the API default (parallel tool use enabled). There's no shared, documented stance on whether CollaborationKit opts in to parallel/batch tool dispatch, and no cross-provider way to disable it. Related to #106 (parallel tool dispatch within a single assistant turn).
+
+---
+
+## 112: Demo doesn't showcase batched / parallel tool usage
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T17:35:49Z
++++
+
+When the model emits multiple tool calls in one assistant turn, the demo tabs (notes, sketch, doc) render them as a plain sequence of tool rows. There's no visual indication that they were dispatched as a batch, and no example workflow in the demo that exercises batching to make the behavior visible.
+
+Related: #106 (parallel tool dispatch), #111 (opt-in defaults).
 
 ---

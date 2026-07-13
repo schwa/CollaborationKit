@@ -3,7 +3,9 @@ import Foundation
 import Observation
 
 /// A recently-applied assistant edit. Rendered as a highlight in the
-/// editor and faded out over a few seconds.
+/// editor. Persists until the user edits the document (which invalidates
+/// character offsets) — new assistant edits within the same turn stack on
+/// top so the user can see the whole batch at once.
 struct DocHighlight: Identifiable, Sendable, Equatable {
     let id: UUID
     /// Character offset (in `DemoDoc.text`) of the edit's start.
@@ -11,8 +13,6 @@ struct DocHighlight: Identifiable, Sendable, Equatable {
     /// Character length of the edit. Zero-length deletes get widened
     /// to 1 char so the user can still see the marker.
     var length: Int
-    /// When the edit landed. Used to fade the highlight out.
-    var createdAt: Date
 }
 
 @MainActor
@@ -22,17 +22,15 @@ final class DemoDoc {
     /// Full document text. Source of truth; the editor mirrors it.
     var text: String = defaultText
 
-    /// Rolling list of recent edits still being highlighted. Older
-    /// entries fall off once `DemoDoc.highlightLifetime` passes.
+    /// The most-recent assistant edit still highlighted. Each new
+    /// assistant edit (or user edit) supersedes it, so only the latest
+    /// change is visible.
     var highlights: [DocHighlight] = []
 
     /// Character offset the editor should scroll to on the next
     /// layout pass. Cleared by the view once consumed. Set by tool
     /// edits so the assistant's first mutation of a batch is visible.
     var pendingScrollOffset: Int?
-
-    /// How long a highlight sticks around before fading fully.
-    static let highlightLifetime: TimeInterval = 3.5
 
     private static let defaultText = """
     # Draft
@@ -104,7 +102,7 @@ final class DemoDoc {
         self.text = text
         // Rewrite invalidates prior offsets. Drop existing highlights
         // and mark the whole doc as changed.
-        highlights = [DocHighlight(id: UUID(), offset: 0, length: count, createdAt: Date())]
+        highlights = [DocHighlight(id: UUID(), offset: 0, length: count)]
         pendingScrollOffset = 0
         return "Rewrote document (\(count) character(s))."
     }
@@ -118,11 +116,6 @@ final class DemoDoc {
         pendingScrollOffset = nil
     }
 
-    /// Drop highlights whose lifetime has fully elapsed.
-    func expireHighlights(now: Date = Date()) {
-        highlights.removeAll { now.timeIntervalSince($0.createdAt) >= Self.highlightLifetime }
-    }
-
     // MARK: - Internals
 
     private func apply(newText: String, editOffset: Int, editLength: Int) {
@@ -132,14 +125,11 @@ final class DemoDoc {
         let highlight = DocHighlight(
             id: UUID(),
             offset: editOffset,
-            length: max(clampedLength, 1),
-            createdAt: Date()
+            length: max(clampedLength, 1)
         )
-        // Keep the list short so a busy assistant doesn't leak.
-        if highlights.count >= 24 {
-            highlights.removeFirst(highlights.count - 23)
-        }
-        highlights.append(highlight)
+        // Only the newest change stays highlighted; older ones
+        // disappear the moment the next change lands.
+        highlights = [highlight]
         // Only set the scroll target if there isn't already a pending
         // one for this batch. First edit of a batch wins.
         if pendingScrollOffset == nil {
