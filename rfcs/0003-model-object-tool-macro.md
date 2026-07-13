@@ -86,7 +86,7 @@ argument (or the member's doc comment).
 - Types conforming to a new `CollaborationSchemaConvertible` protocol (the
   escape hatch) — the macro emits a call to their schema, doesn't invent one.
 - Nested `@CollaborationTools`-annotated types by ID reference, not by
-  value inlining (see Open Q3).
+  value inlining. See [Nested-object rule](#nested-object-rule).
 
 Return values are stringified via `CollaborationResultConvertible`
 (default conformances for `String`, `LosslessStringConvertible`, `Encodable`
@@ -164,6 +164,52 @@ Availability follows each framework: FoundationModels / SwiftData / AppIntents
 bridges gate on their respective OS versions; the core macro works on the
 current package minimum (macOS 14+, Swift 6).
 
+### Nested-object rule
+
+> **Pass IDs, not inlined values.**
+
+When a tool needs to refer to another host-owned object, its parameter is a
+primitive id (a `String`, an `Int`, or a `CollaborationSchemaConvertible`
+id wrapper), never the object itself. The tool body looks the value up
+against the host-owned store.
+
+```swift
+// Good — the model sees an id and asks for one back.
+@CollaborationTool("Delete the note with this id.")
+func delete(id: String) async throws { ... }
+
+// Bad — the model has to reproduce the whole object graph verbatim, and
+// there is no shared identity for referring to it across turns.
+@CollaborationTool("Delete a note.")
+func delete(note: Note) async throws { ... }
+```
+
+Why IDs:
+
+- **Identity survives turns.** JSON is a value protocol; a reference passed
+  as an inlined object has no shared identity for the model to point back at
+  on the next turn. IDs are the model's stable handle.
+- **Schema surface stays small.** Inlining a nested object means the model
+  sees the schema for every leaf every time. IDs let the tool spec stay
+  compact and the state stay on the host, where it belongs.
+- **Round-trip fidelity is guaranteed.** The host controls how an id maps
+  to an object; there is no lossy stringification.
+- **Tool authors can still expose a `get(id:)` tool** whose *return* is a
+  rich `Encodable` snapshot, which the model can quote back and reason
+  over. Returns are unrestricted (they go through `_ckStringify`).
+
+What qualifies as an id:
+
+- Any primitive supported by slice 1 (`String`, `Int`, etc.).
+- A `CollaborationSchemaConvertible`-conforming id wrapper (per #25 /
+  future #41 typed-ID support).
+
+The macro does not enforce this rule at compile time — slice 1's schema
+restrictions already reject arbitrary nested types, and the escape hatch
+(#25) trusts the user's declared schema. This is a convention. Enforcement
+would need a way to detect "this parameter type is another
+`@CollaborationTools` type", which SwiftSyntax can't tell reliably.
+
 ## Open Questions
 
 1. **Schema fidelity.** How far do we derive schemas from Swift types before
@@ -172,8 +218,8 @@ current package minimum (macOS 14+, Swift 6).
 2. **Doc-comment mining.** Do we read `///` comments for descriptions, or
    require the attribute argument? Doc comments are nicer but macros only see
    trivia if we ask for it.
-3. **Nested objects.** Passing a whole nested model as a tool argument vs.
-   passing an ID that the tool then dereferences. Prefer IDs; document why.
+3. **Nested objects.** *Resolved:* pass **IDs**, not inlined values. See
+   [Nested-object rule](#nested-object-rule) below.
 4. **Concurrency.** Tools called through `LLMSession` are async / sendable.
    The macro must generate `await` / actor-hopping code correctly for
    `@MainActor` model objects, `@Model` classes on a `ModelContext`, and

@@ -474,13 +474,14 @@ Missing per RFC 0003 open question 5:
 ## 21: RFC 0003: nested @CollaborationTools objects as parameters (ID reference vs value)
 
 +++
-status: open
+status: closed
 priority: high
 kind: feature
 labels: effort:m
 depends: 14, 15
 created: 2026-07-13T01:03:03Z
-updated: 2026-07-13T01:53:09Z
+updated: 2026-07-13T02:05:13Z
+closed: 2026-07-13T02:05:13Z
 +++
 
 There is no defined behaviour when a @CollaborationTool method takes a value of another @CollaborationTools-annotated type as a parameter, or returns one. Right now such a parameter fails schema derivation.
@@ -490,6 +491,8 @@ Missing per RFC 0003 open question 3:
 - Macro emits a schema referencing the ID type; the tool body dereferences on entry.
 - What 'ID type' means for a given store is user-declared, likely via a small protocol.
 - Test that the model sees a stable ID schema and not the full nested object.
+
+- `2026-07-13T02:05:13Z`: Documented in RFC 0003 (Nested-object rule) and the @CollaborationTools doc comment. Split by identity: referent objects (host-owned, identity-bearing) pass ids; value objects (transient, no identity) inline via CollaborationSchemaConvertible (#25). No macro-time enforcement — SwiftSyntax can't tell 'is this another @CollaborationTools type' or 'does this thing have identity'. Docs-only fix.
 
 ---
 

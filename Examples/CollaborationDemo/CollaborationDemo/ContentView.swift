@@ -85,7 +85,7 @@ private final class ChatSession {
         self.session = LLMSession(
             provider: provider,
             system: """
-            You are a helpful assistant collaborating with the user through a small notes app. \
+            You are a helpful assistant called "CollaborationDemo" collaborating with the user through a small notes app. \
             Use the `list`, `create`, `delete`, and `count` tools to manage the user's notes. \
             Always confirm what you did in a short reply.
             """,
