@@ -87,6 +87,19 @@ public enum CollaborationToolsMacro: MemberMacro {
         return nil
     }
 
+    /// Extracts the `requiresApproval:` boolean argument from
+    /// `@CollaborationTool("…", requiresApproval: true)`, or `false` when
+    /// omitted.
+    private static func requiresApprovalArgument(from attribute: AttributeSyntax) -> Bool {
+        guard case .argumentList(let args) = attribute.arguments else { return false }
+        for arg in args where arg.label?.text == "requiresApproval" {
+            if let literal = arg.expression.as(BooleanLiteralExprSyntax.self) {
+                return literal.literal.text == "true"
+            }
+        }
+        return false
+    }
+
     // MARK: - Discovery
 
     private static func annotatedMethods(
@@ -161,7 +174,8 @@ public enum CollaborationToolsMacro: MemberMacro {
                 parameters: parameters,
                 isAsync: isAsync,
                 isThrows: isThrows,
-                returnTypeText: returnText
+                returnTypeText: returnText,
+                requiresApproval: requiresApprovalArgument(from: attr)
             ))
         }
 
@@ -241,6 +255,7 @@ public enum CollaborationToolsMacro: MemberMacro {
 
         let descriptionLiteral = swiftStringLiteral(tool.description)
         let toolNameLiteral = swiftStringLiteral(tool.toolName)
+        let approvalLiteral = tool.requiresApproval ? "true" : "false"
 
         let decl: DeclSyntax = """
         private struct \(raw: structName): CollaborationKit.Tool {
@@ -251,6 +266,7 @@ public enum CollaborationToolsMacro: MemberMacro {
             var name: Swift.String { \(raw: toolNameLiteral) }
             var description: Swift.String { \(raw: descriptionLiteral) }
             var inputSchema: CollaborationKit.JSONValue { \(raw: schemaSource) }
+            var requiresApproval: Swift.Bool { \(raw: approvalLiteral) }
             func call(_ input: Input) async throws -> Swift.String {
         \(raw: bodyStmts)
             }

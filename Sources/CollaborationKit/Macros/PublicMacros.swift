@@ -54,8 +54,16 @@ public macro CollaborationTools(prefix: String? = nil) = #externalMacro(
 ///     default) the Swift method name is used, optionally prefixed by the
 ///     enclosing type's `@CollaborationTools(prefix:)` setting. Use this to
 ///     force a specific name when merging tools from multiple stores.
+///   - requiresApproval: When `true`, sets ``Tool/requiresApproval`` on the
+///     generated tool so the host's approval closure (supplied to
+///     ``LLMSession/init(provider:system:tools:approval:maxIterations:)``)
+///     can gate the call. Defaults to `false`.
 @attached(peer)
-public macro CollaborationTool(_ description: String, name: String? = nil) = #externalMacro(
+public macro CollaborationTool(
+    _ description: String,
+    name: String? = nil,
+    requiresApproval: Bool = false
+) = #externalMacro(
     module: "CollaborationKitMacros",
     type: "CollaborationToolMacro"
 )

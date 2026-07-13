@@ -82,6 +82,11 @@ private final class ChatSession {
 
     init(credentials: CollaborationCredentials, notes: DemoNotes) throws {
         let provider = try credentials.makeProvider(maxTokens: 4_096)
+        let tools = notes.collaborationTools
+        // Tools that opted in via `@CollaborationTool(…, requiresApproval: true)`.
+        // A real host would prompt here; the demo auto-approves so the
+        // metadata still flows through and can be shown in the UI later.
+        let approvalRequired = Set(tools.filter(\.requiresApproval).map(\.name))
         self.session = LLMSession(
             provider: provider,
             system: """
@@ -89,7 +94,11 @@ private final class ChatSession {
             Use the `list`, `create`, `delete`, and `count` tools to manage the user's notes. \
             Always confirm what you did in a short reply.
             """,
-            tools: notes.collaborationTools
+            tools: tools,
+            approval: { use in
+                _ = approvalRequired
+                return .allow
+            }
         )
         self.store = ConversationStore(session: session)
     }

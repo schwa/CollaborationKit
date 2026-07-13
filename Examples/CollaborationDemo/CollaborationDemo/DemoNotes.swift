@@ -48,7 +48,10 @@ final class DemoNotes {
         return id
     }
 
-    @CollaborationTool("Delete the note with the given id. Errors if no note has that id.")
+    @CollaborationTool(
+        "Delete the note with the given id. Errors if no note has that id.",
+        requiresApproval: true
+    )
     func delete(id: Note.ID) async throws {
         guard let index = notes.firstIndex(where: { $0.id == id }) else {
             throw ToolError("No note with id \(id).")

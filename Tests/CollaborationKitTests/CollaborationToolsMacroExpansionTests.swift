@@ -73,6 +73,9 @@ final class CollaborationToolsMacroExpansionTests: XCTestCase {
                     var inputSchema: CollaborationKit.JSONValue {
                         .object(["type": .string("object"), "properties": .object(["name": .object(["type": .string("string")])]), "required": .array([.string("name")])])
                     }
+                    var requiresApproval: Swift.Bool {
+                        false
+                    }
                     func call(_ input: Input) async throws -> Swift.String {
                         let __result = __owner.hi(name: input.name)
                         return try CollaborationKit._ckStringify(__result)
@@ -120,6 +123,9 @@ final class CollaborationToolsMacroExpansionTests: XCTestCase {
                     }
                     var inputSchema: CollaborationKit.JSONValue {
                         .object(["type": .string("object"), "properties": .object([:])])
+                    }
+                    var requiresApproval: Swift.Bool {
+                        false
                     }
                     func call(_ input: Input) async throws -> Swift.String {
                         let __result = await __owner.bump()
@@ -169,6 +175,9 @@ final class CollaborationToolsMacroExpansionTests: XCTestCase {
                     var inputSchema: CollaborationKit.JSONValue {
                         .object(["type": .string("object"), "properties": .object([:])])
                     }
+                    var requiresApproval: Swift.Bool {
+                        false
+                    }
                     func call(_ input: Input) async throws -> Swift.String {
                         let __result = try __owner.f()
                         return try CollaborationKit._ckStringify(__result)
@@ -217,6 +226,9 @@ final class CollaborationToolsMacroExpansionTests: XCTestCase {
                     var inputSchema: CollaborationKit.JSONValue {
                         .object(["type": .string("object"), "properties": .object([:])])
                     }
+                    var requiresApproval: Swift.Bool {
+                        false
+                    }
                     func call(_ input: Input) async throws -> Swift.String {
                         __owner.f()
                         return "OK"
@@ -264,6 +276,9 @@ final class CollaborationToolsMacroExpansionTests: XCTestCase {
                     }
                     var inputSchema: CollaborationKit.JSONValue {
                         .object(["type": .string("object"), "properties": .object(["p": Priority.collaborationSchema]), "required": .array([.string("p")])])
+                    }
+                    var requiresApproval: Swift.Bool {
+                        false
                     }
                     func call(_ input: Input) async throws -> Swift.String {
                         __owner.f(p: input.p)

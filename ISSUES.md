@@ -538,13 +538,14 @@ Missing per RFC 0003 open question 3:
 ## 22: RFC 0003: expose per-tool metadata (e.g. requiresApproval) for host-side gating
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: effort:s
 depends: 14
 created: 2026-07-13T01:03:09Z
-updated: 2026-07-13T01:49:52Z
+updated: 2026-07-13T03:14:44Z
+closed: 2026-07-13T03:14:44Z
 +++
 
 Derived tools frequently have side effects (delete, update, perform an intent). CollaborationKit intentionally leaves approval / gating to the host, but Slice 1 doesn't surface any metadata for a host to key off.
@@ -553,6 +554,18 @@ Missing per RFC 0003 open question 6:
 - Attribute-level flag (e.g. requiresApproval) on @CollaborationTool.
 - SwiftData bridge marks derived mutating tools (create/update/delete) automatically; AppIntents bridge marks intent execution similarly.
 - Metadata exposed on AnyTool (or a companion struct) so a host UI can find it without re-inspecting Swift types.
+
+- `2026-07-13T03:14:44Z`: Landed. Per-tool approval metadata:
+
+- Tool protocol gains `var requiresApproval: Bool { get }` with a default of `false`.
+- AnyTool now stores requiresApproval, propagating from the underlying Tool at erasure time.
+- @CollaborationTool(_:name:requiresApproval:) accepts `requiresApproval:` and the macro emits it into the generated struct.
+
+Wired into the demo: DemoNotes.delete opts in via `requiresApproval: true`. ChatSession collects the required-tool names and installs an approval closure that could prompt; today it auto-allows so the metadata still flows.
+
+5 tests in RequiresApprovalTests: default false, macro-set true, combined with name override, host-side set construction, hand-written Tool default. Updated the 5 macro-expansion snapshots (#23) to include the new `var requiresApproval` line.
+
+Pairs with #31 (approval enforcement mechanism).
 
 ---
 

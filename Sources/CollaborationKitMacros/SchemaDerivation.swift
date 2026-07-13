@@ -189,4 +189,7 @@ struct DecodedTool {
     let isThrows: Bool
     /// Return type text (`nil` for `Void`).
     let returnTypeText: String?
+    /// Whether the tool's `@CollaborationTool(…, requiresApproval: true)`
+    /// was set. Emitted as ``Tool/requiresApproval`` on the generated struct.
+    let requiresApproval: Bool
 }

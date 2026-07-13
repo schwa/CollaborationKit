@@ -34,6 +34,16 @@ public protocol Tool: Sendable {
     /// A JSON Schema describing ``Input``.
     var inputSchema: JSONValue { get }
 
+    /// Whether invoking this tool requires host-side approval before the
+    /// call runs.
+    ///
+    /// Read by the host's approval closure supplied to
+    /// ``LLMSession/init(provider:system:tools:approval:maxIterations:)``.
+    /// Defaults to `false` so existing conformers keep working; annotate
+    /// side-effectful tools with `@CollaborationTool("…", requiresApproval: true)`
+    /// or override the property directly on a hand-written tool.
+    var requiresApproval: Bool { get }
+
     /// Executes the tool.
     ///
     /// - Parameter input: The decoded input supplied by the model.
@@ -50,6 +60,12 @@ public struct AnyTool: Sendable {
     public let description: String
     /// A JSON Schema describing the tool's input.
     public let inputSchema: JSONValue
+    /// Whether invoking this tool requires host-side approval before it runs.
+    ///
+    /// The value flows from the underlying ``Tool/requiresApproval`` at
+    /// erasure time so the host's approval closure can inspect it without
+    /// keeping a parallel side-table.
+    public let requiresApproval: Bool
 
     private let invoke: @Sendable (JSONValue) async throws -> String
 
@@ -58,6 +74,7 @@ public struct AnyTool: Sendable {
         self.name = tool.name
         self.description = tool.description
         self.inputSchema = tool.inputSchema
+        self.requiresApproval = tool.requiresApproval
         self.invoke = { json in
             let input = try json.decode(as: T.Input.self)
             return try await tool.call(input)
@@ -71,6 +88,11 @@ public struct AnyTool: Sendable {
 }
 
 extension Tool {
+    /// Default implementation: tools do not require approval unless they
+    /// explicitly say so (via the macro or a `var requiresApproval: Bool`
+    /// override).
+    public var requiresApproval: Bool { false }
+
     /// Wraps this tool in an ``AnyTool``.
     public func eraseToAnyTool() -> AnyTool {
         AnyTool(self)
