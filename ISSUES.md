@@ -1162,3 +1162,74 @@ created: 2026-07-13T03:15:57Z
 Remove `AnyTool` and use `any Tool` at the call sites instead.
 
 ---
+
+## 47: CollaborationKitUI: render assistant Markdown in the transcript
+
++++
+status: new
+priority: medium
+kind: feature
+labels: effort:m
+created: 2026-07-13T03:26:28Z
++++
+
+ConversationRowView currently renders assistant text as a plain Text view, so Markdown that the model emits (headings, bullet lists, code blocks, bold/italic, links, inline code) shows up as raw `# heading` / ```code``` / `**bold**` syntax rather than formatted output.
+
+Design:
+- Add a small MarkdownRenderer view (or protocol) that ConversationRowView uses for the .assistant kind.
+- Baseline: SwiftUI's AttributedString(markdown:) covers inline formatting (bold, italic, code, links) with zero deps.
+- Block-level: fenced code blocks with monospaced font + subtle background; simple bullet/numbered lists via a light parser; headings as bold + larger.
+- Streaming-friendly: parse incrementally OR re-render on every delta (small enough for chat sizes; profile).
+- Opt-out via ConversationRowView initializer parameter for hosts that want raw Text.
+- Consider selectable behavior — keep textSelection(.enabled).
+
+Related: RFC 0002, #13. Follow-up to the built-in transcript.
+
+---
+
+## 48: SwiftUI review: bugs, anti-patterns, and missing #Previews
+
++++
+status: new
+priority: medium
+kind: task
+labels: effort:m
+created: 2026-07-13T03:30:30Z
++++
+
+Full SwiftUI review of CollaborationKitUI + demo against the swiftui-specialist and swiftui-house-rules skills. Grouped by impact.
+
+## Real bugs
+
+- **`CollaborationCredentials.selectedModel` doesn't participate in Observation.** Computed property reads UserDefaults; `selectModel(_:)` writes UserDefaults but Observation never fires. Views reading `credentials.selectedModel` won't re-render. `ModelPickerSection` gets away with it via its own `@State selection` push; any "Current model: …" display would go stale.
+- **`APIKeySection` uses `AnyView`** for its `footer` parameter. House rules explicitly forbid `AnyView` — switch to a `@ViewBuilder Footer: View` generic.
+- **`APIKeySection.savedFlash` transition doesn't animate.** `.transition(.opacity)` is applied, but no `.animation(_:value:)` and the state change happens outside `withAnimation`. The "Saved" label pops instead of fading.
+- **`ConversationRowView` tool-result background is `Color.black.opacity(0.04)`** — hard-coded black doesn't invert in dark mode; body reads black-on-dark. Replace with `.tertiary` / `.quaternary` / `.regularMaterial`.
+
+## Anti-patterns
+
+- **`AnthropicOAuthSection.isLoggedIn` is `@State` synced via `onAppear`.** Manual-sync anti-pattern. Make it a computed property reading `credentials.store.anthropicOAuthCredentials() != nil` (or surface it on `CollaborationCredentials` and observe there), and drop `syncLoginState()` altogether.
+- **Multiple `.onChange` calls in `TranscriptView`** (items.count / isGenerating / lastItemContentLength) each calling `scrollToEnd`. Fold into one Equatable compound id.
+- **`.help()` on Attach/Send/Stop buttons in `ComposerView`** is redundant with the newly-added `.accessibilityHint`. Pick one.
+- **Segmented pickers in demo `NoteEditor` for tags (5 cases) and colors (7 cases)** are cramped. Use `.menu` (or `.palette`).
+
+## Missing #Previews (house-rule violation)
+
+Every new SwiftUI view must ship at least one `#Preview`. Currently missing:
+
+Library:
+- CollaborationChatView, TranscriptView, ConversationRowView
+- ComposerView, ComposerAttachmentsView, AttachmentThumbnailsView
+- APIKeySection, AnthropicOAuthSection, ModelPickerSection
+
+Demo:
+- All four (CollaborationDemoApp isn't a view, but ContentView, DemoNotes-adjacent views, NoteEditor, NotesListView are).
+
+## House-style nits
+
+- Hardcoded palette in `ConversationRowView` (`.indigo`, opacity literals) — already tracked as Theme #27.
+- Demo `Editing` inline struct in ContentView reads awkwardly (verb-shaped noun); `EditingNote` is clearer.
+
+Related: RFC 0002, #13, #27.
+
+---
