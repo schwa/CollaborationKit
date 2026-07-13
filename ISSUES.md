@@ -2973,12 +2973,13 @@ OpenAI exposes `parallelToolCalls: Bool?` (nil = provider default, which is enab
 ## 112: Demo doesn't showcase batched / parallel tool usage
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:s
 created: 2026-07-13T17:35:49Z
-updated: 2026-07-13T17:37:14Z
+updated: 2026-07-13T18:34:18Z
+closed: 2026-07-13T18:34:18Z
 +++
 
 When the model emits multiple tool calls in one assistant turn, the demo tabs (notes, sketch, doc) render them as a plain sequence of tool rows. There's no visual indication that they were dispatched as a batch, and no example workflow in the demo that exercises batching to make the behavior visible.
@@ -3086,5 +3087,21 @@ created: 2026-07-13T18:24:54Z
 TokenUsage carries `cacheReadInputTokens` (and `cacheCreationInputTokens`) for both Anthropic and OpenAI, but the UI token-usage indicator only shows the input/output totals. Users can't tell whether prompt caching is actually engaging on a given turn or across a session.
 
 Show the cache-read (and, where relevant, cache-write) counts alongside the existing token totals in whatever surface currently displays TokenUsage.
+
+---
+
+## 117: Transcript doesn't visually indicate when tool calls came in the same batch
+
++++
+status: new
+priority: low
+kind: enhancement
+labels: effort:m, ui
+created: 2026-07-13T18:34:13Z
++++
+
+When the assistant emits multiple tool_use blocks in a single turn, TranscriptView renders them as an unstyled vertical run of tool rows. There is no visual affordance (rule, grouping, badge, indent) that tells the user those calls arrived together as a batch.
+
+Split out from #112, which added a batching-friendly demo workflow and system-prompt hints but deferred the projection/UI change.
 
 ---

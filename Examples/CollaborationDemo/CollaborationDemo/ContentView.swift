@@ -130,6 +130,17 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
                     .labelStyle(.titleAndIcon)
                 }
+                .collaborationEmptyPlaceholder {
+                    // Suggest a prompt that fans out into several tool
+                    // calls in a single turn, so the batched dispatch
+                    // path is easy to try (see issue #112).
+                    ContentUnavailableView {
+                        Label("Try a batched request", systemImage: "square.grid.2x2")
+                    } description: {
+                        Text(selectedTab.batchedSuggestion)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
                 .collaborationDebugExport(
                     store: store,
                     model: credentials.selectedModel,
@@ -185,6 +196,10 @@ struct ContentView: View {
                 shapes (list), undo the last shape, delete one by id, or clear the whole canvas. \
                 All canvas coordinates are in the 0–1 unit square with the top-left as the origin. \
                 Prefer thin strokes (width 0.003–0.008) unless the user asks for something bold.
+
+                When the user asks for a scene with multiple independent shapes (e.g. \
+                "draw a house with a door and two windows"), emit all of the shape-adding \
+                tool calls in a single assistant turn instead of one per turn.
                 """,
                 tools: sketch.collaborationTools,
                 approval: approve
@@ -229,6 +244,19 @@ private extension ContentView.DemoTab {
         case .notes: "notes"
         case .sketch: "sketch"
         case .document: "document"
+        }
+    }
+
+    /// A prompt that naturally triggers several tool calls in a single
+    /// assistant turn, so batching is easy to spot in the transcript.
+    var batchedSuggestion: LocalizedStringKey {
+        switch self {
+        case .notes:
+            "Ask for several notes at once — e.g. “add three notes: a red ‘buy milk’ todo, a blue ‘call mum’ todo, and a yellow ‘read RFC 0003’ idea”."
+        case .sketch:
+            "Ask for a whole scene at once — e.g. “draw a house with a door and two windows on a light blue background”."
+        case .document:
+            "Ask for a few edits at once — e.g. “append a header, insert a summary at the top, and replace every ‘TODO’ with ‘Follow-up’”."
         }
     }
 }
