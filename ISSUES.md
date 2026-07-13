@@ -71,9 +71,9 @@ Added 7 unit tests (RetryTests) for policy/classifier/header parsing and 3 seria
 status: open
 priority: high
 kind: enhancement
-labels: enhancement, effort:m
+labels: enhancement, effort:m, deferred
 created: 2026-06-23T23:14:06Z
-updated: 2026-07-13T14:14:40Z
+updated: 2026-07-13T14:53:02Z
 +++
 
 send() is not easily cancellable mid-turn and the session events stream never finishes (its continuation is never terminated). For any UI, cancelling a turn should stop the in-flight request, stop the tool loop, and let observers know. Wire Task cancellation through the provider streams and the session loop; consider finishing or yielding a terminal event so the events AsyncStream completes.
@@ -400,10 +400,10 @@ CLI vs UI never see each other's credentials — expected; different security mo
 status: open
 priority: medium
 kind: feature
-labels: effort:l
+labels: effort:l, deferred
 depends: 14, 15
 created: 2026-07-13T01:02:34Z
-updated: 2026-07-13T01:49:52Z
+updated: 2026-07-13T14:53:02Z
 +++
 
 Slice 1 has no awareness of FoundationModels. A @Generable value used as a tool parameter or return type is rejected as an unsupported type; there is no way to reuse the schema FoundationModels already generates.
@@ -423,10 +423,10 @@ Depends on the CollaborationSchemaConvertible / schema-lookup mechanism from #15
 status: open
 priority: low
 kind: feature
-labels: effort:l
+labels: effort:l, deferred
 depends: 14, 15
 created: 2026-07-13T01:02:41Z
-updated: 2026-07-13T06:20:19Z
+updated: 2026-07-13T14:53:02Z
 +++
 
 Slice 1 does not know about SwiftData @Model types. Annotating a @Model with @CollaborationTools does nothing useful — the user still has to hand-write list/fetch/create/update/delete tools.
@@ -447,10 +447,10 @@ Missing per RFC 0003 §3.2:
 status: open
 priority: medium
 kind: feature
-labels: effort:l
+labels: effort:l, deferred
 depends: 14, 15
 created: 2026-07-13T01:02:46Z
-updated: 2026-07-13T01:49:52Z
+updated: 2026-07-13T14:53:02Z
 +++
 
 Slice 1 does not know about AppIntent. A type conforming to AppIntent isn't recognised by the macro; parameters declared with @Parameter are ignored.
@@ -1788,9 +1788,9 @@ The placeholder text (and probably the whole placeholder view) needs to be host-
 status: open
 priority: high
 kind: feature
-labels: effort:m
+labels: effort:m, deferred
 created: 2026-07-13T05:57:23Z
-updated: 2026-07-13T14:38:02Z
+updated: 2026-07-13T14:52:22Z
 +++
 
 Pasting an image (or any file) into the composer's text field does nothing. Users have no way to attach visual/document content to a prompt short of describing it in words.
@@ -1942,8 +1942,9 @@ Conversations are not persisted; relaunching the app loses all prior conversatio
 status: new
 priority: high
 kind: bug
-labels: effort:m
+labels: effort:m, deferred
 created: 2026-07-13T14:38:28Z
+updated: 2026-07-13T14:52:08Z
 +++
 
 Dragging an image file from Finder onto the composer's TextField inserts the file path as literal text into the prompt, instead of attaching the image.
