@@ -86,8 +86,9 @@ struct ContentView: View {
                 }
             ),
             presenting: approvals.pending
-        ) { _ in
+        ) { pending in
             Button("Allow") { approvals.resolve(.allow) }
+            Button("Always Allow “\(pending.use.name)”") { approvals.allowAlways() }
             Button("Deny", role: .destructive) { approvals.resolve(.deny) }
         } message: { pending in
             Text("The assistant wants to run “\(pending.use.name)” with input:\n\n\(prettyInput(pending.use.input))")
