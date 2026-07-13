@@ -2126,14 +2126,26 @@ status: open
 priority: medium
 kind: feature
 labels: effort:s
+depends: 92
 created: 2026-07-13T15:10:34Z
-updated: 2026-07-13T15:11:44Z
+updated: 2026-07-13T15:51:34Z
 +++
 
-The UI should display how many tokens (or what percentage of the context window) remain before compaction is triggered, so users can see how close they are to a compaction event.
+The composer should display how many input tokens have been consumed relative to the compaction threshold (e.g. `12.3k / 100k`), so users see how close they are to a compaction event.
+
+Depends on #92 (compaction strategies count tokens, never messages) landing first, so there's a single, well-defined token budget to display.
+
+Once #92 lands:
+
+- `KeepRecentCompactionStrategy` has a required `triggerAtTokens` — that's the denominator.
+- Progress = `usage.inputTokens / triggerAtTokens`.
+- Extend `CompactionStrategy` with a `compactionProgress(usage:)` hook returning an optional `CompactionProgress` (current, limit). `NoCompactionStrategy` returns nil. `KeepRecentCompactionStrategy` returns the pair above.
+
+Remaining open question: **UI placement.** Suggested default: a small caption chip in `ComposerView`'s actions row, next to the existing token label — hidden when the strategy returns nil so hosts using `NoCompactionStrategy` see nothing.
 
 - `2026-07-13T15:11:44Z`: Related to #7 (compaction landed Jul 12). Depends on the strategy exposing a 'progress toward compaction' signal — currently KeepRecentCompactionStrategy triggers on message count, not tokens, so the UI would need either a token-budget strategy or a strategy-agnostic 'how close am I' hook.
 - `2026-07-13T15:17:32Z`: Punting: the current `KeepRecentCompactionStrategy` triggers on message count, not tokens, so there's no natural 'tokens until compaction' number to show. To resolve this we'd need to (a) extend `CompactionStrategy` with a `progressTowardCompaction(history:usage:)` hook, (b) decide what 'progress' means for a count-based strategy (message count?), and (c) decide where the UI displays it (composer action row? a separate chip?). Those are three API/design decisions that need your call before writing code.
+- `2026-07-13T15:51:34Z`: Reframed: message-count fallback dropped (see #92). The strategy-progress API question is trivial now — only UI placement remains.
 
 ---
 
@@ -2158,6 +2170,7 @@ Scope to define:
 - `2026-07-13T15:19:12Z`: Configuration surface per tool (allowlists, sandbox roots, limits).
 - `2026-07-13T15:19:12Z`: How host apps enable/disable them per session or per conversation.
 - `2026-07-13T15:26:46Z`: Related to #80 (web tool candidate for the built-in tools suite).
+- `2026-07-13T15:42:10Z`: Reviewed. Punting: the issue explicitly leaves three decisions open (which tools ship in the initial set, per-tool config surface for allowlists/sandbox roots/limits, and the host enable/disable UX per session vs. per conversation). These are policy calls I don't want to make unilaterally on an effort:l feature, and picking the wrong shape here has a large blast radius for downstream tools (#80, etc.). Can you decide the initial set (e.g. just read+write scoped to a caller-supplied directory?) and the enable/config API shape? I'd suggest splitting into: (a) a small 'ToolPolicy'/allowlist type in CollaborationKit, (b) one focused issue per tool (read, write, search) so each lands independently.
 
 ---
 
@@ -2274,5 +2287,228 @@ Message count is a poor proxy for context-window pressure: a few long tool_resul
 Switch the default trigger to be token-based (e.g. compact when cumulative or last-turn tokens exceed a configurable threshold), and keep the message-count knob only as a secondary/floor guard if useful. Related: #78 (surfacing tokens/% until compaction).
 
 - `2026-07-13T15:37:31Z`: Added optional triggerAtTokens to KeepRecentCompactionStrategy. When set, compaction runs on cumulative input tokens; minMessagesBeforeCompacting acts as a floor guard. Legacy message-count behavior preserved when nil.
+
+---
+
+## 86: Investigate apple/foundation-models-utilities for reuse in CollaborationKit
+
++++
+status: new
+priority: medium
+kind: task
+created: 2026-07-13T15:46:36Z
++++
+
+Apple published https://github.com/apple/foundation-models-utilities — a set of utilities for the Foundation Models framework.
+
+CollaborationKit already integrates FoundationModels for on-device inference. It's unknown which of these utilities (if any) overlap with, could replace, or could improve our current code (e.g. streaming helpers, tool-calling glue, schema/JSON adapters, prompt scaffolding, session/context management, testing helpers).
+
+Tasks:
+- Audit the repo's public API surface and license.
+- Compare against our current FoundationModels usage in CollaborationKit.
+- Identify concrete adoption opportunities (what to delete, what to wrap, what to depend on).
+- Decide: vendor, depend as SPM package, or copy patterns.
+
+---
+
+## 87: CollaborationKitUI: transcript-row customization hooks (per-tool icon, per-tool result filter)
+
++++
+status: new
+priority: medium
+kind: enhancement
+labels: effort:m, phosphor-adoption
+created: 2026-07-13T15:49:46Z
++++
+
+For Phosphor to drop its hand-rolled ConversationRow, CollaborationKitUI's transcript row needs host-supplied hooks for per-tool presentation.
+
+Phosphor's ConversationRow varies by tool name:
+
+- Icon: 'read'→doc.text, 'edit'→pencil, 'writeConfiguration'→slider.horizontal.3, 'compileShader'→hammer, default 'wrench.and.screwdriver'.
+- resultWorthShowing predicate: hide the body for 'Edit applied.' / 'Compiles cleanly.' noise, but always show it for errors and for 'readConfiguration'/'read'/'compileShader' failures.
+
+CollaborationKitUI's summarizeTool closure already covers the argument summary (per row). We need two more hooks, likely as ConversationStore init params or environment values:
+
+- toolIcon: @Sendable (ToolUse) -> String (SF Symbol name), with a sensible built-in for read/write/edit.
+- shouldShowToolResult: @Sendable (ToolUse, result: String, isError: Bool) -> Bool.
+
+Design decisions:
+- Env values (per-view override) vs. ConversationStore init params (per-store)?
+- Should hosts get the whole ToolUse or just the name?
+
+Blocker for the Phosphor migration umbrella.
+
+---
+
+## 88: CollaborationKitUI: empty-state customization slot for the transcript
+
++++
+status: new
+priority: medium
+kind: enhancement
+labels: effort:s, phosphor-adoption
+created: 2026-07-13T15:49:59Z
++++
+
+For Phosphor to drop its hand-rolled GeneratePanel, CollaborationKitUI's transcript needs a host-supplied empty state.
+
+Phosphor shows two distinct ContentUnavailableView states today:
+
+- No conversation yet: 'Generate a Shader' with a shader-specific hint.
+- Missing credentials: 'Sign in to Generate' with a SettingsLink.
+
+Design options:
+
+- A single .emptyState { … } modifier on CollaborationChatView that takes a @ViewBuilder.
+- Separate slots for 'empty transcript' vs 'not ready to send' (credentials missing, provider not configured).
+- A default built-in view that hosts can accept if they want a generic experience.
+
+Related: composer-status slot (companion issue) and #37 (menu-command hooks).
+
+Child of the Phosphor adoption umbrella.
+
+---
+
+## 89: CollaborationKitUI: composer status/model-info slot above the prompt field
+
++++
+status: new
+priority: medium
+kind: enhancement
+labels: effort:s, phosphor-adoption
+created: 2026-07-13T15:50:08Z
++++
+
+For Phosphor to drop its hand-rolled composer, CollaborationKitUI's composer needs a host-supplied status strip above the prompt field.
+
+Phosphor shows a small caption line above the prompt today:
+
+    cpu  Claude · claude-3-5-sonnet-20241022
+
+That combines: the backend name, the selected model id, and (implicitly) an affordance to change it. It's small, taste-sensitive, and provider-specific — so it doesn't belong in CollaborationKitUI's default composer.
+
+Proposal: expose a slot (@ViewBuilder) on ComposerView / CollaborationChatView that hosts render into the caption row above the prompt. Something like:
+
+    CollaborationChatView(store: store) {
+        // transcript body slot?
+    } composerAccessory: {
+        BackendChip(backend: backend)
+    }
+
+Consider whether this should be one slot or a small set (leading caption / trailing caption / above-prompt / below-prompt).
+
+Related: transcript-row hooks and empty-state slot (companion issues).
+
+Child of the Phosphor adoption umbrella.
+
+---
+
+## 90: Public API surface audit for Phosphor adoption
+
++++
+status: new
+priority: medium
+kind: task
+labels: effort:m, phosphor-adoption, api
+created: 2026-07-13T15:50:17Z
++++
+
+Before Phosphor migrates off its hand-rolled UI/store onto CollaborationKit + CollaborationKitUI, inventory the surface it will consume and make sure everything is public, documented, and stable.
+
+Inputs:
+
+- Walk Phosphor's Support/ConversationStore.swift, Views/GeneratePanel.swift, Views/ExportDebugLogCommand.swift, Support/ConversationExport.swift, and Packages/PhosphorSupport/Sources/PhosphorGeneration/Collaboration/*.
+- For every CollaborationKit / CollaborationKitUI type, method, or property that a replacement version of GeneratePanel would need, confirm it is 'public' with a doc comment.
+
+Deliverable:
+
+- A checklist (one line per symbol) of what's already public/documented vs. what needs to be promoted.
+- A follow-up issue per gap (or a single 'promote to public' PR if the gap is small).
+- A short note on any API shapes that look right today but would be painful for Phosphor to consume (e.g. missing @Sendable, missing default arguments, missing environment plumbing).
+
+Related to the other Phosphor-adoption children — resolving those may add new surface that this audit needs to cover.
+
+Child of the Phosphor adoption umbrella.
+
+---
+
+## 91: Prepare for Phosphor Adoption
+
++++
+status: new
+priority: high
+kind: task
+labels: epic, phosphor-adoption
+depends: 37, 27, 73, 74, 78, 87, 88, 89, 90
+created: 2026-07-13T15:50:39Z
++++
+
+Umbrella tracking the work needed so Phosphor can retire its hand-rolled GeneratePanel / ConversationStore / ExportDebugLogCommand and consume CollaborationKit + CollaborationKitUI directly.
+
+Phosphor today owns a parallel implementation of most of what CollaborationKitUI ships:
+
+- A domain ConversationStore with rollback snapshots, prompt queue, streaming overlay, error overlays, tool timing, and its own transcript projection.
+- A GeneratePanel with a full transcript + composer, empty states, missing-credentials view, model-info chip, attachment strip, and File-menu export wiring.
+- A private ExportDebugLogAction + FocusedValues.exportDebugLog for the File menu.
+
+Most of that has since landed in CollaborationKitUI (ConversationStore, MessageMirror, ExportDebugLogAction, SessionDebugExportModifier, rollback, prompt queue). The remaining gaps are the reason this umbrella exists.
+
+## Children
+
+Existing:
+
+- #37 — CollaborationKitUI: menu-command / focused-scene-value hooks. Phosphor needs a File-menu 'Stop Generation' and 'Roll Back to Previous Turn' in addition to the already-wired exportDebugLog. #26 has landed, so the rollback dependency is no longer a blocker.
+- #27 — CollaborationKitUI: Theme type with environment plumbing. Phosphor renders the chat in an inspector panel and needs it to blend with the shader UI.
+- #73 — Persist conversations across launches. Phosphor is document-based; sessions must survive open/close.
+- #74 — Dragging an image onto the composer text field pastes the file path as text. Bug Phosphor hits today; blocks credible drag-and-drop UX in the migrated composer.
+- #78 — Show tokens/% remaining until compaction. Phosphor already surfaces a raw token count; upgrade path.
+
+New:
+
+- #87 — Transcript-row customization hooks (per-tool icon, per-tool result-worth-showing predicate).
+- #88 — Empty-state customization slot for the transcript.
+- #89 — Composer status/model-info slot above the prompt field.
+- #90 — Public API surface audit for Phosphor adoption.
+
+## Definition of done
+
+- Every child resolved (fixed, or explicitly wontfixed after confirming Phosphor doesn't need it).
+- Phosphor has an experimental branch replacing GeneratePanel with CollaborationChatView (or the equivalent umbrella view) and none of the local hand-rolled types.
+- No behavioral regressions vs. today's GeneratePanel (streaming, rollback, export, attachments, tokens).
+
+## Non-goals
+
+- Phosphor's shader-domain plumbing (ShaderTools, MetalSourceDocument, PhosphorConfigurationSchema) stays in Phosphor.
+- Phosphor's own FocusedValueKey values for shader-domain state (shaderText, shaderTextMutator) stay in Phosphor.
+
+## Notes
+
+- The bulk of the migration is UI-facing; the Core-side APIs Phosphor uses (Message, ImageContent, LLMSession, ToolSpec, ProviderStreamEvent, TokenUsage, RollbackSnapshot) are already stable enough. #90 will confirm.
+
+---
+
+## 92: Compaction strategies must count tokens, never messages
+
++++
+status: new
+priority: high
+kind: enhancement
+labels: effort:s, architecture
+created: 2026-07-13T15:51:25Z
+updated: 2026-07-13T15:51:43Z
++++
+
+Compaction decisions must be driven by token counts reported by the backend (or, in future, a caller-supplied estimator), never by message count. The backend is the only source of truth for context-window pressure — message count is a poor proxy that hides long tool_result blocks and over-triggers on chatty short turns.
+
+Follow-ups (existing callers may break; no external consumers yet):
+
+- Remove `minMessagesBeforeCompacting` from `KeepRecentCompactionStrategy`. Both its roles today (legacy trigger when `triggerAtTokens` is nil, and floor-guard when set) are message-count logic.
+- Make `triggerAtTokens` a required init parameter.
+- Rewrite tests that pass `minMessagesBeforeCompacting: 0` to set `triggerAtTokens` instead.
+- Any new `CompactionStrategy` conformance must derive its trigger from `usage.inputTokens` (provider-reported cumulative input tokens) or an equivalent token-count source. Message count is off the table.
+
+Blocks: #78 (tokens/% until compaction — meaningless without a token-based trigger).
+Follows: #85 (added `triggerAtTokens`; this issue completes the transition).
 
 ---
