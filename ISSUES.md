@@ -1278,3 +1278,66 @@ Scope to explore:
 - Whether `CollaborationKitUI` needs a picker / indicator.
 
 ---
+
+## 50: Swift concurrency review: LLMSession actor reentrancy + smaller fixes
+
++++
+status: new
+priority: high
+kind: task
+labels: effort:s
+created: 2026-07-13T03:38:48Z
++++
+
+Review against the swift-concurrency-pro skill (Swift 6.2, strict concurrency). Ordered by impact.
+
+## Real bugs
+
+### Sources/CollaborationKit/Core/LLMSession.swift
+
+- **Actor reentrancy in `send(_:)`.** Two concurrent `await session.send(...)` calls interleave: each appends its user message, both call `runLoop`, and both loops yield events onto the same `eventContinuation`. Consumers see mixed `.textDelta`s from turn A and turn B and cannot tell them apart. Hosts already serialize (e.g. ConversationStore guards on `isGenerating`), so a well-behaved caller never trips it — but the actor shouldn't rely on that convention.
+
+  Fix: gate with a state flag and throw a new `SessionError.turnAlreadyInProgress` when a second call arrives while another is running.
+
+- **Events stream never finishes.** `eventContinuation` is created in init and never terminated. Any `for await event in session.events` iterates for the process lifetime unless the caller cancels its own iteration Task. `close()` exists but no internal path calls it. Related to #4 (cancellation) but distinct — even a clean, non-cancelled shutdown never terminates the stream.
+
+- **runLoop doesn't check Task.checkCancellation()** — already tracked as #4 (punted). Recording the link here so this review isn't the only place it lives.
+
+## Style / small cleanups
+
+### Sources/CollaborationKit/Core/Retry.swift
+
+- Use `Task.sleep(for: .seconds(delay))` instead of `Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))`. The nanoseconds form is soft-deprecated.
+
+### Sources/CollaborationKit/Anthropic/AnthropicOAuth.swift
+
+- The `_ = http` no-op line in `exchange` is leftover from silencing an unused-binding warning during the retry refactor. Drop the `let http` binding entirely — the status check is sufficient.
+
+## Verified non-issues
+
+- StreamingTransport uses the standard AsyncThrowingStream + `onTermination = task.cancel()` pattern.
+- ConversationStore's sendTask / eventTask capture `[weak self]`, cancel cleanly, and the `defer` cleanup runs on MainActor.
+- TurnTimer (CLI) is a clean actor with no reentrancy risk.
+- FileDocument / InMemoryDocument / CLICredentialStore use `@unchecked Sendable` legitimately (NSLock or documented-thread-safe base).
+- Retry loops respect cancellation via Task.sleep.
+
+---
+
+## 51: Demo: add an edit-note tool to DemoNotes
+
++++
+status: new
+priority: low
+kind: enhancement
+labels: effort:s
+created: 2026-07-13T03:41:23Z
++++
+
+DemoNotes exposes list / search / create / setTag / setColor / delete. There's no way for the assistant to change a note's title or body once created — a create-and-forget model. Add an `edit` tool:
+
+    @CollaborationTool("Edit an existing note's title and/or body. Nil fields leave the value unchanged.")
+    func edit(id: Note.ID, title: String?, body: String?) async throws
+
+Fills in the last obvious CRUD hole and gives the assistant a natural way to iterate on a note without deleting and recreating it (which changes the id and loses any tag/color).
+
+---
