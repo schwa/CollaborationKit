@@ -3,7 +3,7 @@ import ArgumentParser
 @main
 struct Collab: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "collab",
+        commandName: "collab-cli",
         abstract: "Collaborate with Claude on a file using tools.",
         subcommands: [Login.self, Chat.self]
     )

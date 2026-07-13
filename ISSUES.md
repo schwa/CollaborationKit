@@ -242,7 +242,7 @@ Scope:
 - AnthropicWire: encode as an 'image' block (source: { type: base64, media_type, data }).
 - OpenAIWire: encode as 'image_url' parts within the user message content array; the flattening logic must handle multi-part user content.
 - Convenience: a Message.user(text:images:) helper.
-- Optional: collab CLI plumbing to attach image files to a turn.
+- Optional: collab-cli CLI plumbing to attach image files to a turn.
 
 Constraints:
 - Keep Core/ provider-agnostic; no Anthropic/OpenAI specifics leak in.

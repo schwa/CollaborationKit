@@ -20,37 +20,37 @@ set for collaborating on a document (a file on disk or an in-memory string).
   tools (`read`/`write`/`edit`) ship built-in.
 
 Features: streaming text, typed tools, tool-vs-harness error split, token usage
-reporting, subscription OAuth, and a `collab` CLI.
+reporting, subscription OAuth, and a `collab-cli` CLI.
 
 URLSession + async/await. Swift 6, macOS 14+. The library has no external
 SPM dependencies (CryptoKit, a system framework, is used for OAuth PKCE); the
-`collab` CLI uses swift-argument-parser.
+`collab-cli` CLI uses swift-argument-parser.
 
 ## CLI
 
-The `collab` executable wraps the library for quick file collaboration.
+The `collab-cli` executable wraps the library for quick file collaboration.
 
 ```sh
 # Store your Anthropic API key (~/.config/collaborationkit/credentials.json, 0600).
 # Prompts with hidden input, or pass --api-key.
-collab login
+collab-cli login
 
 # Or log in with a Claude subscription via OAuth (paste flow, no local server).
 # Opens a browser; paste back the code#state shown after approving.
-collab login --oauth
+collab-cli login --oauth
 
 # Collaborate on a file. Created if it doesn't exist. read/write/edit tools
 # operate on this path. Type messages; 'exit' to quit.
-collab chat notes.md
-collab chat draft.txt --model claude-sonnet-4-5 --max-tokens 8192
+collab-cli chat notes.md
+collab-cli chat draft.txt --model claude-sonnet-4-5 --max-tokens 8192
 
 # Use a local LM Studio model (no login needed; LM Studio ignores the key).
 # --model is the identifier of the model loaded in LM Studio.
-collab chat notes.md --provider lmstudio --model qwen2.5-coder-7b-instruct
+collab-cli chat notes.md --provider lmstudio --model qwen2.5-coder-7b-instruct
 
 # Any OpenAI-compatible server (OpenAI, Ollama, antirez/ds4, gateways).
-collab chat notes.md --provider openai --model gpt-4o --base-url https://api.openai.com
-collab chat notes.md --provider openai --model deepseek-v4-flash --base-url http://localhost:8080
+collab-cli chat notes.md --provider openai --model gpt-4o --base-url https://api.openai.com
+collab-cli chat notes.md --provider openai --model deepseek-v4-flash --base-url http://localhost:8080
 ```
 
 The CLI prints per-response token usage as `[usage] in: N  out: M`.
@@ -117,7 +117,7 @@ let ds4 = OpenAIProvider(config: OpenAIConfig(
 ))
 
 // Claude via a subscription (OAuth) instead of a billed key.
-let creds = try CredentialStore().oauthCredentials()!   // after `collab login --oauth`
+let creds = try CredentialStore().oauthCredentials()!   // after `collab-cli login --oauth`
 let tokens = OAuthTokenProvider(credentials: creds)      // refreshes automatically
 let claude = AnthropicProvider(config: AnthropicConfig(auth: .oauth(tokens.tokenProvider)))
 ```
@@ -206,7 +206,7 @@ Sources/CollaborationKit/
                OpenAIProvider (+OpenAIStreamAccumulator) — OpenAI/LM Studio/ds4
   FileTools/   TextDocument (+FileDocument/InMemoryDocument), read/write/edit
   Credentials.swift   on-disk API key + OAuth store
-Sources/collab/        Collab (entry), Login (+--oauth), Chat (--provider/--base-url)
+Sources/collab-cli/    Collab (entry), Login (+--oauth), Chat (--provider/--base-url)
 Tests/CollaborationKitTests/
 ```
 

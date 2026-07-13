@@ -8,7 +8,7 @@ let package = Package(
     ],
     products: [
         .library(name: "CollaborationKit", targets: ["CollaborationKit"]),
-        .executable(name: "collab", targets: ["collab"])
+        .executable(name: "collab-cli", targets: ["collab-cli"])
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.3.0")
@@ -21,7 +21,7 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "collab",
+            name: "collab-cli",
             dependencies: [
                 "CollaborationKit",
                 .product(name: "ArgumentParser", package: "swift-argument-parser")

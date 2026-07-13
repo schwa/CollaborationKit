@@ -4,7 +4,7 @@ import Foundation
 
 struct Login: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        abstract: "Store credentials for `collab chat` (API key or Claude subscription OAuth)."
+        abstract: "Store credentials for `collab-cli chat` (API key or Claude subscription OAuth)."
     )
 
     @Flag(name: .long, help: "Log in with a Claude subscription via OAuth (paste flow).")

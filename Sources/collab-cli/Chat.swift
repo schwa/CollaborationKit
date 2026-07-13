@@ -126,7 +126,7 @@ struct Chat: AsyncParsableCommand {
             } else if let apiKey = try store.apiKey() {
                 auth = .apiKey(apiKey)
             } else {
-                throw ValidationError("No credentials found. Run `collab login` or `collab login --oauth` first.")
+                throw ValidationError("No credentials found. Run `collab-cli login` or `collab-cli login --oauth` first.")
             }
             var config = AnthropicConfig(
                 auth: auth,
@@ -158,7 +158,7 @@ struct Chat: AsyncParsableCommand {
 
     private func requireStoredKey() throws -> String {
         guard let apiKey = try CredentialStore().apiKey() else {
-            throw ValidationError("No API key found. Run `collab login` first.")
+            throw ValidationError("No API key found. Run `collab-cli login` first.")
         }
         return apiKey
     }
