@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 import CollaborationKit
 import CollaborationKitUI
 
@@ -10,8 +9,6 @@ struct ContentView: View {
     @State private var buildError: String?
     @State private var showAssistant: Bool = true
     @State private var editing: EditingNote?
-    @State private var exportDocument: SessionExportDocument?
-    @State private var isExporting = false
 
     private struct EditingNote: Identifiable {
         let id: Note.ID
@@ -39,23 +36,17 @@ struct ContentView: View {
             } label: {
                 Label("Assistant", systemImage: "bubble.left.and.text.bubble.right")
             }
-            Button {
-                guard let store else { return }
-                let export = store.buildExport(model: credentials.selectedModel)
-                exportDocument = SessionExportDocument(export: export)
-                isExporting = true
-            } label: {
-                Label("Export Log", systemImage: "square.and.arrow.up")
+            if let store {
+                ShareLink(
+                    item: SessionExportPayload(
+                        export: store.buildExport(model: credentials.selectedModel),
+                        suggestedFileName: "CollaborationDemo-\(Int(Date().timeIntervalSince1970)).json"
+                    ),
+                    preview: SharePreview("Session Log", image: Image(systemName: "doc.text"))
+                ) {
+                    Label("Export Log", systemImage: "square.and.arrow.up")
+                }
             }
-            .disabled(store == nil)
-        }
-        .fileExporter(
-            isPresented: $isExporting,
-            document: exportDocument,
-            contentType: .json,
-            defaultFilename: "CollaborationDemo-\(Date().timeIntervalSince1970).json"
-        ) { _ in
-            exportDocument = nil
         }
         .sheet(item: $editing) { editing in
             if let index = notes.notes.firstIndex(where: { $0.id == editing.id }) {
