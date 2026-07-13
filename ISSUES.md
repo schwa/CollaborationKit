@@ -2978,3 +2978,71 @@ When the model emits multiple tool calls in one assistant turn, the demo tabs (n
 Related: #106 (parallel tool dispatch), #111 (opt-in defaults).
 
 ---
+
+## 113: SessionExport.system field is always nil — no way to include the session's system prompt in a debug export
+
++++
+status: closed
+priority: medium
+kind: bug
+labels: effort:s
+created: 2026-07-13T17:45:10Z
+updated: 2026-07-13T17:53:31Z
+closed: 2026-07-13T17:53:31Z
++++
+
+`SessionExport` declares a `public var system: String?` field (intended to hold the system prompt used for the session, so exported debug bundles record *what the model was told* alongside the transcript). The initializer takes it as a parameter.
+
+But `ConversationStore.buildExport(model:userInfo:)` hard-codes `system: nil`, and `LLMSession.system` is `private let` with no public accessor. So there is no supported way for a host to populate the field — it is effectively dead.
+
+## Impact
+
+Debug exports are missing the single most important piece of context for reproducing model behavior: the instructions that produced it. Hosts like Phosphor have to keep their own parallel export type (with an `instructions` field) to work around this.
+
+## Repro
+
+```swift
+let session = LLMSession(provider: p, system: "You are a helpful assistant.", tools: [])
+let store = ConversationStore(session: session)
+let export = store.buildExport()
+print(export.system) // nil, always
+```
+
+## Options (per user, not prescriptive)
+
+- `2026-07-13T17:45:10Z`: Expose `LLMSession.system` as `public var` (or `public var systemPrompt: String? { get }`) and have `buildExport` read it.
+- `2026-07-13T17:45:10Z`: Or accept `system:` as a parameter on `buildExport(model:system:userInfo:)`.
+- `2026-07-13T17:45:10Z`: Or drop the field entirely if it is intentionally not tracked.
+- `2026-07-13T17:53:31Z`: Fixed in dc20fb18.
+
+---
+
+## 114: Backend.openAI has no way to disable parallel tool calls without rebuilding the whole Backend value
+
++++
+status: closed
+priority: low
+kind: enhancement
+labels: effort:s
+created: 2026-07-13T17:45:21Z
+updated: 2026-07-13T17:53:31Z
+closed: 2026-07-13T17:53:31Z
++++
+
+`OpenAIConfig` supports `parallelToolCalls: Bool?` (defaulting to `nil` → server default, which is `true`). But the built-in `Backend.openAI` static value constructs its `OpenAIConfig` inline and never passes the flag through, so there's no way for a host to opt out of parallel tool calls while still using the built-in backend.
+
+Hosts building agentic loops (read → edit → compile, plan → act → verify, etc.) generally need sequential tool calls: a parallel model may issue a blind edit alongside a config write before it has seen the current state. The only workaround today is to copy the entire `Backend.openAI` value literal into the host and flip the one flag — a lot of surface area to duplicate for one line of config, and it drifts as CK updates the built-in.
+
+## Impact
+
+Any host wiring `Backend.openAI` into an agentic loop has to either accept parallel tool calls (potentially incorrect for its workflow) or fork the built-in backend.
+
+## Options (per user, not prescriptive)
+
+- Add a `Backend.openAI(parallelToolCalls: Bool? = nil)` factory alongside the existing static value.
+- Expose an `OpenAIConfig` customization hook on the built-in backends (a `configure: (inout OpenAIConfig) -> Void` closure passed through `makeProvider`).
+- Or document the recommended fork pattern so hosts know what they're signing up for.
+
+- `2026-07-13T17:53:31Z`: Fixed in dc20fb18.
+
+---
