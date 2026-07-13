@@ -1981,3 +1981,16 @@ The send/queue arrow only appears while generating if the user has typed somethi
 Introduced by #64 (queue prompts while assistant responding).
 
 ---
+
+## 76: Tap attachment to view it
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T14:44:13Z
++++
+
+In the chat UI, tapping an attachment should open/preview it. Currently there's no way to view an attachment after it's been sent.
+
+---
