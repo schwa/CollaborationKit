@@ -27,13 +27,13 @@ public struct Backend: Sendable, Identifiable, Hashable {
 
     /// Returns `true` if the store has usable credentials for this backend.
     ///
-    /// Transient Keychain failures should be treated as "not present" so a
+    /// Transient store failures should be treated as "not present" so a
     /// caller never falsely reports "signed in" when the item can't be read.
-    public let hasCredentials: @Sendable (KeychainCredentialStore) -> Bool
+    public let hasCredentials: @Sendable (any CredentialStore) -> Bool
 
     /// Builds a ``ModelProvider`` from the store, model id, and max-token
     /// budget. Throws when credentials are missing or unreadable.
-    public let makeProvider: @Sendable (KeychainCredentialStore, String, Int) throws -> any ModelProvider
+    public let makeProvider: @Sendable (any CredentialStore, String, Int) throws -> any ModelProvider
 
     /// Whether a model id is worth showing in the picker. Called with
     /// lowercased ids; drop non-chat families (embeddings, audio…) here.
@@ -43,8 +43,8 @@ public struct Backend: Sendable, Identifiable, Hashable {
         id: String,
         displayName: String,
         defaultModel: String,
-        hasCredentials: @escaping @Sendable (KeychainCredentialStore) -> Bool,
-        makeProvider: @escaping @Sendable (KeychainCredentialStore, String, Int) throws -> any ModelProvider,
+        hasCredentials: @escaping @Sendable (any CredentialStore) -> Bool,
+        makeProvider: @escaping @Sendable (any CredentialStore, String, Int) throws -> any ModelProvider,
         modelFilter: @escaping @Sendable (String) -> Bool
     ) {
         self.id = id
@@ -81,7 +81,7 @@ extension Backend {
             guard store.anthropicOAuthCredentials() != nil else {
                 throw CollaborationCredentialsError.missingCredentials(id: "claudeSubscription", displayName: "Claude Subscription")
             }
-            let tokenProvider = store.anthropicOAuthTokenProvider()
+            let tokenProvider = anthropicOAuthTokenProvider(store: store)
             let auth = AnthropicAuth.oauth { try await tokenProvider() }
             return AnthropicProvider(config: AnthropicConfig(auth: auth, model: model, maxTokens: maxTokens))
         },
@@ -150,7 +150,7 @@ extension Backend {
     }
 
     static func readAPIKey(
-        _ result: KeychainReadResult,
+        _ result: CredentialReadResult,
         id: String,
         displayName: String
     ) throws -> String {
@@ -183,7 +183,7 @@ public enum CollaborationCredentialsError: Error, LocalizedError, Sendable {
         case .missingCredentials(_, let displayName):
             return "No credentials for \(displayName). Add an API key (or sign in) in Settings."
         case .keychainReadFailed(let status):
-            return "Couldn't read the credential from the Keychain: \(KeychainReadResult.message(for: status)) (status \(status))."
+            return "Couldn't read the credential from the Keychain: \(CredentialReadResult.message(for: status)) (status \(status))."
         }
     }
 }

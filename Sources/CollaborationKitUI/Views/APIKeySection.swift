@@ -13,8 +13,8 @@ public struct APIKeySection<Footer: View>: View {
 
     public let title: LocalizedStringKey
     public let placeholder: LocalizedStringKey
-    let read: (KeychainCredentialStore) -> KeychainReadResult
-    let write: (KeychainCredentialStore, String) -> Bool
+    let read: (any CredentialStore) -> CredentialReadResult
+    let write: (any CredentialStore, String) -> Bool
     @ViewBuilder let footer: () -> Footer
 
     @State private var key: String = ""
@@ -25,8 +25,8 @@ public struct APIKeySection<Footer: View>: View {
     public init(
         title: LocalizedStringKey,
         placeholder: LocalizedStringKey,
-        read: @escaping (KeychainCredentialStore) -> KeychainReadResult,
-        write: @escaping (KeychainCredentialStore, String) -> Bool,
+        read: @escaping (any CredentialStore) -> CredentialReadResult,
+        write: @escaping (any CredentialStore, String) -> Bool,
         @ViewBuilder footer: @escaping () -> Footer = { EmptyView() }
     ) {
         self.title = title
@@ -80,7 +80,7 @@ public struct APIKeySection<Footer: View>: View {
             key = ""
             readError = nil
         case .failed(let status):
-            readError = "Couldn't read the saved key (\(KeychainReadResult.message(for: status))). Try reopening Settings."
+            readError = "Couldn't read the saved key (\(CredentialReadResult.message(for: status))). Try reopening Settings."
         }
     }
 

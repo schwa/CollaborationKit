@@ -1572,11 +1572,13 @@ Related: #9 covers the encode half only. This issue is the superset.
 ## 57: Backend/Credentials/Keychain layering only supports the concrete Keychain store
 
 +++
-status: new
+status: closed
 priority: low
 kind: task
 labels: architecture, effort:l
 created: 2026-07-13T04:20:57Z
+updated: 2026-07-13T04:52:39Z
+closed: 2026-07-13T04:52:39Z
 +++
 
 The credentials layer is spread across three modules that all cross each other's boundaries:

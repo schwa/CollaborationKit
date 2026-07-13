@@ -61,6 +61,60 @@ struct BackendTests {
         #expect(!custom.modelFilter("gpt-4o"))
     }
 
+    // MARK: - hasCredentials against an in-memory store
+
+    @Test
+    func anthropicAPIBackendReportsCredentialsWhenKeyStored() {
+        let store = InMemoryCredentialStore(anthropicAPIKey: "sk-ant-test")
+        #expect(Backend.anthropicAPI.hasCredentials(store))
+        #expect(!Backend.openAI.hasCredentials(store))
+        #expect(!Backend.claudeSubscription.hasCredentials(store))
+    }
+
+    @Test
+    func openAIBackendReportsCredentialsWhenKeyStored() {
+        let store = InMemoryCredentialStore(openAIAPIKey: "sk-openai-test")
+        #expect(Backend.openAI.hasCredentials(store))
+        #expect(!Backend.anthropicAPI.hasCredentials(store))
+    }
+
+    @Test
+    func claudeSubscriptionBackendReportsCredentialsWhenOAuthStored() {
+        let creds = OAuthCredentials(
+            access: "at",
+            refresh: "rt",
+            expires: Date().addingTimeInterval(3_600)
+        )
+        let store = InMemoryCredentialStore(anthropicOAuth: creds)
+        #expect(Backend.claudeSubscription.hasCredentials(store))
+    }
+
+    @Test
+    func emptyStoreReportsNoCredentialsForAnyBackend() {
+        let store = InMemoryCredentialStore()
+        for backend in Backend.allBuiltin {
+            #expect(!backend.hasCredentials(store), "\(backend.id) should not report credentials on an empty store")
+        }
+    }
+
+    // MARK: - makeProvider surfaces missingCredentials
+
+    @Test
+    func makeProviderThrowsMissingCredentialsForEmptyStore() {
+        let store = InMemoryCredentialStore()
+        for backend in Backend.allBuiltin {
+            #expect(throws: CollaborationCredentialsError.self) {
+                _ = try backend.makeProvider(store, backend.defaultModel, 1_024)
+            }
+        }
+    }
+
+    @Test
+    func makeProviderBuildsForAnthropicAPIWithStoredKey() throws {
+        let store = InMemoryCredentialStore(anthropicAPIKey: "sk-ant-test")
+        _ = try Backend.anthropicAPI.makeProvider(store, Backend.anthropicAPI.defaultModel, 1_024)
+    }
+
     // MARK: - Error carries backend metadata
 
     @Test

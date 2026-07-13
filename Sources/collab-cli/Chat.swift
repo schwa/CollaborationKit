@@ -123,7 +123,7 @@ struct Chat: AsyncParsableCommand {
             let store = CLICredentialStore()
             let auth: AnthropicAuth
             if store.oauthCredentials() != nil {
-                let tokenProvider = store.anthropicOAuthTokenProvider()
+                let tokenProvider = anthropicOAuthTokenProvider(store: store)
                 auth = .oauth { try await tokenProvider() }
             } else if let apiKey = store.apiKey() {
                 auth = .apiKey(apiKey)

@@ -3,11 +3,11 @@ import Observation
 import SwiftUI
 import CollaborationKit
 
-/// Observable wrapper around a ``KeychainCredentialStore`` plus the currently
+/// Observable wrapper around a ``CredentialStore`` plus the currently
 /// selected ``Backend``.
 ///
 /// Inject this into the SwiftUI environment; the credential views and any
-/// host UI that shows "signed in?" state read it directly. The Keychain
+/// host UI that shows "signed in?" state read it directly. The store
 /// remains the source of truth — this type caches the derived flags and
 /// re-reads them on ``refresh()`` after any mutation.
 ///
@@ -25,7 +25,11 @@ import CollaborationKit
 @MainActor
 public final class CollaborationCredentials {
     /// The store credentials are read from and written to.
-    public let store: KeychainCredentialStore
+    ///
+    /// Defaults to a ``KeychainCredentialStore``, but any ``CredentialStore``
+    /// works — tests use ``InMemoryCredentialStore``, and hosts can plug in
+    /// their own persistence.
+    public let store: any CredentialStore
 
     /// The backends this credentials model knows about — the source of truth
     /// for pickers, model persistence keys, and provider construction.
@@ -61,7 +65,8 @@ public final class CollaborationCredentials {
     /// Creates a credentials model.
     ///
     /// - Parameters:
-    ///   - store: The Keychain store credentials are read from and written to.
+    ///   - store: The credential store credentials are read from and written
+    ///     to. Defaults to a ``KeychainCredentialStore``.
     ///   - backends: The backends the host wants to expose. Defaults to
     ///     ``Backend/allBuiltin``.
     ///   - initialBackend: The backend to select before ``UserDefaults`` is
@@ -70,7 +75,7 @@ public final class CollaborationCredentials {
     ///   - defaultsKey: When non-`nil`, the selected backend id is persisted
     ///     to `UserDefaults` under this key and restored on init.
     public init(
-        store: KeychainCredentialStore = KeychainCredentialStore(),
+        store: any CredentialStore = KeychainCredentialStore(),
         backends: [Backend] = Backend.allBuiltin,
         initialBackend: Backend? = nil,
         defaultsKey: String? = "collaborationkit.backend"

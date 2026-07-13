@@ -3,23 +3,22 @@ import os
 import Security
 import CollaborationKit
 
-/// A Keychain-backed store for CollaborationKit credentials.
+/// A Keychain-backed ``CredentialStore`` for CollaborationKit credentials.
 ///
-/// This is the default persistence CollaborationKitUI uses, in preference to
-/// the file-based ``CollaborationKit/CredentialStore``. Values are stored as
-/// generic passwords under a caller-configurable service string, so a host
+/// This is the default persistence CollaborationKitUI uses. Values are stored
+/// as generic passwords under a caller-configurable service string, so a host
 /// application can partition its Keychain namespace from other tools that also
 /// use CollaborationKit.
 ///
-/// Three slots are exposed as first-class API:
+/// Three named slots satisfy the ``CredentialStore`` protocol:
 ///
 /// - Anthropic API key
 /// - Anthropic subscription OAuth credentials (JSON-encoded ``OAuthCredentials``)
 /// - OpenAI API key
 ///
-/// Additional slots can be read/written through ``read(account:)`` /
+/// Additional slots can be read/written through ``readResult(account:)`` /
 /// ``write(_:account:)``.
-public struct KeychainCredentialStore: Sendable {
+public struct KeychainCredentialStore: CredentialStore, Sendable {
     /// The Keychain `kSecAttrService` string. Defaults to
     /// `"io.collaborationkit.credentials"`; override to partition per app.
     public let service: String
@@ -41,7 +40,7 @@ public struct KeychainCredentialStore: Sendable {
     }
 
     /// Reads the Anthropic API key.
-    public func anthropicAPIKey() -> KeychainReadResult {
+    public func anthropicAPIKey() -> CredentialReadResult {
         readResult(account: Account.anthropicAPIKey)
     }
 
@@ -58,7 +57,7 @@ public struct KeychainCredentialStore: Sendable {
     }
 
     /// Reads the OpenAI API key.
-    public func openAIAPIKey() -> KeychainReadResult {
+    public func openAIAPIKey() -> CredentialReadResult {
         readResult(account: Account.openAIAPIKey)
     }
 
@@ -104,44 +103,12 @@ public struct KeychainCredentialStore: Sendable {
         delete(account: Account.anthropicOAuth)
     }
 
-    /// A `@Sendable` access-token provider suitable for
-    /// ``AnthropicAuth/oauth(_:)``.
-    ///
-    /// On each call it reads the stored credentials, refreshes them via
-    /// ``AnthropicOAuth`` if the access token has expired, and re-persists the
-    /// refreshed credentials to this store. Throws
-    /// ``KeychainCredentialStore/NotAuthenticated`` if no credentials are
-    /// stored.
-    public func anthropicOAuthTokenProvider(
-        oauth: AnthropicOAuth = AnthropicOAuth()
-    ) -> @Sendable () async throws -> String {
-        let store = self
-        return {
-            guard let credentials = store.anthropicOAuthCredentials() else {
-                throw NotAuthenticated()
-            }
-            guard credentials.isExpired() else {
-                return credentials.access
-            }
-            let refreshed = try await oauth.refresh(credentials)
-            store.saveAnthropicOAuthCredentials(refreshed)
-            return refreshed.access
-        }
-    }
-
-    /// Thrown by ``anthropicOAuthTokenProvider(oauth:)`` when no credentials
-    /// are stored (the user was signed out between requests).
-    public struct NotAuthenticated: Error, LocalizedError, Sendable {
-        public init() {}
-        public var errorDescription: String? { "No Claude subscription credentials are stored." }
-    }
-
     // MARK: - Raw read/write (any account)
 
     /// Reads a raw value from the Keychain.
     ///
     /// Prefer the named-slot accessors above; use this for custom slots.
-    public func readResult(account: String) -> KeychainReadResult {
+    public func readResult(account: String) -> CredentialReadResult {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
