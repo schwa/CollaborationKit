@@ -356,6 +356,8 @@ Design work: pick one of
 
 Related: RFC 0002 (CollaborationKitUI).
 
+- `2026-07-13T02:10:52Z`: Punt from autonomous run: this is a design decision, not an implementation task. Issue itself lists three viable directions (common protocol; deprecate file store; formalize split) with different trade-offs for CLI vs UI vs host use cases. Autonomous run isn't comfortable picking a direction unilaterally — needs a product call on which option to pursue. In the meantime the two stores co-exist fine and every credential UI path today goes through the Keychain one.
+
 ---
 
 ## 16: RFC 0003: FoundationModels bridge for @Generable types and cross-backend tool reuse
@@ -533,9 +535,9 @@ closed: 2026-07-13T02:10:29Z
 Slice 1 tests exercise the macro through its runtime output (collaborationTools, call, LLMSession loop). There are no assertions against the actual expanded source, so regressions in codegen shape are only caught indirectly.
 
 Missing per RFC 0003 open question 7:
-- Add SwiftSyntaxMacrosTestSupport-based expansion tests for CollaborationToolsMacro covering: empty type, single method, all supported parameter kinds, async/throws/actor call sites, and diagnostic-emitting cases (non-type target, unsupported parameter type).
-- Keep the runtime tests too; the two catch different bugs.
 
+- `2026-07-13T01:03:17Z`: Add SwiftSyntaxMacrosTestSupport-based expansion tests for CollaborationToolsMacro covering: empty type, single method, all supported parameter kinds, async/throws/actor call sites, and diagnostic-emitting cases (non-type target, unsupported parameter type).
+- `2026-07-13T01:03:17Z`: Keep the runtime tests too; the two catch different bugs.
 - `2026-07-13T02:10:29Z`: Landed 7 expansion tests using SwiftSyntaxMacrosTestSupport (via XCTest since assertMacroExpansion requires it): empty type, single method, actor await, throws, void return, custom-type parameter through the escape hatch, and diagnostic on unsupported metatype parameter. Runtime tests kept as-is — the two catch different bugs.
 
 ---
