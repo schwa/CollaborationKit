@@ -1326,11 +1326,13 @@ Review against the swift-concurrency-pro skill (Swift 6.2, strict concurrency). 
 ## 51: Demo: add an edit-note tool to DemoNotes
 
 +++
-status: new
+status: closed
 priority: low
 kind: enhancement
 labels: effort:s
 created: 2026-07-13T03:41:23Z
+updated: 2026-07-13T03:43:37Z
+closed: 2026-07-13T03:43:37Z
 +++
 
 DemoNotes exposes list / search / create / setTag / setColor / delete. There's no way for the assistant to change a note's title or body once created — a create-and-forget model. Add an `edit` tool:
@@ -1339,5 +1341,7 @@ DemoNotes exposes list / search / create / setTag / setColor / delete. There's n
     func edit(id: Note.ID, title: String?, body: String?) async throws
 
 Fills in the last obvious CRUD hole and gives the assistant a natural way to iterate on a note without deleting and recreating it (which changes the id and loses any tag/color).
+
+- `2026-07-13T03:43:37Z`: Landed. New DemoNotes tool: `edit(id: Note.ID, title: String?, body: String?)`, nil fields leave the value unchanged. Uses the same `mutate` helper as setTag/setColor. System prompt updated to list edit alongside the other tools.
 
 ---

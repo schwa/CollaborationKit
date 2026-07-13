@@ -57,6 +57,14 @@ final class DemoNotes {
         }
     }
 
+    @CollaborationTool("Edit an existing note. Nil fields leave the value unchanged.")
+    func edit(id: Note.ID, title: String?, body: String?) async throws {
+        try mutate(id) { note in
+            if let title { note.title = title }
+            if let body { note.body = body }
+        }
+    }
+
     @CollaborationTool("Set or clear a note's tag. Pass null to clear.")
     func setTag(id: Note.ID, tag: Tag?) async throws {
         try mutate(id) { $0.tag = tag }

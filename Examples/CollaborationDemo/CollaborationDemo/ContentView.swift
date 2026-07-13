@@ -80,7 +80,7 @@ struct ContentView: View {
                 system: """
                 You help the user manage a small list of notes. Notes have a title, body, optional tag \
                 (idea, todo, question, journal, follow-up), and optional color (red, orange, yellow, green, \
-                blue, purple, pink). Use the list, search, create, setTag, setColor, and delete tools. \
+                blue, purple, pink). Use the list, search, create, edit, setTag, setColor, and delete tools. \
                 Prefer setTag and setColor to make notes visually distinct when it helps the user scan them.
                 """,
                 tools: notes.collaborationTools
