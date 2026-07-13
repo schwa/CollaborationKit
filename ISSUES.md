@@ -7,15 +7,18 @@ File format: <https://github.com/schwa/issues-format>
 ## 1: Add live transport tests with a mock URLProtocol
 
 +++
-status: open
+status: closed
 priority: medium
 kind: task
 labels: testing, effort:m
 created: 2026-06-23T23:13:55Z
-updated: 2026-07-13T15:13:14Z
+updated: 2026-07-13T15:22:22Z
+closed: 2026-07-13T15:22:22Z
 +++
 
 All provider tests are parser-level (StreamAccumulator / OpenAIStreamAccumulator). Nothing exercises AnthropicProvider/OpenAIProvider end-to-end over a real URLSession. Add a MockURLProtocol that feeds canned SSE byte streams through the actual providers to verify: request construction (auth headers, anthropic-beta/user-agent for OAuth, x-api-key vs Bearer), HTTP status handling (non-2xx -> httpError with body), and partial-line SSE buffering. Largest gap: the networking layer is unproven by tests, only manually verified against LM Studio and Anthropic.
+
+- `2026-07-13T15:22:22Z`: Added ProviderTransportTests exercising AnthropicProvider (api-key + OAuth headers, non-2xx → AnthropicError.httpError, models GET) and OpenAIProvider (Bearer + JSON headers, non-2xx → OpenAIError.httpError, models GET) end-to-end through StreamingTransport with a URLProtocol stub.
 
 ---
 
