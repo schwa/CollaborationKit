@@ -1757,12 +1757,13 @@ Instead, allow typing at any time and queue up prompts. When the current turn fi
 ## 65: Empty-conversation placeholder shows hard-coded instructions that don't match most apps
 
 +++
-status: open
+status: closed
 priority: high
 kind: enhancement
 labels: effort:s
 created: 2026-07-13T05:44:57Z
-updated: 2026-07-13T06:21:34Z
+updated: 2026-07-13T06:25:46Z
+closed: 2026-07-13T06:25:46Z
 +++
 
 The empty-conversation placeholder view renders a fixed instructional string. It's baked into CollaborationKit rather than provided by the host app, so it's wrong for the ~99% of integrations whose UI, tools, and workflow don't match what the placeholder describes.

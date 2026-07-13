@@ -14,12 +14,31 @@ public struct TranscriptView: View {
     /// Optional per-tool icon lookup forwarded to ``ConversationRowView``.
     public let iconForTool: (String) -> String
 
+    /// Host-provided view shown when the transcript is empty and no turn is
+    /// in flight. When `nil`, a generic "Start the conversation" placeholder
+    /// is used. Hosts should override this to describe what their assistant
+    /// can actually do — the default text is intentionally minimal because
+    /// the built-in view has no way of knowing the host's tools or workflow.
+    public let emptyPlaceholder: (() -> AnyView)?
+
     public init(
         store: ConversationStore,
         iconForTool: @escaping (String) -> String = ConversationRowView.defaultIcon(for:)
     ) {
         self.store = store
         self.iconForTool = iconForTool
+        self.emptyPlaceholder = nil
+    }
+
+    /// Creates a transcript with a custom empty-state placeholder.
+    public init<Placeholder: View>(
+        store: ConversationStore,
+        iconForTool: @escaping (String) -> String = ConversationRowView.defaultIcon(for:),
+        @ViewBuilder emptyPlaceholder: @escaping () -> Placeholder
+    ) {
+        self.store = store
+        self.iconForTool = iconForTool
+        self.emptyPlaceholder = { AnyView(emptyPlaceholder()) }
     }
 
     private static let bottomID = "collaborationkit.transcript.bottom"
@@ -83,10 +102,14 @@ public struct TranscriptView: View {
 
     @ViewBuilder private var emptyState: some View {
         if store.isEmpty, !store.isGenerating {
-            ContentUnavailableView {
-                Label("Start the Conversation", systemImage: "sparkles")
-            } description: {
-                Text("Type a message below. The assistant can read, write, and edit files through tools.")
+            if let emptyPlaceholder {
+                emptyPlaceholder()
+            } else {
+                ContentUnavailableView {
+                    Label("Start the Conversation", systemImage: "sparkles")
+                } description: {
+                    Text("Type a message below to get started.")
+                }
             }
         }
     }
