@@ -54,6 +54,17 @@ public struct NoCompactionStrategy: CompactionStrategy {
 /// it up to the next user message — this matches how the session appends
 /// messages, and it means dropping whole turns preserves the alternating
 /// shape the providers expect.
+///
+/// ## Triggering
+///
+/// By default the strategy triggers on message count
+/// (`minMessagesBeforeCompacting`). Message count is a poor proxy for
+/// context-window pressure — a few long tool_result blocks can blow the
+/// window while many short turns stay well within it. Set
+/// `triggerAtTokens` to switch to a token-based trigger driven by the
+/// session's cumulative input-token usage; `minMessagesBeforeCompacting`
+/// then acts as a floor guard so tiny histories aren't churned even after
+/// the token threshold is crossed.
 public struct KeepRecentCompactionStrategy: CompactionStrategy {
     /// The number of trailing turns to keep. Must be at least one.
     public let keepLastTurns: Int
@@ -67,22 +78,45 @@ public struct KeepRecentCompactionStrategy: CompactionStrategy {
     /// churning the history on short conversations. Defaults to the same
     /// number of messages the strategy would leave behind after a trim,
     /// so compaction is a no-op until it would actually shorten anything.
+    ///
+    /// When ``triggerAtTokens`` is set, this acts as a floor guard rather
+    /// than the primary trigger.
     public let minMessagesBeforeCompacting: Int
+
+    /// When set, compaction runs once the session's cumulative input
+    /// tokens (as reported by the provider across all completed turns)
+    /// reach or exceed this value. Nil preserves the legacy
+    /// message-count-only behavior.
+    ///
+    /// Pick a threshold that leaves enough headroom for the next round-
+    /// trip below the model's context window — e.g. 70–80% of the window.
+    public let triggerAtTokens: Int?
 
     public init(
         keepLastTurns: Int,
         keepFirstUserMessage: Bool = false,
-        minMessagesBeforeCompacting: Int? = nil
+        minMessagesBeforeCompacting: Int? = nil,
+        triggerAtTokens: Int? = nil
     ) {
         precondition(keepLastTurns >= 1, "keepLastTurns must be >= 1")
+        if let triggerAtTokens {
+            precondition(triggerAtTokens > 0, "triggerAtTokens must be > 0")
+        }
         self.keepLastTurns = keepLastTurns
         self.keepFirstUserMessage = keepFirstUserMessage
         // Rough lower bound: at least `keepLastTurns * 2` messages before
         // there's anything worth dropping.
         self.minMessagesBeforeCompacting = minMessagesBeforeCompacting ?? (keepLastTurns * 2)
+        self.triggerAtTokens = triggerAtTokens
     }
 
-    public func compact(history: [Message], usage _: TokenUsage) async -> [Message] {
+    public func compact(history: [Message], usage: TokenUsage) async -> [Message] {
+        // Token-based trigger takes priority when configured. The message
+        // count still acts as a floor guard so we don't thrash a tiny
+        // history the moment usage crosses the threshold.
+        if let triggerAtTokens {
+            guard usage.inputTokens >= triggerAtTokens else { return history }
+        }
         guard history.count > minMessagesBeforeCompacting else { return history }
 
         let turns = Self.groupIntoTurns(history)

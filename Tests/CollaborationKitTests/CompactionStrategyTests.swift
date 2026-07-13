@@ -50,6 +50,72 @@ struct CompactionStrategyTests {
         #expect(out.last?.role == .assistant)
     }
 
+    @Test("KeepRecentCompactionStrategy with triggerAtTokens is a no-op below the threshold")
+    func keepRecentTokenTriggerBelowThresholdIsNoOp() async {
+        // Four full turns — message-count check would fire, but the
+        // token trigger should suppress compaction because usage is
+        // below the threshold.
+        let history: [Message] = [
+            .user("t1"), .assistant("r1"),
+            .user("t2"), .assistant("r2"),
+            .user("t3"), .assistant("r3"),
+            .user("t4"), .assistant("r4")
+        ]
+        let strategy = KeepRecentCompactionStrategy(
+            keepLastTurns: 2,
+            minMessagesBeforeCompacting: 0,
+            triggerAtTokens: 1_000
+        )
+        let out = await strategy.compact(
+            history: history,
+            usage: TokenUsage(inputTokens: 500)
+        )
+        #expect(out == history)
+    }
+
+    @Test("KeepRecentCompactionStrategy with triggerAtTokens compacts at or above the threshold")
+    func keepRecentTokenTriggerAtThresholdCompacts() async {
+        let history: [Message] = [
+            .user("t1"), .assistant("r1"),
+            .user("t2"), .assistant("r2"),
+            .user("t3"), .assistant("r3"),
+            .user("t4"), .assistant("r4")
+        ]
+        let strategy = KeepRecentCompactionStrategy(
+            keepLastTurns: 2,
+            minMessagesBeforeCompacting: 0,
+            triggerAtTokens: 1_000
+        )
+        let out = await strategy.compact(
+            history: history,
+            usage: TokenUsage(inputTokens: 1_000)
+        )
+        #expect(out.count == 4)
+        if case .text(let firstText) = out.first?.content.first ?? .text("") {
+            #expect(firstText == "t3")
+        } else {
+            Issue.record("expected first kept message to be a user text block")
+        }
+    }
+
+    @Test("KeepRecentCompactionStrategy honors minMessagesBeforeCompacting as a floor guard when token trigger fires")
+    func keepRecentTokenTriggerRespectsMessageFloor() async {
+        // Only two messages; even though the token trigger fires, the
+        // floor guard should suppress compaction because there's
+        // nothing worth trimming.
+        let history: [Message] = [.user("t1"), .assistant("r1")]
+        let strategy = KeepRecentCompactionStrategy(
+            keepLastTurns: 1,
+            minMessagesBeforeCompacting: 4,
+            triggerAtTokens: 100
+        )
+        let out = await strategy.compact(
+            history: history,
+            usage: TokenUsage(inputTokens: 10_000)
+        )
+        #expect(out == history)
+    }
+
     @Test("KeepRecentCompactionStrategy can pin the first user message")
     func keepRecentCanPinFirstUserMessage() async {
         let history: [Message] = [

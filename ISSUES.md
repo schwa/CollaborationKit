@@ -2253,12 +2253,13 @@ Attachments in the editor and transcript views can be dropped in, but there is n
 ## 85: KeepRecentCompactionStrategy triggers on message count, not token usage
 
 +++
-status: open
+status: closed
 priority: medium
 kind: enhancement
 labels: effort:s
 created: 2026-07-13T15:30:55Z
-updated: 2026-07-13T15:30:57Z
+updated: 2026-07-13T15:37:31Z
+closed: 2026-07-13T15:37:31Z
 +++
 
 The built-in `KeepRecentCompactionStrategy` decides whether to compact based on `history.count` vs `minMessagesBeforeCompacting` — a content/message-count heuristic. `TokenUsage` is already threaded through `CompactionStrategy.compact(history:usage:)` but the default strategy ignores it.
@@ -2266,5 +2267,7 @@ The built-in `KeepRecentCompactionStrategy` decides whether to compact based on 
 Message count is a poor proxy for context-window pressure: a few long tool_result blocks can blow the window while many short turns stay well within it.
 
 Switch the default trigger to be token-based (e.g. compact when cumulative or last-turn tokens exceed a configurable threshold), and keep the message-count knob only as a secondary/floor guard if useful. Related: #78 (surfacing tokens/% until compaction).
+
+- `2026-07-13T15:37:31Z`: Added optional triggerAtTokens to KeepRecentCompactionStrategy. When set, compaction runs on cumulative input tokens; minMessagesBeforeCompacting acts as a floor guard. Legacy message-count behavior preserved when nil.
 
 ---
