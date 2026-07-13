@@ -129,3 +129,10 @@ public struct ModelPickerSection: View {
         id.wholeMatch(of: /.*-\d{4}-\d{2}-\d{2}/) != nil
     }
 }
+
+#Preview {
+    Form { ModelPickerSection() }
+        .formStyle(.grouped)
+        .environment(CollaborationCredentials())
+        .frame(width: 480, height: 160)
+}

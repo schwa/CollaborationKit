@@ -204,7 +204,7 @@ public struct ConversationRowView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.black.opacity(0.04), in: .rect(cornerRadius: 6))
+                    .background(.quaternary, in: .rect(cornerRadius: 6))
             }
         }
     }
@@ -253,4 +253,33 @@ public struct ConversationRowView: View {
         default: return "wrench.and.screwdriver"
         }
     }
+}
+
+#Preview("Row samples") {
+    let user = ConversationItem(
+        id: .message(UUID()), kind: .user("Add a note titled Groceries with body eggs, milk.", images: []),
+        timestamp: .now, duration: nil, latency: nil
+    )
+    let assistant = ConversationItem(
+        id: .message(UUID()), kind: .assistant("Sure — I'll create it now."),
+        timestamp: .now, duration: 0.4, latency: 0.9
+    )
+    let tool = ConversationItem(
+        id: .tool("t1"), kind: .tool(name: "create", summary: "creating a note", result: nil, isError: false),
+        timestamp: .now, duration: nil, latency: nil
+    )
+    let error = ConversationItem(
+        id: .error(1), kind: .error("Rate limited (429)."),
+        timestamp: .now, duration: nil, latency: nil
+    )
+    return ScrollView {
+        VStack(spacing: 10) {
+            ConversationRowView(item: user)
+            ConversationRowView(item: assistant)
+            ConversationRowView(item: tool)
+            ConversationRowView(item: error)
+        }
+        .padding()
+    }
+    .frame(width: 520, height: 480)
 }

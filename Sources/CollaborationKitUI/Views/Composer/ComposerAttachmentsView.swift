@@ -36,3 +36,8 @@ struct ComposerAttachmentsView: View {
         }
     }
 }
+
+#Preview {
+    ComposerAttachmentsView(attachments: []) { _ in }
+        .padding()
+}

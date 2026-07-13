@@ -12,25 +12,19 @@ struct NoteEditor: View {
                 TextField("Body", text: $note.body, axis: .vertical)
                     .lineLimit(4...12)
             }
-            Section("Tag") {
+            Section {
                 Picker("Tag", selection: $note.tag) {
                     Text("None").tag(Tag?.none)
                     ForEach(Tag.allCases, id: \.self) { tag in
                         Text(tag.rawValue).tag(Tag?.some(tag))
                     }
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-            }
-            Section("Color") {
                 Picker("Color", selection: $note.color) {
                     Text("None").tag(NoteColor?.none)
                     ForEach(NoteColor.allCases, id: \.self) { color in
                         Text(color.rawValue).tag(NoteColor?.some(color))
                     }
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
             }
         }
         .formStyle(.grouped)
@@ -44,4 +38,12 @@ struct NoteEditor: View {
             }
         }
     }
+}
+
+#Preview {
+    @Previewable @State var note = Note(
+        id: "n1", title: "Groceries", body: "eggs, milk, bread",
+        tag: .todo, color: .green
+    )
+    NoteEditor(note: $note, onDelete: {}, onDismiss: {})
 }

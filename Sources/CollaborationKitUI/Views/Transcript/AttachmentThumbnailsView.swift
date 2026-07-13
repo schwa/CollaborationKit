@@ -52,3 +52,8 @@ struct AttachmentThumbnailsView: View {
             .foregroundStyle(.secondary)
     }
 }
+
+#Preview {
+    AttachmentThumbnailsView(images: [])
+        .padding()
+}

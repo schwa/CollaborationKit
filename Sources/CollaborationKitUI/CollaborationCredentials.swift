@@ -44,6 +44,13 @@ public final class CollaborationCredentials {
     /// every save/clear/login/logout so observers update immediately.
     public private(set) var hasCredentials: Bool
 
+    /// The model identifier the user picked for the current backend, or the
+    /// backend's default when nothing has been persisted yet.
+    ///
+    /// Stored (not computed) so Observation fires on change; the value
+    /// mirrors ``UserDefaults`` under ``modelDefaultsKey(for:)``.
+    public private(set) var selectedModel: String
+
     /// The last non-`.notFound` failure reason for the current backend, if
     /// any. Set when a Keychain read for the active slot returned `.failed`,
     /// so the UI can distinguish "no key" from "couldn't read it right now".
@@ -70,8 +77,11 @@ public final class CollaborationCredentials {
         let restored = defaultsKey
             .flatMap { UserDefaults.standard.string(forKey: $0) }
             .flatMap(CollaborationBackend.init(rawValue:))
-        self.backend = restored ?? initialBackend
+        let backend = restored ?? initialBackend
+        self.backend = backend
         self.hasCredentials = false
+        self.selectedModel = UserDefaults.standard
+            .string(forKey: "collaborationkit.model.\(backend.rawValue)") ?? backend.defaultModel
         self.readFailure = nil
         refresh()
     }
@@ -90,6 +100,8 @@ public final class CollaborationCredentials {
         case .openAI:
             hasCredentials = evaluate(store.openAIAPIKey())
         }
+        selectedModel = UserDefaults.standard
+            .string(forKey: modelDefaultsKey(for: backend)) ?? backend.defaultModel
     }
 
     /// Builds a ``ModelProvider`` for the current backend and model choice.
@@ -104,12 +116,6 @@ public final class CollaborationCredentials {
 
     // MARK: - Model selection persistence
 
-    /// The model identifier the user picked for the current backend, or the
-    /// backend's default when nothing has been persisted yet.
-    public var selectedModel: String {
-        UserDefaults.standard.string(forKey: modelDefaultsKey(for: backend)) ?? backend.defaultModel
-    }
-
     /// Persists a model choice for the given backend (defaults to the current
     /// backend). Setting an empty string reverts to the backend default.
     public func selectModel(_ modelID: String, for backend: CollaborationBackend? = nil) {
@@ -119,6 +125,9 @@ public final class CollaborationCredentials {
             UserDefaults.standard.removeObject(forKey: key)
         } else {
             UserDefaults.standard.set(modelID, forKey: key)
+        }
+        if target == self.backend {
+            selectedModel = modelID.isEmpty ? self.backend.defaultModel : modelID
         }
     }
 

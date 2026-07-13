@@ -1,78 +1,68 @@
 # CollaborationKit
 
-A small Swift package for collaborating with an LLM through tools. You drive a
-provider-agnostic session; the model can call tools you register; you observe
-everything via a live event stream.
+A Swift package for building apps that collaborate with an LLM through tools.
 
-Ships with Anthropic and OpenAI-compatible backends and a read/write/edit tool
-set for collaborating on a document (a file on disk or an in-memory string).
+You drive a provider-agnostic session, the model calls tools you register, and
+you observe everything — streaming text, tool calls, and token usage — through
+a live `AsyncStream`. Ships with Anthropic and OpenAI-compatible backends and a
+read/write/edit tool set for collaborating on a document (a file on disk or an
+in-memory string).
 
-- **Provider layer** — `ModelProvider` abstracts the backend.
-  - `AnthropicProvider` — Claude, via a billed API key **or** a Claude
+- **Swift 6**, strict concurrency, `Sendable` throughout.
+- **macOS 14+ / iOS 17+**.
+- **URLSession + async/await**, no external SPM dependencies in the core
+  library. (`collab-cli` uses `swift-argument-parser`; the macro target uses
+  `swift-syntax`.)
+- **MIT licensed.**
+
+## Features
+
+- **Provider-agnostic sessions.** `LLMSession` is an actor that owns the
+  conversation, registered tools, and the tool-use loop.
+- **Two backends included.**
+  - `AnthropicProvider` — Claude via a billed API key **or** a Claude
     subscription (OAuth).
   - `OpenAIProvider` — the OpenAI API and any OpenAI-compatible server: LM
     Studio, Ollama, [antirez/ds4](https://github.com/antirez/ds4), gateways.
-  - More can be added by implementing one protocol.
-- **Session layer** — `LLMSession` (an actor) owns the conversation, registered
-  tools, and the agentic tool-use loop. Emits a live event stream and tracks
-  cumulative token usage.
-- **Tools layer** — `Tool` (typed, `Decodable` input) + `AnyTool` eraser. File
-  tools (`read`/`write`/`edit`) ship built-in.
+  - Add more by implementing one protocol.
+- **Typed tools.** Conform to `Tool` with a `Decodable` input and a
+  hand-written JSON Schema, or use the `@CollaborationTools` /
+  `@CollaborationTool` macros.
+- **File tools built in.** `read`, `write`, and `edit` against a
+  `TextDocument` (file or in-memory).
+- **Live event stream.** Streaming text deltas, tool calls, tool results, and
+  usage — all through `session.events`.
+- **Tool-vs-harness error split.** Tool errors are reported back to the model
+  so it can adapt; transport / decoding / loop errors throw out to you.
+- **Token usage reporting.** Per-turn `input`/`output` counts, plus a
+  cumulative total on the session.
+- **`collab-cli` executable** for quick file collaboration from the terminal.
+- **`CollaborationKitUI`** — optional SwiftUI transcript, composer, settings,
+  and a Keychain-backed credential store.
 
-Features: streaming text, typed tools, tool-vs-harness error split, token usage
-reporting, subscription OAuth, and a `collab-cli` CLI.
+## Installation
 
-URLSession + async/await. Swift 6, macOS 14+. The library has no external
-SPM dependencies (CryptoKit, a system framework, is used for OAuth PKCE); the
-`collab-cli` CLI uses swift-argument-parser.
+Add CollaborationKit to your `Package.swift`:
 
-## CLI
-
-The `collab-cli` executable wraps the library for quick file collaboration.
-
-```sh
-# Store your Anthropic API key in the CLI's UserDefaults (~/Library/Preferences).
-# Prompts with hidden input, or pass --api-key.
-# GUI apps should use CollaborationKitUI's KeychainCredentialStore instead.
-
-collab-cli login
-
-# Or log in with a Claude subscription via OAuth (paste flow, no local server).
-# Opens a browser; paste back the code#state shown after approving.
-collab-cli login --oauth
-
-# Collaborate on a file. Created if it doesn't exist. read/write/edit tools
-# operate on this path. Type messages; 'exit' to quit.
-collab-cli chat notes.md
-collab-cli chat draft.txt --model claude-sonnet-4-5 --max-tokens 8192
-
-# Use a local LM Studio model (no login needed; LM Studio ignores the key).
-# --model is the identifier of the model loaded in LM Studio.
-collab-cli chat notes.md --provider lmstudio --model qwen2.5-coder-7b-instruct
-
-# Any OpenAI-compatible server (OpenAI, Ollama, antirez/ds4, gateways).
-collab-cli chat notes.md --provider openai --model gpt-4o --base-url https://api.openai.com
-collab-cli chat notes.md --provider openai --model deepseek-v4-flash --base-url http://localhost:8080
+```swift
+dependencies: [
+    .package(url: "https://github.com/schwa/CollaborationKit", from: "0.1.0")
+]
 ```
 
-The CLI prints per-response token usage as `[usage] in: N  out: M`.
+Then depend on the products you need:
 
-Tool calling with local models requires a model the server reports as
-tool-capable; quality varies. Claude via `anthropic` is the most reliable.
+```swift
+.target(
+    name: "MyApp",
+    dependencies: [
+        .product(name: "CollaborationKit", package: "CollaborationKit"),
+        .product(name: "CollaborationKitUI", package: "CollaborationKit") // optional
+    ]
+)
+```
 
-`chat --provider anthropic` uses stored OAuth credentials if present, otherwise
-the stored API key. OAuth tokens are refreshed automatically.
-
-| Provider     | Endpoint                     | Auth                      | Login        |
-|--------------|------------------------------|---------------------------|--------------|
-| `anthropic`  | `/v1/messages`               | API key or subscription   | `login` / `--oauth` |
-| `openai`     | `/v1/chat/completions`       | API key (ignored locally) | `login` (real OpenAI) |
-| `lmstudio`   | `/v1/chat/completions`       | none                      | not needed   |
-
-> **OAuth caveat:** subscription login uses the Claude Code OAuth client and is
-> unofficial. It may violate Anthropic's terms and may break without notice.
-
-## Example
+## Quick start
 
 ```swift
 import CollaborationKit
@@ -107,11 +97,12 @@ print(doc.contents)
 print("Session total: \(await session.totalUsage.totalTokens) tokens")
 ```
 
-### Backends
+### Other backends
 
 ```swift
 // OpenAI-compatible: LM Studio, Ollama, antirez/ds4, or the OpenAI API.
 let local = OpenAIProvider(config: .lmStudio(model: "qwen2.5-coder-7b-instruct"))
+
 let ds4 = OpenAIProvider(config: OpenAIConfig(
     apiKey: "unused",
     model: "deepseek-v4-flash",
@@ -119,21 +110,16 @@ let ds4 = OpenAIProvider(config: OpenAIConfig(
 ))
 
 // Claude via a subscription (OAuth) instead of a billed key.
-// GUI apps: use CollaborationKitUI's KeychainCredentialStore + CollaborationCredentials.
-// The CLI (`collab-cli`) keeps its credentials in UserDefaults. Core ships no
-// persistence — bring your own store and hand a token-provider closure to
-// `AnthropicAuth.oauth(_:)`.
 let claude = AnthropicProvider(config: AnthropicConfig(auth: .oauth {
-    /* return a currently-valid access token; refresh via AnthropicOAuth if expired */
+    // Return a currently-valid access token.
+    // Refresh via AnthropicOAuth if expired.
     try await currentAccessToken()
 }))
 ```
 
-## Concepts
+## Custom tools
 
-### Tools
-
-Conform to `Tool` with a `Decodable` input and a hand-written JSON Schema:
+Conform to `Tool` with a `Decodable` input and a JSON Schema:
 
 ```swift
 struct UppercaseTool: Tool {
@@ -159,47 +145,106 @@ struct UppercaseTool: Tool {
 let session = LLMSession(provider: provider, tools: [UppercaseTool().eraseToAnyTool()])
 ```
 
-### Errors
+Or use the macros to skip the boilerplate:
 
-- **Tool errors** — throw `ToolError` (or any error) from a handler. The session
-  reports it back to the model as an error result so it can adapt and retry.
-- **Harness errors** — transport, decoding, unknown-loop failures, and
-  `SessionError.maxIterationsExceeded` throw out of `send(_:)` to you.
+```swift
+@CollaborationTools
+struct MyTools {
+    @CollaborationTool("Uppercase a string.")
+    func uppercase(text: String) -> String { text.uppercased() }
+}
+```
+
+## `collab-cli`
+
+The `collab-cli` executable wraps the library for quick file collaboration:
+
+```sh
+# Store your Anthropic API key. Prompts with hidden input, or pass --api-key.
+collab-cli login
+
+# Log in with a Claude subscription (OAuth, paste flow, no local server).
+collab-cli login --oauth
+
+# Collaborate on a file. Created if it doesn't exist.
+collab-cli chat notes.md
+collab-cli chat draft.txt --model claude-sonnet-4-5 --max-tokens 8192
+
+# Use a local LM Studio model.
+collab-cli chat notes.md --provider lmstudio --model qwen2.5-coder-7b-instruct
+
+# Any OpenAI-compatible server.
+collab-cli chat notes.md --provider openai --model gpt-4o --base-url https://api.openai.com
+collab-cli chat notes.md --provider openai --model deepseek-v4-flash --base-url http://localhost:8080
+```
+
+`chat --provider anthropic` uses stored OAuth credentials if present, otherwise
+the stored API key. OAuth tokens are refreshed automatically. Per-response
+token usage is printed as `[usage] in: N out: M`.
+
+Tool calling with local models requires a model the server reports as
+tool-capable; quality varies. Claude via `anthropic` is the most reliable.
+
+## Providers
+
+| Provider     | Endpoint                     | Auth                      | CLI login             |
+|--------------|------------------------------|---------------------------|-----------------------|
+| `anthropic`  | `/v1/messages`               | API key or subscription   | `login` / `--oauth`   |
+| `openai`     | `/v1/chat/completions`       | API key                   | `login` (real OpenAI) |
+| `lmstudio`   | `/v1/chat/completions`       | none                      | not needed            |
+
+> **OAuth caveat:** subscription login uses the Claude Code OAuth client and is
+> unofficial. It may violate Anthropic's terms and may break without notice.
+
+## Concepts
 
 ### Documents
 
-`TextDocument` abstracts the editable backing. Use `FileDocument(url:)` for a file
-on disk or `InMemoryDocument(_:)` for a string. The `edit` tool performs an exact,
-unique string replacement.
+`TextDocument` abstracts the editable backing. Use `FileDocument(url:)` for a
+file on disk or `InMemoryDocument(_:)` for a string. The `edit` tool performs
+an exact, unique string replacement.
+
+### Errors
+
+- **Tool errors** — throw `ToolError` (or any error) from a handler. The
+  session reports it back to the model as an error result so it can adapt and
+  retry.
+- **Harness errors** — transport, decoding, unknown-loop failures, and
+  `SessionError.maxIterationsExceeded` throw out of `send(_:)` to you.
 
 ### Token usage
 
-Providers that report usage emit a `SessionEvent.usage(TokenUsage)` per response
-(input/output token counts). `LLMSession.totalUsage` accumulates across the
-session. This is per-turn accounting, **not** the model's remaining context
-window — the endpoints don't return the window size. Local servers that omit
-usage report zeros.
+Providers that report usage emit a `SessionEvent.usage(TokenUsage)` per
+response. `LLMSession.totalUsage` accumulates across the session. This is
+per-turn accounting, **not** the model's remaining context window — the
+endpoints don't return the window size. Local servers that omit usage report
+zeros.
 
 ### Authentication
 
 `AnthropicConfig` takes an `auth`: `.apiKey(String)` (sent as `x-api-key`) or
 `.oauth(...)` (a Claude subscription token sent as `Authorization: Bearer`).
-`AnthropicOAuth` performs a PKCE login with manual code paste (no local server);
-Core ships no credential persistence. GUI apps use
-``CollaborationKitUI.KeychainCredentialStore`` (Keychain-backed, one slot each
-for Anthropic API key, Anthropic OAuth, and OpenAI API key). The
-`collab-cli` executable keeps its credentials in UserDefaults.
+`AnthropicOAuth` performs a PKCE login with manual code paste (no local
+server). Core ships no credential persistence — bring your own store, or use
+`CollaborationKitUI.KeychainCredentialStore` (Keychain-backed, one slot each
+for Anthropic API key, Anthropic OAuth, and OpenAI API key). `collab-cli`
+keeps its credentials in UserDefaults.
 
-> **OAuth caveat:** subscription login uses the Claude Code OAuth client and is
-> unofficial. It may violate Anthropic's terms and may break without notice.
+### History
 
-## History
+`LLMSession.messages` exposes the conversation read-only; serialize it
+yourself if you want to persist. The package does no persistence and no
+tool-approval gating — those are the host application's concern.
 
-`LLMSession.messages` exposes the conversation read-only; serialize it yourself if
-you want to persist. The package does no persistence and no tool-approval gating —
-those are the host application's concern.
+## Examples
+
+- [`Examples/CollaborationDemo`](Examples/CollaborationDemo) — a SwiftUI demo
+  app using `CollaborationKitUI`.
 
 ## Contributing
+
+Contributions welcome! Please open an issue before starting significant work
+so we can discuss the direction.
 
 ### Layout
 
@@ -210,33 +255,34 @@ Sources/CollaborationKit/
   Anthropic/   AnthropicConfig (+AnthropicAuth), AnthropicWire,
                AnthropicProvider (+StreamAccumulator), AnthropicOAuth
   OpenAI/      OpenAIConfig, OpenAIWire,
-               OpenAIProvider (+OpenAIStreamAccumulator) — OpenAI/LM Studio/ds4
+               OpenAIProvider (+OpenAIStreamAccumulator)
   FileTools/   TextDocument (+FileDocument/InMemoryDocument), read/write/edit,
                PathPolicy
   Macros/      @CollaborationTools, @CollaborationTool,
                CollaborationResultConvertible, CollaborationSchemaConvertible
 Sources/CollaborationKitUI/
-  Keychain/                KeychainCredentialStore, KeychainReadResult
-  Views/, Transcript/,     SwiftUI transcript / composer / settings and the
-  Support/, Composer/      credentials + model-picker plumbing
-Sources/collab-cli/       Collab, Login, Chat, CLICredentialStore (UserDefaults)
+  Keychain/    KeychainCredentialStore, KeychainReadResult
+  Views/, Transcript/, Support/, Composer/
+Sources/collab-cli/
+  Collab, Login, Chat, CLICredentialStore (UserDefaults)
 Tests/CollaborationKitTests/
 ```
 
 ### Design rules
 
-- **Layers stay clean.** Nothing in `Core/` may import or know about a specific
-  provider. Each provider lives in its own folder and implements only
+- **Layers stay clean.** Nothing in `Core/` may import or know about a
+  specific provider. Each provider lives in its own folder and implements only
   `ModelProvider`, translating its wire protocol into a neutral
-  `AsyncThrowingStream<ProviderStreamEvent>`. The session translates those into
-  `SessionEvent` on the live stream.
-- **Typed tools, not JSON.** Tools declare a `Decodable & Sendable` `Input` and a
-  hand-written `inputSchema: JSONValue`. Do not auto-derive schemas from `Codable`.
-- **Error split (load-bearing).** Tool handlers throw → the session converts to an
-  `is_error` tool result fed back to the model. Harness/transport/decoding
-  failures and `SessionError` throw out of `send(_:)` to the caller. Keep this
-  distinction intact.
-- **Sendable everywhere.** Strict concurrency is on; keep new types `Sendable`.
+  `AsyncThrowingStream<ProviderStreamEvent>`. The session translates those
+  into `SessionEvent` on the live stream.
+- **Typed tools, not JSON.** Tools declare a `Decodable & Sendable` `Input`
+  and a hand-written `inputSchema: JSONValue`. Do not auto-derive schemas
+  from `Codable`.
+- **Error split (load-bearing).** Tool handlers throw → the session converts
+  to an `is_error` tool result fed back to the model. Harness/transport/
+  decoding failures and `SessionError` throw out of `send(_:)` to the caller.
+- **Sendable everywhere.** Strict concurrency is on; keep new types
+  `Sendable`.
 - **Token usage is per-turn, not context-window.** Never fabricate counts;
   providers that omit usage contribute zero.
 
@@ -253,3 +299,7 @@ Run the suite with `swift test`. Tests must not hit the network — use the
 scripted provider for session behavior and the stream-accumulator tests for
 provider/SSE parsing. Add a test when you add a tool, session behavior, or
 provider parsing.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

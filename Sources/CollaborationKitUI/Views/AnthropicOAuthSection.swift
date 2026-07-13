@@ -21,7 +21,6 @@ import CollaborationKit
 public struct AnthropicOAuthSection: View {
     @Environment(CollaborationCredentials.self) private var credentials
 
-    @State private var isLoggedIn: Bool = false
     @State private var loginRequest: AnthropicOAuth.LoginRequest?
     @State private var pastedCode: String = ""
     @State private var errorMessage: String?
@@ -30,6 +29,14 @@ public struct AnthropicOAuthSection: View {
     private let oauth = AnthropicOAuth()
 
     public init() {}
+
+    /// Derived from ``CollaborationCredentials/hasCredentials`` when the
+    /// active backend is the Claude subscription — the credentials model
+    /// already refreshes on every save/clear/login/logout, so Observation
+    /// fires without a hand-synced \@State mirror.
+    private var isLoggedIn: Bool {
+        credentials.backend == .claudeSubscription && credentials.hasCredentials
+    }
 
     public var body: some View {
         Section {
@@ -56,7 +63,6 @@ public struct AnthropicOAuthSection: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
         }
-        .onAppear(perform: syncLoginState)
     }
 
     // MARK: - Subviews
@@ -69,7 +75,6 @@ public struct AnthropicOAuthSection: View {
             Button("Log Out", role: .destructive) {
                 credentials.store.clearAnthropicOAuthCredentials()
                 credentials.refresh()
-                syncLoginState()
                 clearPasteState()
             }
         }
@@ -123,7 +128,6 @@ public struct AnthropicOAuthSection: View {
                 let creds = try await oauth.completeLogin(input: trimmed, request: request)
                 credentials.store.saveAnthropicOAuthCredentials(creds)
                 credentials.refresh()
-                syncLoginState()
                 clearPasteState()
                 isCompleting = false
             } catch {
@@ -133,12 +137,15 @@ public struct AnthropicOAuthSection: View {
         }
     }
 
-    private func syncLoginState() {
-        isLoggedIn = credentials.store.anthropicOAuthCredentials() != nil
-    }
-
     private func clearPasteState() {
         loginRequest = nil
         pastedCode = ""
     }
+}
+
+#Preview("Logged out") {
+    Form { AnthropicOAuthSection() }
+        .formStyle(.grouped)
+        .environment(CollaborationCredentials())
+        .frame(width: 480, height: 260)
 }

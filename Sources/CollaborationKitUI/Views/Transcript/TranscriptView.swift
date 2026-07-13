@@ -44,10 +44,25 @@ public struct TranscriptView: View {
             }
             .background(.background.secondary)
             .overlay { emptyState }
-            .onChange(of: store.items.count) { _, _ in scrollToEnd(proxy) }
-            .onChange(of: store.isGenerating) { _, _ in scrollToEnd(proxy) }
-            .onChange(of: lastItemContentLength) { _, _ in scrollToEnd(proxy) }
+            .onChange(of: scrollSignal) { _, _ in scrollToEnd(proxy) }
         }
+    }
+
+    /// Compound signal for autoscroll: item count (new row appeared),
+    /// generating flag (thinking row flips), and the last item's content
+    /// length (streaming text grows without changing count).
+    private var scrollSignal: ScrollSignal {
+        ScrollSignal(
+            itemCount: store.items.count,
+            isGenerating: store.isGenerating,
+            lastContentLength: lastItemContentLength
+        )
+    }
+
+    private struct ScrollSignal: Equatable {
+        var itemCount: Int
+        var isGenerating: Bool
+        var lastContentLength: Int
     }
 
     /// A signal that grows as the last item's content streams in, used to
@@ -99,4 +114,24 @@ public struct TranscriptView: View {
     private func scrollToEnd(_ proxy: ScrollViewProxy) {
         withAnimation { proxy.scrollTo(Self.bottomID, anchor: .bottom) }
     }
+}
+
+private actor _PreviewNullProvider: ModelProvider {
+    nonisolated func send(
+        messages _: [Message],
+        system _: String?,
+        tools _: [ToolSpec]
+    ) -> AsyncThrowingStream<ProviderStreamEvent, Error> {
+        AsyncThrowingStream { $0.finish() }
+    }
+}
+
+@MainActor
+private func _previewStore() -> ConversationStore {
+    ConversationStore(session: LLMSession(provider: _PreviewNullProvider()))
+}
+
+#Preview("Empty") {
+    TranscriptView(store: _previewStore())
+        .frame(width: 520, height: 400)
 }

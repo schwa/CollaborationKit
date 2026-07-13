@@ -111,7 +111,6 @@ public struct ComposerView: View {
                 .labelStyle(.iconOnly)
                 .buttonStyle(.borderless)
                 .disabled(store.isGenerating)
-                .help("Attach one or more images to the next message.")
                 .accessibilityLabel("Attach image")
                 .accessibilityHint("Add images to your next message.")
             }
@@ -120,7 +119,6 @@ public struct ComposerView: View {
 
             if store.isGenerating {
                 StopButton { store.stop() }
-                    .help("Stop the current turn.")
                     .accessibilityLabel("Stop")
                     .accessibilityHint("Cancel the current turn.")
             } else {
@@ -187,4 +185,26 @@ private struct PromptFieldBackground: ViewModifier {
             content.glowingPromptBorder(cornerRadius: 12, active: active)
         }
     }
+}
+
+private actor _PreviewNullProvider: ModelProvider {
+    nonisolated func send(
+        messages _: [Message],
+        system _: String?,
+        tools _: [ToolSpec]
+    ) -> AsyncThrowingStream<ProviderStreamEvent, Error> {
+        AsyncThrowingStream { $0.finish() }
+    }
+}
+
+@MainActor
+private func _previewStore() -> ConversationStore {
+    ConversationStore(session: LLMSession(provider: _PreviewNullProvider()))
+}
+
+#Preview("Plain") {
+    ComposerView(store: _previewStore()).frame(width: 520)
+}
+#Preview("Glow") {
+    ComposerView(store: _previewStore(), borderStyle: .glow).frame(width: 520)
 }

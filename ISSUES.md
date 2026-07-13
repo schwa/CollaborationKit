@@ -1190,11 +1190,13 @@ Related: RFC 0002, #13. Follow-up to the built-in transcript.
 ## 48: SwiftUI review: bugs, anti-patterns, and missing #Previews
 
 +++
-status: new
+status: closed
 priority: medium
 kind: task
 labels: effort:m
 created: 2026-07-13T03:30:30Z
+updated: 2026-07-13T03:34:01Z
+closed: 2026-07-13T03:34:01Z
 +++
 
 Full SwiftUI review of CollaborationKitUI + demo against the swiftui-specialist and swiftui-house-rules skills. Grouped by impact.
@@ -1231,6 +1233,28 @@ Demo:
 - Demo `Editing` inline struct in ContentView reads awkwardly (verb-shaped noun); `EditingNote` is clearer.
 
 Related: RFC 0002, #13, #27.
+
+- `2026-07-13T03:34:01Z`: Landed. All items addressed:
+
+Real bugs:
+- CollaborationCredentials.selectedModel is now a stored, Observation-tracked var; `selectModel(_:)` updates it and `refresh()` re-reads from UserDefaults on backend switch.
+- APIKeySection is now generic over a `@ViewBuilder Footer: View`; AnyView is gone. Convenience wrappers pass Link footers directly.
+- APIKeySection.savedFlash now animates via `.animation(.smooth, value: savedFlash)` on the row HStack.
+- ConversationRowView tool-result background uses `.quaternary` material instead of hardcoded black-opacity, so it inverts in dark mode.
+
+Anti-patterns:
+- AnthropicOAuthSection.isLoggedIn is now a computed property off credentials, dropping the @State mirror and `syncLoginState()` dance.
+- TranscriptView folds three .onChange calls into a single Equatable ScrollSignal compound key.
+- Redundant .help() calls on ComposerView Attach/Stop buttons removed (accessibilityHint covers them).
+- Demo NoteEditor uses default (menu) pickers for tag/color instead of cramped segmented.
+
+Missing #Previews added:
+- Library: CollaborationChatView, TranscriptView, ConversationRowView, ComposerView (plain + glow), ComposerAttachmentsView, AttachmentThumbnailsView, APIKeySection, AnthropicOAuthSection, ModelPickerSection.
+- Demo: ContentView, NotesListView (empty + populated), NoteEditor.
+
+Nit: demo Editing → EditingNote.
+
+107 tests + xcb build pass on both library and demo.
 
 ---
 

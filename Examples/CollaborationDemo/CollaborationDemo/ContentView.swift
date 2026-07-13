@@ -8,16 +8,16 @@ struct ContentView: View {
     @State private var store: ConversationStore?
     @State private var buildError: String?
     @State private var showAssistant: Bool = true
-    @State private var editing: Editing?
+    @State private var editing: EditingNote?
 
-    private struct Editing: Identifiable {
+    private struct EditingNote: Identifiable {
         let id: Note.ID
     }
 
     var body: some View {
         NotesListView(
             notes: notes,
-            onSelect: { editing = Editing(id: $0) },
+            onSelect: { editing = EditingNote(id: $0) },
             onDelete: { id in notes.notes.removeAll { $0.id == id } }
         )
         .navigationTitle("Notes")
@@ -27,7 +27,7 @@ struct ContentView: View {
                 let id: Note.ID = "n\(notes.nextID)"
                 notes.nextID += 1
                 notes.notes.append(Note(id: id, title: "", body: "", tag: nil, color: nil))
-                editing = Editing(id: id)
+                editing = EditingNote(id: id)
             } label: {
                 Label("New Note", systemImage: "plus")
             }
@@ -90,4 +90,10 @@ struct ContentView: View {
             buildError = error.localizedDescription
         }
     }
+}
+
+#Preview {
+    ContentView()
+        .environment(CollaborationCredentials())
+        .frame(width: 720, height: 520)
 }

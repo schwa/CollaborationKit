@@ -64,3 +64,24 @@ public struct CollaborationChatView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
+
+private actor _PreviewNullProvider: ModelProvider {
+    nonisolated func send(
+        messages _: [Message],
+        system _: String?,
+        tools _: [ToolSpec]
+    ) -> AsyncThrowingStream<ProviderStreamEvent, Error> {
+        AsyncThrowingStream { $0.finish() }
+    }
+}
+
+@MainActor
+private func _previewStore() -> ConversationStore {
+    ConversationStore(session: LLMSession(provider: _PreviewNullProvider()))
+}
+
+#Preview {
+    CollaborationChatView(store: _previewStore())
+        .environment(CollaborationCredentials())
+        .frame(width: 640, height: 480)
+}

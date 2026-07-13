@@ -80,3 +80,17 @@ struct NotesListView: View {
         }
     }
 }
+
+#Preview("Empty") {
+    NotesListView(notes: DemoNotes(), onSelect: { _ in }, onDelete: { _ in })
+}
+
+#Preview("Populated") {
+    let notes = DemoNotes()
+    notes.notes = [
+        Note(id: "n1", title: "Groceries", body: "eggs, milk, bread", tag: .todo, color: .green),
+        Note(id: "n2", title: "Idea", body: "Notes app that talks back.", tag: .idea, color: .yellow),
+        Note(id: "n3", title: "Blocked?", body: "Follow up with Alice.", tag: .followUp, color: .orange)
+    ]
+    return NotesListView(notes: notes, onSelect: { _ in }, onDelete: { _ in })
+}
