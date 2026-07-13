@@ -98,3 +98,30 @@ where Self: RawRepresentable, Self.RawValue: CollaborationRawValue {
         RawValue.collaborationRawSchema
     }
 }
+
+// MARK: - Primitive conformances
+
+// Conform the primitives to CollaborationSchemaConvertible so a `typealias
+// ID = String` (or Int, etc.) resolves through the escape hatch just as
+// naturally as a `struct ID: RawRepresentable`. Without these, the macro's
+// `<Type>.collaborationSchema` reference wouldn't resolve for a bare String.
+
+extension String: CollaborationSchemaConvertible {
+    public static var collaborationSchema: JSONValue { collaborationRawSchema }
+}
+
+extension Int: CollaborationSchemaConvertible {
+    public static var collaborationSchema: JSONValue { collaborationRawSchema }
+}
+
+extension Double: CollaborationSchemaConvertible {
+    public static var collaborationSchema: JSONValue { collaborationRawSchema }
+}
+
+extension Float: CollaborationSchemaConvertible {
+    public static var collaborationSchema: JSONValue { collaborationRawSchema }
+}
+
+extension Bool: CollaborationSchemaConvertible {
+    public static var collaborationSchema: JSONValue { collaborationRawSchema }
+}

@@ -545,13 +545,14 @@ Missing per RFC 0003 open question 7:
 ## 24: RFC 0003: expand built-in schema derivation to enums, tuples, and generic wrappers
 
 +++
-status: open
+status: closed
 priority: high
 kind: enhancement
 labels: effort:m
 depends: 14
 created: 2026-07-13T01:03:25Z
-updated: 2026-07-13T01:53:09Z
+updated: 2026-07-13T02:16:41Z
+closed: 2026-07-13T02:16:41Z
 +++
 
 Slice 1's built-in schema derivation covers primitives, Optional, Array, and [String: T]. Anything else falls through to CollaborationSchemaConvertible (#15) or errors.
@@ -565,6 +566,7 @@ RFC 0003 open question 1 asks how far the built-in derivation should go before r
 Whichever we support should have expansion tests and a clear line vs. the escape hatch.
 
 - `2026-07-13T02:01:07Z`: Punt from autonomous run: this is a design decision, not an implementation task. The issue itself asks 'candidates to decide on' — string/int-backed enums, associated-value enums, labeled tuples, user-declared generic wrappers. Without knowing the target type's conformances at macro-expansion time (SwiftSyntax can't resolve conformances), the only safe path is either (a) a per-type annotation the user spells, or (b) route everything through CollaborationSchemaConvertible (#25). Recommend: land #25 first (explicit escape hatch), then reconsider what to bake in built-in. Meanwhile #41 covers RawRepresentable typed ids as its own targeted slice. Needs product call before implementation.
+- `2026-07-13T02:16:41Z`: Resolved: the line is the escape hatch (#25 + #41 auto-conformance for RawRepresentable + primitives now conform out of the box). Enum-case value lists, tuples, and generic wrappers are all three-lines-of-code away from the escape hatch and don't warrant bespoke built-in derivation. If someone hits a real ergonomic wall on a specific case (e.g. CaseIterable enum sugar) they can file a targeted follow-up.
 
 ---
 

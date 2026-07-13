@@ -11,9 +11,10 @@ import CollaborationKit
 /// runtime hops to MainActor to run each tool.
 ///
 /// Demonstrates the recommended patterns from RFC 0003:
-/// - **Referent objects pass ids.** ``delete(id:)`` takes a ``Note/ID``, a
-///   typed `RawRepresentable` wrapper — schema derived automatically via the
-///   default ``CollaborationSchemaConvertible`` conformance.
+/// - **Referent objects pass ids.** ``delete(id:)`` takes a ``Note/ID`` — a
+///   `typealias` for `String`, kept as a distinct name so callers read as
+///   they mean. Bump to a `RawRepresentable` wrapper when the app grows
+///   more entities and confusing one id for another actually matters.
 /// - **Rich returns are fine.** ``list()`` returns `[Note]`; the macro
 ///   stringifies it as JSON through `Encodable` so the model sees the whole
 ///   snapshot.
@@ -22,10 +23,7 @@ import CollaborationKit
 @CollaborationTools
 final class DemoNotes {
     struct Note: Identifiable, Sendable, Equatable, Codable {
-        struct ID: RawRepresentable, Codable, CollaborationSchemaConvertible, Hashable, Sendable {
-            let rawValue: String
-            init(rawValue: String) { self.rawValue = rawValue }
-        }
+        typealias ID = String
 
         let id: ID
         var title: String
@@ -44,7 +42,7 @@ final class DemoNotes {
 
     @CollaborationTool("Create a new note with a title and an optional body. Returns the new note's id.")
     func create(title: String, body: String) async -> Note.ID {
-        let id = Note.ID(rawValue: "n\(nextID)")
+        let id: Note.ID = "n\(nextID)"
         nextID += 1
         notes.append(Note(id: id, title: title, body: body))
         return id
@@ -53,7 +51,7 @@ final class DemoNotes {
     @CollaborationTool("Delete the note with the given id. Errors if no note has that id.")
     func delete(id: Note.ID) async throws {
         guard let index = notes.firstIndex(where: { $0.id == id }) else {
-            throw ToolError("No note with id \(id.rawValue).")
+            throw ToolError("No note with id \(id).")
         }
         notes.remove(at: index)
     }
