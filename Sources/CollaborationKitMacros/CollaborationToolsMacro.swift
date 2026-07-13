@@ -41,11 +41,12 @@ public enum CollaborationToolsMacro: MemberMacro {
         from declaration: some DeclGroupSyntax,
         context: some MacroExpansionContext
     ) throws -> OwnerInfo {
+        let isMainActor = hasMainActorAttribute(declaration.attributes)
         if let cls = declaration.as(ClassDeclSyntax.self) {
-            return OwnerInfo(name: cls.name.text, isActor: false)
+            return OwnerInfo(name: cls.name.text, isActor: isMainActor)
         }
         if let str = declaration.as(StructDeclSyntax.self) {
-            return OwnerInfo(name: str.name.text, isActor: false)
+            return OwnerInfo(name: str.name.text, isActor: isMainActor)
         }
         if let act = declaration.as(ActorDeclSyntax.self) {
             return OwnerInfo(name: act.name.text, isActor: true)
@@ -55,6 +56,17 @@ public enum CollaborationToolsMacro: MemberMacro {
             message: MacroDiagnostic.notAType
         ))
         throw MacroFailure.diagnosed
+    }
+
+    /// Detects `@MainActor` (or a qualified spelling like `Swift.MainActor`)
+    /// among the attributes on the enclosing type.
+    private static func hasMainActorAttribute(_ attributes: AttributeListSyntax) -> Bool {
+        for attr in attributes {
+            guard let a = attr.as(AttributeSyntax.self) else { continue }
+            let name = a.attributeName.trimmedDescription
+            if name == "MainActor" || name.hasSuffix(".MainActor") { return true }
+        }
+        return false
     }
 
     // MARK: - Attribute arguments
