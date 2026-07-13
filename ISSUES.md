@@ -851,12 +851,13 @@ Related: RFC 0002, #13, #28.
 ## 35: CollaborationKitUI: session debug export (JSON)
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:m
 created: 2026-07-13T01:40:35Z
-updated: 2026-07-13T01:49:58Z
+updated: 2026-07-13T02:54:13Z
+closed: 2026-07-13T02:54:13Z
 +++
 
 Phosphor's ConversationExport bundles a full session snapshot (raw transcript, system prompt, model id, cumulative usage, last error, tool calls/results, and any host-specific state like current shader source) into a Codable JSON export, then hands it to .fileExporter.
@@ -869,6 +870,12 @@ Design:
 
 Blocks: any Phosphor migration onto CollaborationKitUI.
 Related: RFC 0002, #13.
+
+- `2026-07-13T02:54:13Z`: Landed. New public SessionExport value type (Codable + Sendable) in Sources/CollaborationKitUI/Transcript/. Shadow shape captures messages, transcript items, usage, lastError, plus caller-supplied model id and free-form userInfo dictionary for host-specific payload (e.g. Phosphor's shader source). Domain types (Message / ConversationItem / TokenUsage) stay Codable-free.
+
+ConversationStore.buildExport(model:userInfo:) gathers the snapshot; SessionExport.jsonData() / jsonString() / decode(_:) handle serialisation with ISO8601 dates and sorted keys. Hosts wanting a Transferable/FileDocument wrap the Data themselves.
+
+3 tests: round-trip through JSON, key-field presence, empty lastError.
 
 ---
 

@@ -58,6 +58,7 @@ let package = Package(
             name: "CollaborationKitTests",
             dependencies: [
                 "CollaborationKit",
+                "CollaborationKitUI",
                 "CollaborationKitMacros",
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax")
             ],
