@@ -1,9 +1,18 @@
 # RFC 0001 — Conversation Structure
 
-- **Status:** Draft
+- **Status:** Withdrawn (2026-07-12)
 - **Author:** @schwa
 - **Created:** 2026-06-26
 - **Affects:** `CollaborationKit/Core` (new canonical conversation model)
+
+> **Withdrawn.** CollaborationKitUI ports Phosphor's proven
+> `ConversationStore` pattern instead: `LLMSession.messages` (existing
+> `[Message]`) stays the source of truth, and the transcript is a **projection**
+> keyed by derived `ItemID`s (`.message(UUID)`, `.tool(String)`) with a
+> presentation side-table for per-row timing, plus streaming and error
+> overlays. This RFC's canonical-nested model would have duplicated the
+> message history without adding capability. Kept for design history.
+
 
 ## Summary
 
