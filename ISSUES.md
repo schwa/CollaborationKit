@@ -2612,3 +2612,23 @@ Needs:
 - UI: render as a collapsible/dimmed block distinct from the main answer.
 
 ---
+
+## 98: Support some form of tool batching
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T16:40:46Z
++++
+
+Right now every tool call is its own round-trip: model emits one `tool_use`, we run it, send back one `tool_result`, repeat. For tasks with lots of small independent calls (list + read a dozen files, fetch several notes, etc.) this is slow and burns tokens on repeated context.
+
+Want _some_ way to batch:
+- Run multiple `tool_use` blocks from a single assistant turn in parallel and return all `tool_result`s in one user message (Anthropic already supports this shape natively).
+- Or expose a meta/batch tool the model can call with a list of sub-calls.
+- Or let a tool declare it accepts array input and fan out internally.
+
+Exact design is open — the goal is fewer round-trips for embarrassingly-parallel tool work.
+
+---
