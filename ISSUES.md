@@ -1466,11 +1466,13 @@ Added WireProviderTests: 4 boundary tests exercise the default send/listModels v
 ## 54: Architecture: split ConversationStore into MessageMirror + TranscriptProjection + Store
 
 +++
-status: new
+status: closed
 priority: low
 kind: task
 labels: effort:l
 created: 2026-07-13T03:55:10Z
+updated: 2026-07-13T04:10:47Z
+closed: 2026-07-13T04:10:47Z
 +++
 
 **Cluster**: ConversationStore (442 lines). Currently owns LLMSession lifecycle, message mirroring, presentation metadata (timing / latency / summaries), streaming assistant overlay, error overlay, and projection to ConversationItems — six concerns fused in one @Observable @MainActor class.
@@ -1490,6 +1492,20 @@ created: 2026-07-13T03:55:10Z
 **Non-goals**: Public API of ConversationStore stays as-is. No new UI. Rollback (#26) isn't in scope; it belongs on whatever owns the mirror.
 
 Ranking: lowest urgency of the three architecture candidates but real testability payoff.
+
+- `2026-07-13T04:10:47Z`: Landed. ConversationStore (was 442 lines) split into three types:
+
+- **MessageMirror** (Sources/CollaborationKitUI/Transcript/MessageMirror.swift): pure Sendable value type. Consumes SessionEvents and maintains messages, streamingAssistantText, errorOverlays, and presentation metadata. No SwiftUI, no @MainActor, no observation. Unit-testable with plain assertions.
+- **TranscriptProjection** (Sources/CollaborationKitUI/Transcript/TranscriptProjection.swift): pure enum with a static project(_:) function turning MessageMirror into ([ConversationItem], Set<ItemID>). Computes latency during projection from the previous row's end timestamp; no side-table needed for latency anymore.
+- **ConversationStore** now a thin @Observable @MainActor shell (188 lines vs 442): owns LLMSession, event pump task, sendTask; delegates every event to mirror.handle then reprojects.
+
+Public API unchanged: send/stop/cancel/items/messages/usage/lastError/isEmpty all still exist and behave identically.
+
+New tests:
+- MessageMirrorTests: 7 tests exercise user turn append, streaming delta accumulation, text finalization, tool call + result, error overlay ordering, tool call finishing the streaming overlay.
+- TranscriptProjectionTests: 6 tests cover empty mirror, user prompt projection, assistant text with timing, tool call summary, latency-gap calculation, streaming overlay projection, error overlay ordering.
+
+Total: 118 → 131 tests. macOS + demo xcb build clean.
 
 ---
 
