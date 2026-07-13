@@ -39,7 +39,13 @@ extension Float: CollaborationResultConvertible {
 /// 1. `CollaborationResultConvertible` conformance (users' custom types, plus
 ///    the built-in primitive conformances above).
 /// 2. `Encodable` — serialised as JSON.
-/// 3. Fallback to `String(describing:)`.
+///
+/// Anything else throws ``CollaborationResultError/noKnownFormatter(_:)``.
+/// The previous fallback of `String(describing:)` produced
+/// Swift-formatted debug output (`NoteRow(id: "n1", title: "Groceries")`)
+/// that models cannot reliably parse; failing fast lets the tool loop report
+/// an `is_error` result and the caller conform ``CollaborationResultConvertible``
+/// or `Encodable` on the return type.
 ///
 /// A `Void` return is handled by the macro itself (returns `"OK"`).
 public func _ckStringify<T>(_ value: T) throws -> String {
@@ -49,7 +55,22 @@ public func _ckStringify<T>(_ value: T) throws -> String {
     if let encodable = value as? any Encodable {
         return try _ckEncodeJSON(encodable)
     }
-    return String(describing: value)
+    throw CollaborationResultError.noKnownFormatter(String(describing: T.self))
+}
+
+/// Errors surfaced when a `@CollaborationTool` return value cannot be
+/// stringified for the model.
+public enum CollaborationResultError: Error, LocalizedError, Sendable {
+    /// The return type conforms to neither ``CollaborationResultConvertible``
+    /// nor `Encodable`. The associated string is the offending type name.
+    case noKnownFormatter(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .noKnownFormatter(let typeName):
+            return "Return type '\(typeName)' has no known formatter. Conform it to CollaborationResultConvertible or Encodable so the tool result can be sent to the model."
+        }
+    }
 }
 
 private func _ckEncodeJSON(_ value: any Encodable) throws -> String {

@@ -870,12 +870,13 @@ Related: RFC 0002, #13, #27 (theme).
 ## 39: RFC 0003: replace `String(describing:)` fallback in `_ckStringify`
 
 +++
-status: open
+status: closed
 priority: high
 kind: enhancement
 labels: effort:s
 created: 2026-07-13T01:43:27Z
-updated: 2026-07-13T01:53:30Z
+updated: 2026-07-13T01:59:35Z
+closed: 2026-07-13T01:59:35Z
 +++
 
 Today `_ckStringify` (Sources/CollaborationKit/Macros/CollaborationResult.swift) handles a return type in this order:
@@ -895,6 +896,8 @@ Options:
 Recommendation: land the runtime error first (safe, immediate), consider the `Mirror` fallback as an opt-in for prototyping, and pursue a macro-time diagnostic when we can.
 
 Related: RFC 0003, #14, #25.
+
+- `2026-07-13T01:59:35Z`: Fixed: `_ckStringify` now throws `CollaborationResultError.noKnownFormatter(String)` when a return type conforms to neither CollaborationResultConvertible nor Encodable, instead of falling back to `String(describing:)` which produced Swift-formatted debug output the model couldn't parse. The error names the offending type so the developer can immediately see what to conform. LLMSession will convert the throw into an is_error tool result and the model can adapt. Added 6 regression tests in CollaborationResultTests.
 
 ---
 
