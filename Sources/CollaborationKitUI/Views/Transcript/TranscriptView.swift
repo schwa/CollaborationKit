@@ -51,9 +51,10 @@ public struct TranscriptView: View {
                         ConversationRowView(
                             item: item,
                             iconForTool: iconForTool,
-                            canRollBack: store.canRollBack(to: item.id),
-                            onRollBack: { store.rollBack(through: item.id) }
-                        )
+                            canRollBack: store.canRollBack(to: item.id)
+                        ) {
+                            store.rollBack(through: item.id)
+                        }
                         .id(item.id)
                     }
                     if store.isGenerating {

@@ -60,9 +60,14 @@ struct CLICredentialStore: CredentialStore, @unchecked Sendable {
     /// verbatim under the `collab.` prefix.
     private static func defaultsKey(for key: String) -> String {
         switch key {
-        case CredentialStoreKey.anthropicAPIKey: return "collab.anthropic.apiKey"
-        case CredentialStoreKey.anthropicOAuth: return "collab.anthropic.oauth"
-        default: return "collab.\(key)"
+        case CredentialStoreKey.anthropicAPIKey:
+            return "collab.anthropic.apiKey"
+
+        case CredentialStoreKey.anthropicOAuth:
+            return "collab.anthropic.oauth"
+
+        default:
+            return "collab.\(key)"
         }
     }
 

@@ -72,6 +72,9 @@ private final class RecordingTool: Tool, @unchecked Sendable {
         ])
     }
 
+    // Conformance to the Tool protocol dictates `async throws`; this body
+    // doesn't need either but the signature must match the requirement.
+    // swiftlint:disable:next async_without_await unneeded_throws_rethrows
     func call(_ input: Input) async throws -> String {
         lock.withLock { $0.append(input.tag) }
         return "ok:\(input.tag)"

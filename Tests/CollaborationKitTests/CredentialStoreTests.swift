@@ -1,6 +1,6 @@
+@testable import CollaborationKit
 import Foundation
 import Testing
-@testable import CollaborationKit
 
 /// Tests for the ``CredentialStore`` protocol surface after the shift from
 /// fixed-slot methods to a generic key/value API. Covers the extension

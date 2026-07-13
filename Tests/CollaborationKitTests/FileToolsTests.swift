@@ -1,5 +1,5 @@
-import Testing
 @testable import CollaborationKit
+import Testing
 
 /// Behavior tests for the ``FileTools`` read/write/edit methods, which the
 /// `@CollaborationTools` macro also exposes as three tool schemas. Testing
@@ -22,7 +22,7 @@ struct FileToolsTests {
     func readOnEmptyDocumentReturnsEmpty() throws {
         let doc = InMemoryDocument("")
         let tools = FileTools(document: doc)
-        #expect(try tools.read() == "")
+        #expect(try tools.read().isEmpty)
     }
 
     @Test("read surfaces a ToolError when the document read throws")
@@ -50,7 +50,7 @@ struct FileToolsTests {
         let doc = InMemoryDocument("populated")
         let tools = FileTools(document: doc)
         _ = try tools.write(content: "")
-        #expect(doc.contents == "")
+        #expect(doc.contents.isEmpty)
     }
 
     @Test("write surfaces a ToolError when the underlying write fails")

@@ -85,8 +85,7 @@ public struct CollaborationChatView: View {
         }
     }
 
-    @ViewBuilder
-    private var transcript: some View {
+    @ViewBuilder private var transcript: some View {
         if let emptyPlaceholder {
             TranscriptView(store: store, iconForTool: iconForTool) {
                 emptyPlaceholder()

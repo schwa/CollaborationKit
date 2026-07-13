@@ -31,6 +31,7 @@ public struct RollbackSnapshot: Sendable {
     ///
     /// The closure must capture (copy) whatever host state is needed to
     /// reapply on rollback. It runs on the main actor.
+    @preconcurrency
     public init(apply: @escaping @MainActor @Sendable () -> Void) {
         self.apply = apply
     }
@@ -39,5 +40,5 @@ public struct RollbackSnapshot: Sendable {
     ///
     /// Use when the transcript should be rewindable but there's no host
     /// state to restore (e.g. a stateless chat with no side effects).
-    public static let empty = RollbackSnapshot(apply: {})
+    public static let empty = Self {}
 }

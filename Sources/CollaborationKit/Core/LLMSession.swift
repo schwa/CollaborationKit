@@ -169,6 +169,16 @@ public actor LLMSession {
         throw SessionError.maxIterationsExceeded(maxIterations)
     }
 
+    /// The three parts of an assistant message produced by one provider
+    /// stream: the content blocks (as they'll be appended to history), the
+    /// aggregated final prose for the turn, and any pending tool uses the
+    /// model asked for.
+    private struct AssistantMessageParts {
+        var blocks: [ContentBlock]
+        var text: String
+        var pendingToolUses: [ToolUse]
+    }
+
     /// Runs a single model round-trip: streams provider events into the
     /// session's event continuation, appends the assistant message to the
     /// history, and dispatches any pending tools.
@@ -177,16 +187,16 @@ public actor LLMSession {
     /// here — before the provider is called — without disturbing the
     /// turn-loop control flow above.
     private func runTurn() async throws -> TurnOutcome {
-        let (assistantBlocks, turnText, pendingToolUses) = try await streamAssistantMessage()
+        let parts = try await streamAssistantMessage()
         let assistantIndex = history.count
-        history.append(Message(role: .assistant, content: assistantBlocks))
+        history.append(Message(role: .assistant, content: parts.blocks))
 
-        guard !pendingToolUses.isEmpty else {
-            return .complete(text: turnText)
+        guard !parts.pendingToolUses.isEmpty else {
+            return .complete(text: parts.text)
         }
 
-        await runPendingTools(pendingToolUses, inMessageAt: assistantIndex)
-        return .needsMoreTurns(text: turnText)
+        await runPendingTools(parts.pendingToolUses, inMessageAt: assistantIndex)
+        return .needsMoreTurns(text: parts.text)
     }
 
     /// Consumes one full provider stream and produces the components of the
@@ -195,11 +205,7 @@ public actor LLMSession {
     ///
     /// The event-fan-out concern lives entirely here, so the turn loop and
     /// tool dispatcher don't touch ``eventContinuation`` for stream events.
-    private func streamAssistantMessage() async throws -> (
-        blocks: [ContentBlock],
-        text: String,
-        pendingToolUses: [ToolUse]
-    ) {
+    private func streamAssistantMessage() async throws -> AssistantMessageParts {
         var assistantBlocks: [ContentBlock] = []
         var turnText = ""
         var pendingToolUses: [ToolUse] = []
@@ -231,7 +237,11 @@ public actor LLMSession {
             }
         }
 
-        return (assistantBlocks, turnText, pendingToolUses)
+        return AssistantMessageParts(
+            blocks: assistantBlocks,
+            text: turnText,
+            pendingToolUses: pendingToolUses
+        )
     }
 
     /// Runs each pending tool in order, attaches its result to the matching
