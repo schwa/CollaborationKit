@@ -3077,11 +3077,12 @@ Same story for other local OpenAI-compatible servers (Ollama).
 ## 116: Surface cached tokens in the UI token-usage display
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
 labels: effort:s, ui
 created: 2026-07-13T18:24:54Z
+updated: 2026-07-13T18:41:06Z
 +++
 
 TokenUsage carries `cacheReadInputTokens` (and `cacheCreationInputTokens`) for both Anthropic and OpenAI, but the UI token-usage indicator only shows the input/output totals. Users can't tell whether prompt caching is actually engaging on a given turn or across a session.
@@ -3093,15 +3094,78 @@ Show the cache-read (and, where relevant, cache-write) counts alongside the exis
 ## 117: Transcript doesn't visually indicate when tool calls came in the same batch
 
 +++
-status: new
+status: open
 priority: low
 kind: enhancement
 labels: effort:m, ui
 created: 2026-07-13T18:34:13Z
+updated: 2026-07-13T18:41:06Z
 +++
 
 When the assistant emits multiple tool_use blocks in a single turn, TranscriptView renders them as an unstyled vertical run of tool rows. There is no visual affordance (rule, grouping, badge, indent) that tells the user those calls arrived together as a batch.
 
 Split out from #112, which added a batching-friendly demo workflow and system-prompt hints but deferred the projection/UI change.
+
+---
+
+## 118: Approval closure has no session-scoped "always allow this tool" affordance
+
++++
+status: open
+priority: medium
+kind: feature
+labels: effort:m, api
+created: 2026-07-13T18:40:19Z
+updated: 2026-07-13T18:41:06Z
++++
+
+Today hosts wire tool approval by supplying an `async (ToolUse) -> ToolApprovalDecision` closure to `LLMSession.init`. The decision enum only has `.allow` and `.deny(reason:)`, so every invocation of an approval-gated tool re-enters the closure — hosts that want to remember "always allow this tool for the rest of the session" (as the demo does in ApprovalGate, see #107) have to maintain their own allowlist and short-circuit before returning.
+
+Nothing in the library helps with that, so every host reinvents the same tiny state machine.
+
+## Proposed fix (per @schwa)
+
+Add `.allowAlways` to `ToolApprovalDecision` and have `LLMSession` track the set of tool names the host has ever returned it for. Subsequent calls to a tool in that set skip the approval closure and resolve straight to allow. Scope is the session's lifetime (i.e. cleared when the session is discarded); no persistence.
+
+Follow-up from #107, which added the UX in the demo but left the library API unchanged.
+
+---
+
+## 119: Per-turn inspector: click a transcript row to see the full request that was sent
+
++++
+status: new
+priority: low
+kind: enhancement
+labels: effort:m
+created: 2026-07-13T18:43:51Z
++++
+
+Ported from Phosphor #93.
+
+Each assistant turn in the CollaborationChatView transcript currently shows only the row's rendered output plus timing. It's useful for debugging (and for user transparency) to click a turn and see the full details of what was actually sent to the model on that iteration.
+
+## What the inspector should show
+
+Per assistant turn:
+
+- The user prompt that started it, verbatim.
+- The full assembled request body sent to the provider (the [Message] history the provider saw, the system prompt, the tool specs). This is the genuinely useful "what did we send."
+- The system prompt / instructions, in a disclosure (long; hide by default).
+- Model identifier and elapsed time.
+- Cumulative and turn-local TokenUsage.
+- For agentic loops with retries / re-planning inside a single turn: each iteration's request/response pair.
+
+## Sketch
+
+- LLMSession currently discards the [Message] snapshot it sent to the provider once the turn completes. Keep it (or a redacted version) attached to a per-turn TurnTrace value.
+- ConversationStore exposes turn traces alongside items (or as a separate turnTraces[UUID: TurnTrace] keyed by user message id).
+- ConversationRowView gets an optional inspector affordance driven by a host modifier — hosts opt in and choose the presentation (popover / sheet / sidebar).
+- Copyable via textSelection(.enabled); the raw JSON body is the debuggable payload.
+
+## Related
+
+- CollaborationKit #35 (SessionDebugExport) captures the *whole* session; this is the per-turn slice.
+- CollaborationKit #26 (rollback) already retains the pre-turn [Message] count; the request-body snapshot is a natural companion.
 
 ---
