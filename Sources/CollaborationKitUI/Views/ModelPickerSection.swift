@@ -10,11 +10,9 @@ import CollaborationKit
 public struct ModelPickerSection: View {
     @Environment(CollaborationCredentials.self) private var credentials
 
-    /// A filter for which model ids to expose. Defaults to
-    /// ``ModelPickerSection/defaultChatModelFilter(_:for:)`` which drops
-    /// obvious non-chat ids (embeddings, audio, image, moderation, dated
-    /// snapshots). Return `true` to keep an id.
-    public let filter: (String, CollaborationBackend) -> Bool
+    /// Optional override for the per-model filter. When `nil`, the
+    /// current ``Backend/modelFilter`` decides.
+    public let filterOverride: (@Sendable (String) -> Bool)?
 
     @State private var models: [ModelInfo] = []
     @State private var selection: String = ""
@@ -24,10 +22,8 @@ public struct ModelPickerSection: View {
         case idle, loading, loaded, failed(String)
     }
 
-    public init(
-        filter: @escaping (String, CollaborationBackend) -> Bool = ModelPickerSection.defaultChatModelFilter(_:for:)
-    ) {
-        self.filter = filter
+    public init(filterOverride: (@Sendable (String) -> Bool)? = nil) {
+        self.filterOverride = filterOverride
     }
 
     public var body: some View {
@@ -60,7 +56,7 @@ public struct ModelPickerSection: View {
         } header: {
             Text("Model")
         }
-        .task(id: TaskKey(backend: credentials.backend, hasCredentials: credentials.hasCredentials)) {
+        .task(id: TaskKey(backendID: credentials.backend.id, hasCredentials: credentials.hasCredentials)) {
             await loadModels()
         }
     }
@@ -68,7 +64,7 @@ public struct ModelPickerSection: View {
     // MARK: - Task keying
 
     private struct TaskKey: Equatable {
-        var backend: CollaborationBackend
+        var backendID: String
         var hasCredentials: Bool
     }
 
@@ -81,11 +77,12 @@ public struct ModelPickerSection: View {
             return
         }
         phase = .loading
+        let filter = filterOverride ?? credentials.backend.modelFilter
+        let backend = credentials.backend
         do {
             let fetched = try await credentials.listAvailableModels()
-            let backend = credentials.backend
             models = fetched
-                .filter { filter($0.id, backend) }
+                .filter { filter($0.id.lowercased()) }
                 .sorted { ($0.displayName ?? $0.id) < ($1.displayName ?? $1.id) }
             if !models.contains(where: { $0.id == selection }) {
                 selection = models.first?.id ?? backend.defaultModel
@@ -94,39 +91,6 @@ public struct ModelPickerSection: View {
         } catch {
             phase = .failed("Couldn't load models. Using \(credentials.selectedModel).")
         }
-    }
-
-    // MARK: - Default filter
-
-    /// A heuristic for chat / tool-capable model ids.
-    ///
-    /// Drops:
-    /// - Dated snapshot pins (`…-2025-12-11`).
-    /// - OpenAI's non-text families (audio, image, realtime, embeddings, etc.).
-    /// - Non-`claude-*` ids on Anthropic backends.
-    ///
-    /// Extend or replace by supplying your own closure to
-    /// ``ModelPickerSection/init(filter:)``.
-    public nonisolated static func defaultChatModelFilter(_ id: String, for backend: CollaborationBackend) -> Bool {
-        let lower = id.lowercased()
-        if hasDatedSnapshotSuffix(lower) { return false }
-        switch backend {
-        case .claudeSubscription, .anthropicAPI:
-            return lower.hasPrefix("claude-")
-
-        case .openAI:
-            let excluded = ["audio", "image", "realtime", "transcribe", "tts",
-                            "whisper", "embedding", "moderation", "search",
-                            "dall-e", "codex", "computer-use"]
-            if excluded.contains(where: lower.contains) { return false }
-            return lower.hasPrefix("gpt-") || lower.hasPrefix("chatgpt")
-                || lower.hasPrefix("o1") || lower.hasPrefix("o3") || lower.hasPrefix("o4")
-        }
-    }
-
-    /// True if `id` ends in a `-YYYY-MM-DD` snapshot date.
-    private nonisolated static func hasDatedSnapshotSuffix(_ id: String) -> Bool {
-        id.wholeMatch(of: /.*-\d{4}-\d{2}-\d{2}/) != nil
     }
 }
 

@@ -3,34 +3,17 @@ import CollaborationKit
 
 /// Drop-in settings view: backend picker plus the credential section for
 /// whichever backend is selected.
-///
-/// Requires a ``CollaborationCredentials`` in the environment. Suitable for
-/// use inside a macOS `Settings` scene, an iOS pushed detail view, or embedded
-/// in any host settings surface.
-///
-/// ```swift
-/// Settings {
-///     CollaborationSettingsView()
-///         .environment(credentials)
-///         .frame(minWidth: 480, minHeight: 320)
-/// }
-/// ```
 public struct CollaborationSettingsView: View {
     @Environment(CollaborationCredentials.self) private var credentials
 
-    /// Which backends to expose in the picker. Defaults to all cases.
-    public let backends: [CollaborationBackend]
-
-    public init(backends: [CollaborationBackend] = CollaborationBackend.allCases) {
-        self.backends = backends
-    }
+    public init() {}
 
     public var body: some View {
         @Bindable var bindable = credentials
         Form {
             Section {
                 Picker("Provider", selection: $bindable.backend) {
-                    ForEach(backends) { backend in
+                    ForEach(credentials.backends) { backend in
                         Text(backend.displayName).tag(backend)
                     }
                 }
@@ -40,15 +23,21 @@ public struct CollaborationSettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            switch credentials.backend {
-            case .claudeSubscription:
+            // Which credential section to show is a per-backend concern; the
+            // built-in three map to the sections shipped in this target.
+            switch credentials.backend.id {
+            case Backend.claudeSubscription.id:
                 AnthropicOAuthSection()
-
-            case .anthropicAPI:
+            case Backend.anthropicAPI.id:
                 AnthropicAPIKeySection()
-
-            case .openAI:
+            case Backend.openAI.id:
                 OpenAIAPIKeySection()
+            default:
+                Section("Credentials") {
+                    Text("This backend doesn't ship a built-in credentials section. Add one for '\(credentials.backend.displayName)' if you want in-app entry.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             ModelPickerSection()

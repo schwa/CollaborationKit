@@ -49,7 +49,7 @@ struct ContentView: View {
                 )
             }
         }
-        .task(id: "\(credentials.backend.rawValue)-\(credentials.hasCredentials)") { rebuild() }
+        .task(id: "\(credentials.backend.id)-\(credentials.hasCredentials)") { rebuild() }
     }
 
     @ViewBuilder

@@ -1371,11 +1371,13 @@ Fills in the last obvious CRUD hole and gives the assistant a natural way to ite
 ## 52: Architecture: pluggable Backend replacing the CollaborationBackend enum
 
 +++
-status: new
+status: closed
 priority: medium
 kind: task
 labels: effort:l
 created: 2026-07-13T03:55:10Z
+updated: 2026-07-13T03:59:58Z
+closed: 2026-07-13T03:59:58Z
 +++
 
 **Cluster**: CollaborationBackend enum, KeychainCredentialStore.hasCredentials(for:) / makeProvider(for:model:maxTokens:), CollaborationCredentials.selectedModel / selectModel / listAvailableModels / modelDefaultsKey, ModelPickerSection.defaultChatModelFilter, CollaborationCredentialsError.
@@ -1396,6 +1398,17 @@ created: 2026-07-13T03:55:10Z
 **Non-goals**: Doesn't change the wire encoding or the streaming plumbing (that's #53). Doesn't touch the CLI's ProviderKind (its config surface is different).
 
 Ranking: highest AI-navigability payoff among the three architecture candidates. See the improve-codebase-architecture review.
+
+- `2026-07-13T03:59:58Z`: Landed. New `Backend` value type in Sources/CollaborationKitUI/Backend.swift owns id, displayName, defaultModel, hasCredentials closure, makeProvider closure, modelFilter closure. Three built-in backends exposed as static factories: Backend.claudeSubscription, .anthropicAPI, .openAI (and Backend.allBuiltin).
+
+Migration:
+- Deleted CollaborationBackend enum + the KeychainCredentialStore extensions.
+- CollaborationCredentials now takes `backends: [Backend]` on init (defaults to Backend.allBuiltin), stores the selected Backend value, and picks the right slot dynamically.
+- CollaborationSettingsView.backends prop dropped; the picker iterates credentials.backends. Credential-section switch keyed by backend.id.
+- ModelPickerSection uses backend.modelFilter directly; `filterOverride` closure available for one-off tweaks.
+- CollaborationCredentialsError carries (id, displayName) so it doesn't pull the whole Backend value.
+
+Adding a new backend now: one Backend(...) declaration in host code + pass it into CollaborationCredentials(backends:). No library edits, no enum case, no scattered switches. 6 BackendTests cover distinct ids, filters, custom backends, error rendering.
 
 ---
 
