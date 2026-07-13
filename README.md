@@ -47,7 +47,7 @@ Products: `CollaborationKit` (core) and `CollaborationKitUI` (SwiftUI).
 
 Annotate a class (or actor, or struct) with `@CollaborationTools`, then mark
 methods with `@CollaborationTool`. The macro derives a JSON Schema from the
-parameter list and exposes a `collaborationTools: [AnyTool]` property. Tool
+parameter list and exposes a `collaborationTools: [any Tool]` property. Tool
 descriptions come from the method's `///` doc comment, or from an explicit
 string passed to `@CollaborationTool` if you want to override it.
 

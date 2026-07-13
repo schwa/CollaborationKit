@@ -3,7 +3,7 @@ import Foundation
 import Testing
 
 // End-to-end tests: attach `@CollaborationTools` to a Sendable actor, verify
-// the generated `collaborationTools` accessor produces `AnyTool`s with the
+// the generated `collaborationTools` accessor produces `any Tool`s with the
 // right names, descriptions, schemas, and runtime behaviour.
 
 // MARK: - Fixtures
@@ -216,18 +216,18 @@ struct CollaborationToolsMacroTests {
     func callForwardsArgs() async throws {
         let store = NoteStore()
         let create = store.collaborationTools.first { $0.name == "create" }!
-        let id = try await create.call(.object([
+        let id = try await create.call(json: .object([
             "title": .string("Groceries"),
             "body": .string("milk, eggs")
         ]))
         #expect(id == "n1")
 
         let count = store.collaborationTools.first { $0.name == "count" }!
-        let n = try await count.call(.object([:]))
+        let n = try await count.call(json: .object([:]))
         #expect(n == "1")
 
         let list = store.collaborationTools.first { $0.name == "list" }!
-        let listing = try await list.call(.object([:]))
+        let listing = try await list.call(json: .object([:]))
         #expect(listing == "n1: Groceries — milk, eggs")
     }
 
@@ -238,7 +238,7 @@ struct CollaborationToolsMacroTests {
         let store = NoteStore()
         let delete = store.collaborationTools.first { $0.name == "delete" }!
         await #expect(throws: ToolError.self) {
-            _ = try await delete.call(.object(["id": .string("nope")]))
+            _ = try await delete.call(json: .object(["id": .string("nope")]))
         }
     }
 
@@ -246,12 +246,12 @@ struct CollaborationToolsMacroTests {
     func voidReturnsOK() async throws {
         let store = NoteStore()
         _ = try await store.collaborationTools.first { $0.name == "create" }!
-            .call(.object([
+            .call(json: .object([
                 "title": .string("t"),
                 "body": .string("b")
             ]))
         let delete = store.collaborationTools.first { $0.name == "delete" }!
-        let result = try await delete.call(.object(["id": .string("n1")]))
+        let result = try await delete.call(json: .object(["id": .string("n1")]))
         #expect(result == "OK")
     }
 
@@ -264,11 +264,11 @@ struct CollaborationToolsMacroTests {
         let inc = tools.first { $0.name == "increment" }!
         let read = tools.first { $0.name == "read" }!
 
-        let r1 = try await inc.call(.object(["amount": .number(3)]))
+        let r1 = try await inc.call(json: .object(["amount": .number(3)]))
         #expect(r1 == "3")
-        let r2 = try await inc.call(.object(["amount": .number(4)]))
+        let r2 = try await inc.call(json: .object(["amount": .number(4)]))
         #expect(r2 == "7")
-        let r3 = try await read.call(.object([:]))
+        let r3 = try await read.call(json: .object([:]))
         #expect(r3 == "7")
     }
 

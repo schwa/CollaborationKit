@@ -173,7 +173,7 @@ func multiToolTurnEmitsAllToolCallsBeforeAnyToolResults() async throws {
     ])
     let session = LLMSession(
         provider: provider,
-        tools: [toolA.eraseToAnyTool(), toolB.eraseToAnyTool()]
+        tools: [toolA, toolB]
     )
 
     let stream = session.events
@@ -243,7 +243,7 @@ func maxIterationsExceededWhenProviderNeverCompletes() async {
     )
     let session = LLMSession(
         provider: provider,
-        tools: [toolA.eraseToAnyTool()],
+        tools: [toolA],
         maxIterations: 3
     )
     await #expect(throws: SessionError.self) {
@@ -264,7 +264,7 @@ func maxIterationsExceededPreservesPartialText() async throws {
     )
     let session = LLMSession(
         provider: provider,
-        tools: [toolA.eraseToAnyTool()],
+        tools: [toolA],
         maxIterations: 3
     )
     do {

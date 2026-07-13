@@ -42,7 +42,7 @@ public enum SessionError: Error, Sendable {
 public actor LLMSession {
     private let provider: ModelProvider
     private let system: String?
-    private let tools: [String: AnyTool]
+    private let tools: [String: any Tool]
     private let toolSpecs: [ToolSpec]
     private let approval: @Sendable (ToolUse) async -> ToolApprovalDecision
 
@@ -70,7 +70,7 @@ public actor LLMSession {
     public init(
         provider: ModelProvider,
         system: String? = nil,
-        tools: [AnyTool] = [],
+        tools: [any Tool] = [],
         approval: @escaping @Sendable (ToolUse) async -> ToolApprovalDecision = { _ in .allow },
         maxIterations: Int = 32
     ) {
@@ -325,7 +325,7 @@ public actor LLMSession {
             }
         }
         do {
-            let output = try await tool.call(use.input)
+            let output = try await tool.call(json: use.input)
             return ToolResult(toolUseID: use.id, content: output)
         } catch let error as ToolError {
             return ToolResult(toolUseID: use.id, content: error.message, isError: true)

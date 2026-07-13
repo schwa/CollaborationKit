@@ -1,15 +1,15 @@
 import Foundation
 
-/// Turns a type's `@CollaborationTool`-annotated members into a set of
-/// ``AnyTool`` values.
+/// Turns a type's `@CollaborationTool`-annotated members into an array of
+/// `any Tool` values.
 ///
 /// Attaching this macro to a class, struct, or actor generates:
 ///
-/// - A nested `Tool` conformer per annotated member, whose `Input` reflects the
-///   member's parameter list and whose `inputSchema` is derived from parameter
-///   types.
-/// - A `collaborationTools: [AnyTool]` property on the enclosing type that
-///   returns one erased tool per annotated member.
+/// - A nested ``Tool`` conformer per annotated member, whose `Input` reflects
+///   the member's parameter list and whose `inputSchema` is derived from
+///   parameter types.
+/// - A `collaborationTools: [any Tool]` property on the enclosing type that
+///   returns one existential tool per annotated member.
 ///
 /// Slice 1 restrictions:
 ///

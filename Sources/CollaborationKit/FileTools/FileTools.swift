@@ -72,11 +72,11 @@ public struct FileTools: Sendable {
     }
 }
 
-extension Array where Element == AnyTool {
+extension Array where Element == any Tool {
     /// The standard read/write/edit tool set for a single document.
     ///
     /// Equivalent to `FileTools(document: document).collaborationTools`.
-    public static func fileTools(for document: any TextDocument) -> [AnyTool] {
+    public static func fileTools(for document: any TextDocument) -> [any Tool] {
         FileTools(document: document).collaborationTools
     }
 }

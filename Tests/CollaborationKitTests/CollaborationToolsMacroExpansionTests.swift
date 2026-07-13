@@ -35,7 +35,7 @@ final class CollaborationToolsMacroExpansionTests: XCTestCase {
 
                 /// Collaboration tools exposed by this type. Empty because no
                 /// members are annotated with `@CollaborationTool`.
-                public var collaborationTools: [CollaborationKit.AnyTool] {
+                public var collaborationTools: [any CollaborationKit.Tool] {
                     []
                 }
             }
@@ -84,9 +84,9 @@ final class CollaborationToolsMacroExpansionTests: XCTestCase {
 
                 /// Collaboration tools exposed by this type, one per
                 /// `@CollaborationTool`-annotated member.
-                public var collaborationTools: [CollaborationKit.AnyTool] {
+                public var collaborationTools: [any CollaborationKit.Tool] {
                     [
-                        __CKTool_hi(__owner: self).eraseToAnyTool()
+                        __CKTool_hi(__owner: self)
                     ]
                 }
             }
@@ -135,9 +135,9 @@ final class CollaborationToolsMacroExpansionTests: XCTestCase {
 
                 /// Collaboration tools exposed by this type, one per
                 /// `@CollaborationTool`-annotated member.
-                public var collaborationTools: [CollaborationKit.AnyTool] {
+                public var collaborationTools: [any CollaborationKit.Tool] {
                     [
-                        __CKTool_bump(__owner: self).eraseToAnyTool()
+                        __CKTool_bump(__owner: self)
                     ]
                 }
             }
@@ -186,9 +186,9 @@ final class CollaborationToolsMacroExpansionTests: XCTestCase {
 
                 /// Collaboration tools exposed by this type, one per
                 /// `@CollaborationTool`-annotated member.
-                public var collaborationTools: [CollaborationKit.AnyTool] {
+                public var collaborationTools: [any CollaborationKit.Tool] {
                     [
-                        __CKTool_f(__owner: self).eraseToAnyTool()
+                        __CKTool_f(__owner: self)
                     ]
                 }
             }
@@ -237,9 +237,9 @@ final class CollaborationToolsMacroExpansionTests: XCTestCase {
 
                 /// Collaboration tools exposed by this type, one per
                 /// `@CollaborationTool`-annotated member.
-                public var collaborationTools: [CollaborationKit.AnyTool] {
+                public var collaborationTools: [any CollaborationKit.Tool] {
                     [
-                        __CKTool_f(__owner: self).eraseToAnyTool()
+                        __CKTool_f(__owner: self)
                     ]
                 }
             }
@@ -288,9 +288,9 @@ final class CollaborationToolsMacroExpansionTests: XCTestCase {
 
                 /// Collaboration tools exposed by this type, one per
                 /// `@CollaborationTool`-annotated member.
-                public var collaborationTools: [CollaborationKit.AnyTool] {
+                public var collaborationTools: [any CollaborationKit.Tool] {
                     [
-                        __CKTool_f(__owner: self).eraseToAnyTool()
+                        __CKTool_f(__owner: self)
                     ]
                 }
             }
@@ -316,7 +316,7 @@ final class CollaborationToolsMacroExpansionTests: XCTestCase {
 
                 /// Collaboration tools exposed by this type. Empty because no
                 /// members are annotated with `@CollaborationTool`.
-                public var collaborationTools: [CollaborationKit.AnyTool] {
+                public var collaborationTools: [any CollaborationKit.Tool] {
                     []
                 }
             }

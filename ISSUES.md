@@ -1179,12 +1179,13 @@ Explore whether the Apple Passwords API can be used to fetch stored API keys (e.
 ## 46: Replace AnyTool type-erasure wrapper with existential `any Tool`
 
 +++
-status: open
+status: closed
 priority: medium
 kind: enhancement
 labels: effort:s
 created: 2026-07-13T03:15:57Z
-updated: 2026-07-13T06:18:59Z
+updated: 2026-07-13T15:03:16Z
+closed: 2026-07-13T15:03:16Z
 +++
 
 `AnyTool` predates / duplicates Swift's built-in existential support. Now that the codebase can rely on `any Tool`, the hand-rolled wrapper is redundant.
@@ -1996,5 +1997,27 @@ created: 2026-07-13T14:44:13Z
 +++
 
 In the chat UI, tapping an attachment should open/preview it. Currently there's no way to view an attachment after it's been sent.
+
+---
+
+## 77: Review uses of stringy keys
+
++++
+status: new
+priority: medium
+kind: task
+created: 2026-07-13T15:02:13Z
++++
+
+Audit the codebase for places where we use bare String keys (UserDefaults keys, Keychain account names, Codable CodingKeys spelled as raw strings, dictionary keys, notification names, etc.) and evaluate whether they should be strongly-typed instead.
+
+Areas to look at:
+- `UserDefaults` `forKey:` call sites (e.g. `CollaborationCredentials`, backend model/default keys)
+- Keychain `kSecAttrAccount` values in `KeychainCredentialStore`
+- Any `[String: Any]` payload dictionaries
+- Backend/provider identifiers passed around as `String`
+- Any other ad-hoc string constants used as lookup keys
+
+For each site, note whether a typed wrapper (e.g. a `RawRepresentable` key type, dedicated enum, or `KeyPath`-based API) would prevent typos, collisions, or drift between read/write sites.
 
 ---

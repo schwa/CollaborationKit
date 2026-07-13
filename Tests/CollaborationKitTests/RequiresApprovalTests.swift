@@ -2,7 +2,7 @@
 import Foundation
 import Testing
 
-/// Tests for the requiresApproval metadata on Tool / AnyTool and the
+/// Tests for the requiresApproval metadata on `Tool` / `any Tool` and the
 /// `@CollaborationTool("…", requiresApproval:)` argument (#22).
 
 @CollaborationTools
@@ -25,8 +25,8 @@ struct RequiresApprovalTests {
         #expect(tool?.requiresApproval == false)
     }
 
-    @Test("propagates true through the AnyTool wrapper")
-    func trueFlowsThroughErasure() {
+    @Test("propagates true through the any Tool existential")
+    func trueFlowsThroughExistential() {
         let tool = ApprovalStore().collaborationTools.first { $0.name == "wipe" }
         #expect(tool?.requiresApproval == true)
     }
@@ -46,8 +46,8 @@ struct RequiresApprovalTests {
 
     @Test("hand-written Tool without an override defaults to false")
     func handWrittenDefaultsFalse() {
-        let erased = BareTool().eraseToAnyTool()
-        #expect(erased.requiresApproval == false)
+        let bare: any Tool = BareTool()
+        #expect(bare.requiresApproval == false)
     }
 }
 

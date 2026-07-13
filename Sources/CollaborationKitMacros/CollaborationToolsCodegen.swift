@@ -91,19 +91,19 @@ extension CollaborationToolsMacro {
             return """
             /// Collaboration tools exposed by this type. Empty because no
             /// members are annotated with `@CollaborationTool`.
-            public var collaborationTools: [CollaborationKit.AnyTool] { [] }
+            public var collaborationTools: [any CollaborationKit.Tool] { [] }
             """
         }
 
         let itemList = tools.map { tool in
-            "__CKTool_\(tool.methodName)(__owner: self).eraseToAnyTool()"
+            "__CKTool_\(tool.methodName)(__owner: self)"
         }
         let items = itemList.joined(separator: ",\n            ")
 
         return """
         /// Collaboration tools exposed by this type, one per
         /// `@CollaborationTool`-annotated member.
-        public var collaborationTools: [CollaborationKit.AnyTool] {
+        public var collaborationTools: [any CollaborationKit.Tool] {
             [
                 \(raw: items)
             ]

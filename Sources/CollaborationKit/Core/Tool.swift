@@ -19,8 +19,9 @@ public struct ToolError: Error, Sendable, Equatable {
 ///
 /// Conformers declare a typed, `Decodable` ``Input`` and provide an async
 /// handler. The ``inputSchema`` is a hand-written JSON Schema describing the
-/// shape of the input as presented to the model. Tools are stored type-erased
-/// in a session via ``AnyTool``.
+/// shape of the input as presented to the model. Tools are stored as `any
+/// Tool` in a session; ``call(json:)`` is the non-generic dispatch entry
+/// point the session uses on the existential.
 public protocol Tool: Sendable {
     /// The decoded input type for this tool.
     associatedtype Input: Decodable, Sendable
@@ -52,49 +53,21 @@ public protocol Tool: Sendable {
     func call(_ input: Input) async throws -> String
 }
 
-/// A type-erased ``Tool``, suitable for heterogeneous storage in a session.
-public struct AnyTool: Sendable {
-    /// The tool's name, as exposed to the model.
-    public let name: String
-    /// A description of the tool's behavior, shown to the model.
-    public let description: String
-    /// A JSON Schema describing the tool's input.
-    public let inputSchema: JSONValue
-    /// Whether invoking this tool requires host-side approval before it runs.
-    ///
-    /// The value flows from the underlying ``Tool/requiresApproval`` at
-    /// erasure time so the host's approval closure can inspect it without
-    /// keeping a parallel side-table.
-    public let requiresApproval: Bool
-
-    private let invoke: @Sendable (JSONValue) async throws -> String
-
-    /// Erases a concrete ``Tool``, capturing its decode-and-invoke behavior.
-    public init<T: Tool>(_ tool: T) {
-        self.name = tool.name
-        self.description = tool.description
-        self.inputSchema = tool.inputSchema
-        self.requiresApproval = tool.requiresApproval
-        self.invoke = { json in
-            let input = try json.decode(as: T.Input.self)
-            return try await tool.call(input)
-        }
-    }
-
-    /// Decodes the raw JSON input and runs the underlying tool.
-    public func call(_ input: JSONValue) async throws -> String {
-        try await invoke(input)
-    }
-}
-
 extension Tool {
     /// Default implementation: tools do not require approval unless they
     /// explicitly say so (via the macro or a `var requiresApproval: Bool`
     /// override).
     public var requiresApproval: Bool { false }
 
-    /// Wraps this tool in an ``AnyTool``.
-    public func eraseToAnyTool() -> AnyTool {
-        AnyTool(self)
+    /// Non-generic dispatch entry point used by the session on an
+    /// `any Tool` existential.
+    ///
+    /// Decodes the raw JSON payload into the conforming type's ``Input``
+    /// and runs the typed ``call(_:)`` handler. Because this method's
+    /// signature does not reference the associated type, it is available
+    /// through the existential without further boxing.
+    public func call(json: JSONValue) async throws -> String {
+        let input = try json.decode(as: Input.self)
+        return try await call(input)
     }
 }

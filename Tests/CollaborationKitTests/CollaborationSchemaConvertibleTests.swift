@@ -121,7 +121,7 @@ struct CollaborationSchemaConvertibleTests {
     func decodesAndDispatchesEnum() async throws {
         let store = EscapeStore()
         let tool = store.collaborationTools.first { $0.name == "setPriority" }!
-        let out = try await tool.call(.object(["p": .string("high")]))
+        let out = try await tool.call(json: .object(["p": .string("high")]))
         #expect(out == "high")
         #expect(store.lastPriority == .high)
     }
@@ -130,7 +130,7 @@ struct CollaborationSchemaConvertibleTests {
     func decodesAndDispatchesStruct() async throws {
         let store = EscapeStore()
         let tool = store.collaborationTools.first { $0.name == "setPoint" }!
-        let out = try await tool.call(.object([
+        let out = try await tool.call(json: .object([
             "point": .object([
                 "x": .number(3),
                 "y": .number(4)
@@ -166,7 +166,7 @@ struct CollaborationSchemaConvertibleTests {
     func decodesAndDispatchesStringTypedID() async throws {
         let store = EscapeStore()
         let tool = store.collaborationTools.first { $0.name == "rememberNote" }!
-        let out = try await tool.call(.object(["id": .string("n42")]))
+        let out = try await tool.call(json: .object(["id": .string("n42")]))
         #expect(out == "n42")
         #expect(store.lastNoteID == EscapeNoteID(rawValue: "n42"))
     }
@@ -175,7 +175,7 @@ struct CollaborationSchemaConvertibleTests {
     func decodesAndDispatchesIntTypedID() async throws {
         let store = EscapeStore()
         let tool = store.collaborationTools.first { $0.name == "rememberTask" }!
-        let out = try await tool.call(.object(["id": .number(7)]))
+        let out = try await tool.call(json: .object(["id": .number(7)]))
         #expect(out == "7")
         #expect(store.lastTaskID == EscapeTaskID(rawValue: 7))
     }

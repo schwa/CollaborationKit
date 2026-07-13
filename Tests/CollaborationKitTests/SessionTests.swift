@@ -201,7 +201,7 @@ func requiresApprovalFalseBypassesTheApprovalClosure() async throws {
     ])
     let session = LLMSession(
         provider: provider,
-        tools: [QuietSpyingTool(recorder: recorder).eraseToAnyTool()]
+        tools: [QuietSpyingTool(recorder: recorder)]
     ) { _ in
         await approvalCalls.bump()
         return .deny(reason: "should never be called")
@@ -225,7 +225,7 @@ func allowAllApprovalIsDefault() async throws {
     ])
     let session = LLMSession(
         provider: provider,
-        tools: [SpyingTool(recorder: recorder).eraseToAnyTool()]
+        tools: [SpyingTool(recorder: recorder)]
     )
     _ = try await session.send("go")
     #expect(await recorder.callCount == 1)
@@ -243,7 +243,7 @@ func denyReasonReachesTheModelAsErrorResultAndToolDoesNotRun() async throws {
     ])
     let session = LLMSession(
         provider: provider,
-        tools: [SpyingTool(recorder: recorder).eraseToAnyTool()]
+        tools: [SpyingTool(recorder: recorder)]
     ) { _ in .deny(reason: "policy: no side effects during dry run") }
     _ = try await session.send("go")
 
@@ -269,7 +269,7 @@ func emptyDenyReasonUsesFallbackMessage() async throws {
     ])
     let session = LLMSession(
         provider: provider,
-        tools: [SpyingTool(recorder: recorder).eraseToAnyTool()]
+        tools: [SpyingTool(recorder: recorder)]
     ) { _ in .deny }
     _ = try await session.send("go")
     let history = await session.messages
@@ -290,7 +290,7 @@ func perToolApprovalCanAllowSomeAndDenyOthers() async throws {
     ])
     let session = LLMSession(
         provider: provider,
-        tools: [SpyingTool(recorder: recorder).eraseToAnyTool()]
+        tools: [SpyingTool(recorder: recorder)]
     ) { use in
         if case .object(let fields) = use.input,
            case .bool(true)? = fields["safe"] {
