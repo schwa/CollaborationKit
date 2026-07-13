@@ -34,6 +34,13 @@ public struct ComposerView<Header: View>: View {
     /// How the prompt field is bordered. Defaults to ``ComposerBorderStyle/plain``.
     public let borderStyle: ComposerBorderStyle
 
+    /// Whether to draw a ladybug affordance that invokes the ambient
+    /// ``ExportDebugLogAction`` (installed by
+    /// ``SwiftUICore/View/sessionDebugExport(store:model:defaultFilename:userInfo:)``).
+    /// The button hides itself when no action is available, so leaving
+    /// this on in production is safe.
+    public let showsDebugExportButton: Bool
+
     /// Optional caption drawn above the prompt field. Hosts typically use this
     /// to show the active backend and model ("cpu · OpenAI · gpt-4o"), but any
     /// view is allowed.
@@ -44,6 +51,7 @@ public struct ComposerView<Header: View>: View {
     @State private var showImporter: Bool = false
     @FocusState private var promptFocused: Bool
     @Environment(\.composerAttachmentBuffer) private var injectedBuffer
+    @Environment(\.exportDebugLogAction) private var exportDebugLogAction
 
     private var buffer: ComposerAttachmentBuffer {
         injectedBuffer ?? ownedBuffer
@@ -56,12 +64,14 @@ public struct ComposerView<Header: View>: View {
         placeholder: LocalizedStringKey = "Message…",
         allowsImageAttachments: Bool = true,
         borderStyle: ComposerBorderStyle = .plain,
+        showsDebugExportButton: Bool = false,
         @ViewBuilder header: @escaping () -> Header
     ) {
         self.store = store
         self.placeholder = placeholder
         self.allowsImageAttachments = allowsImageAttachments
         self.borderStyle = borderStyle
+        self.showsDebugExportButton = showsDebugExportButton
         self.header = header
     }
 
@@ -132,6 +142,16 @@ public struct ComposerView<Header: View>: View {
                 .buttonStyle(.borderless)
                 .accessibilityLabel("Attach image")
                 .accessibilityHint("Add images to your next message.")
+            }
+
+            if showsDebugExportButton, let exportDebugLogAction {
+                Button("Export Debug Log", systemImage: "ladybug") {
+                    exportDebugLogAction()
+                }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Export debug log")
+                .accessibilityHint("Save a JSON snapshot of the current conversation for bug reports.")
             }
 
             if store.pendingPromptCount > 0 {
@@ -290,13 +310,15 @@ extension ComposerView where Header == EmptyView {
         store: ConversationStore,
         placeholder: LocalizedStringKey = "Message…",
         allowsImageAttachments: Bool = true,
-        borderStyle: ComposerBorderStyle = .plain
+        borderStyle: ComposerBorderStyle = .plain,
+        showsDebugExportButton: Bool = false
     ) {
         self.init(
             store: store,
             placeholder: placeholder,
             allowsImageAttachments: allowsImageAttachments,
             borderStyle: borderStyle,
+            showsDebugExportButton: showsDebugExportButton,
             header: { EmptyView() }
         )
     }

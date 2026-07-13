@@ -1908,12 +1908,13 @@ Phosphor's GeneratePanel takes an `onGeneratingChange: (Bool) -> Void` closure a
 ## 72: CollaborationKitUI: built-in UI for session debug export
 
 +++
-status: open
+status: closed
 priority: medium
 kind: enhancement
 labels: effort:m
 created: 2026-07-13T06:14:17Z
-updated: 2026-07-13T06:18:59Z
+updated: 2026-07-13T15:06:36Z
+closed: 2026-07-13T15:06:36Z
 +++
 
 #35 landed the `SessionExport` data model and `ConversationStore.buildExport(model:userInfo:)`, but hosts still have to hand-wire the UI to trigger it.
