@@ -280,3 +280,29 @@ Ask:
 Context: surfaced while wiring OpenAI into Phosphor's shader-generation tool loop. Anthropic serializes tool calls and works perfectly; OpenAI needs parallel calls disabled to behave the same in an edit/read/compile loop.
 
 ---
+
+## 13: Implement RFC 0002 — CollaborationKitUI
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T00:40:29Z
++++
+
+See rfcs/0002-collaborationkit-ui.md.
+
+---
+
+## 14: Implement RFC 0003 — Model-Object Tool Macro
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T00:40:29Z
++++
+
+See rfcs/0003-model-object-tool-macro.md.
+
+---
