@@ -1,38 +1,33 @@
 import Foundation
 
 /// A ``ModelProvider`` backed by the Anthropic Messages API (streaming).
-public struct AnthropicProvider: ModelProvider, ModelLister {
-    private let config: AnthropicConfig
-    private let urlSession: URLSession
+///
+/// Everything cross-cutting — HTTP, SSE, retry, error mapping — comes from
+/// the ``WireProvider`` extension. This type declares only the Anthropic
+/// specifics: request encoding, auth headers, the streaming accumulator, and
+/// the model-catalog endpoint.
+public struct AnthropicProvider: WireProvider {
+    public let config: AnthropicConfig
+    public let urlSession: URLSession
+    public let retryPolicy: RetryPolicy
 
-    public init(config: AnthropicConfig, urlSession: URLSession = .shared) {
+    public init(
+        config: AnthropicConfig,
+        urlSession: URLSession = .shared,
+        retryPolicy: RetryPolicy = .default
+    ) {
         self.config = config
         self.urlSession = urlSession
+        self.retryPolicy = retryPolicy
     }
 
-    public func send(
+    // MARK: - WireProvider
+
+    public func makeChatRequest(
         messages: [Message],
         system: String?,
         tools: [ToolSpec]
-    ) -> AsyncThrowingStream<ProviderStreamEvent, Error> {
-        StreamingTransport.stream(
-            request: { try await makeRequest(messages: messages, system: system, tools: tools) },
-            urlSession: urlSession,
-            makeSink: { StreamAccumulator() },
-            httpError: { status, body in AnthropicError.httpError(status: status, body: body) }
-        )
-    }
-
-    /// Beta features Claude Code's OAuth endpoint expects.
-    private static let oauthBetas = [
-        "claude-code-20250219",
-        "oauth-2025-04-20",
-        "fine-grained-tool-streaming-2025-05-14",
-        "interleaved-thinking-2025-05-14"
-    ].joined(separator: ",")
-    private static let oauthUserAgent = "claude-code/2.1.97"
-
-    private func makeRequest(messages: [Message], system: String?, tools: [ToolSpec]) async throws -> URLRequest {
+    ) async throws -> URLRequest {
         let body = AnthropicWire.requestBody(
             model: config.model,
             maxTokens: config.maxTokens,
@@ -45,36 +40,26 @@ public struct AnthropicProvider: ModelProvider, ModelLister {
         var request = URLRequest(url: config.baseURL.appendingPathComponent("v1/messages"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(config.apiVersion, forHTTPHeaderField: "anthropic-version")
-        switch config.auth {
-        case .apiKey(let key):
-            request.setValue(key, forHTTPHeaderField: "x-api-key")
-
-        case .oauth(let tokenProvider):
-            let token = try await tokenProvider()
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            request.setValue(Self.oauthBetas, forHTTPHeaderField: "anthropic-beta")
-            request.setValue(Self.oauthUserAgent, forHTTPHeaderField: "user-agent")
-            request.setValue("cli", forHTTPHeaderField: "x-app")
-            request.setValue("true", forHTTPHeaderField: "anthropic-dangerous-direct-browser-access")
-        }
+        try await applyAuthHeaders(to: &request)
         request.httpBody = try JSONEncoder().encode(body)
         return request
     }
 
-    /// Fetches available models from `GET /v1/models`.
-    public func listModels() async throws -> [ModelInfo] {
-        let mapError: @Sendable (Int, String) -> Error = { status, body in
-            AnthropicError.httpError(status: status, body: body)
-        }
-        let json = try await StreamingTransport.fetchJSON(
-            request: { try await makeModelsRequest() },
-            urlSession: urlSession,
-            httpError: mapError
-        )
-        guard case .object(let root) = json, case .array(let data)? = root["data"] else {
-            return []
-        }
+    public func makeAccumulator() -> any ServerSentEventSink { StreamAccumulator() }
+
+    public func httpError(status: Int, body: String) -> Error {
+        AnthropicError.httpError(status: status, body: body)
+    }
+
+    public func makeModelsRequest() async throws -> URLRequest? {
+        var request = URLRequest(url: config.baseURL.appendingPathComponent("v1/models"))
+        request.httpMethod = "GET"
+        try await applyAuthHeaders(to: &request)
+        return request
+    }
+
+    public func decodeModels(_ json: JSONValue) -> [ModelInfo] {
+        guard case .object(let root) = json, case .array(let data)? = root["data"] else { return [] }
         let formatter = ISO8601DateFormatter()
         return data.compactMap { entry in
             guard case .object(let object) = entry,
@@ -89,9 +74,18 @@ public struct AnthropicProvider: ModelProvider, ModelLister {
         }
     }
 
-    private func makeModelsRequest() async throws -> URLRequest {
-        var request = URLRequest(url: config.baseURL.appendingPathComponent("v1/models"))
-        request.httpMethod = "GET"
+    // MARK: - Auth headers
+
+    /// Beta features Claude Code's OAuth endpoint expects.
+    private static let oauthBetas = [
+        "claude-code-20250219",
+        "oauth-2025-04-20",
+        "fine-grained-tool-streaming-2025-05-14",
+        "interleaved-thinking-2025-05-14"
+    ].joined(separator: ",")
+    private static let oauthUserAgent = "claude-code/2.1.97"
+
+    private func applyAuthHeaders(to request: inout URLRequest) async throws {
         request.setValue(config.apiVersion, forHTTPHeaderField: "anthropic-version")
         switch config.auth {
         case .apiKey(let key):
@@ -105,7 +99,6 @@ public struct AnthropicProvider: ModelProvider, ModelLister {
             request.setValue("cli", forHTTPHeaderField: "x-app")
             request.setValue("true", forHTTPHeaderField: "anthropic-dangerous-direct-browser-access")
         }
-        return request
     }
 }
 

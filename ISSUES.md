@@ -1415,11 +1415,13 @@ Adding a new backend now: one Backend(...) declaration in host code + pass it in
 ## 53: Architecture: unify AnthropicProvider + OpenAIProvider behind a WireProvider port
 
 +++
-status: new
+status: closed
 priority: medium
 kind: task
 labels: effort:l
 created: 2026-07-13T03:55:10Z
+updated: 2026-07-13T04:04:04Z
+closed: 2026-07-13T04:04:04Z
 +++
 
 **Cluster**: AnthropicProvider, AnthropicWire, AnthropicProvider+StreamAccumulator, OpenAIProvider, OpenAIWire, OpenAIProvider+OpenAIStreamAccumulator, AnthropicConfig, OpenAIConfig — roughly 400 lines of parallel plumbing.
@@ -1448,6 +1450,16 @@ Then a single `HTTPStreamingProvider<Wire: WireProvider>: ModelProvider, ModelLi
 **Non-goals**: No wire-format changes. Retry policy and StreamingTransport stay as-is.
 
 Ranking: biggest raw duplication kill among the three candidates.
+
+- `2026-07-13T04:04:04Z`: Landed. New `WireProvider` protocol in Sources/CollaborationKit/Core/WireProvider.swift refines ModelProvider + ModelLister with five wire-specific hooks (makeChatRequest, makeAccumulator, httpError, makeModelsRequest, decodeModels) plus urlSession + retryPolicy. Default implementations of send() and listModels() route through StreamingTransport once.
+
+AnthropicProvider and OpenAIProvider now conform to WireProvider — the ~120 lines of send/listModels body from each shrunk to the wire-specific hooks. Total savings: about 100 lines of duplicated plumbing.
+
+Made public so third-party wires can compose:
+- ServerSentEventSink (was internal)
+- StreamingTransport (was internal enum) + its stream/fetchJSON entry points
+
+Added WireProviderTests: 4 boundary tests exercise the default send/listModels via a FakeWire + URLProtocol stub (serialized suite, shared static stubbed responses per path). Existing accumulator and provider tests untouched — still 114 tests plus 4 new ones for the boundary → 118 pass.
 
 ---
 

@@ -4,8 +4,6 @@ Swift package for building apps that collaborate with an LLM through tools.
 Annotate methods on your model with a macro and the model can call them.
 Add the SwiftUI chat view and you have an assistant panel.
 
-Swift 6, macOS 14+ / iOS 17+. URLSession + async/await. MIT.
-
 ## Features
 
 ### `CollaborationKit`

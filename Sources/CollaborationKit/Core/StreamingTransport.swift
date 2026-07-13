@@ -6,7 +6,7 @@ import Foundation
 /// the SSE loop generically. The transport feeds each non-empty `data:` payload
 /// to ``consume(_:)`` and, at end of stream (or when a sentinel is hit), calls
 /// ``finish()`` to flush any buffered events.
-protocol ServerSentEventSink {
+public protocol ServerSentEventSink {
     /// The payload that terminates the stream, if the API sends one (e.g. OpenAI's
     /// `[DONE]`). When the transport sees this payload it stops reading and flushes
     /// via ``finish()`` instead of passing it to ``consume(_:)``. `nil` if the API
@@ -22,8 +22,8 @@ protocol ServerSentEventSink {
 }
 
 extension ServerSentEventSink {
-    var doneSentinel: String? { nil }
-    mutating func finish() -> [ProviderStreamEvent] { [] }
+    public var doneSentinel: String? { nil }
+    public mutating func finish() -> [ProviderStreamEvent] { [] }
 }
 
 /// Drives an SSE `POST` request and translates it into a stream of
@@ -33,7 +33,7 @@ extension ServerSentEventSink {
 /// the work in a cancellable `Task`, checking the HTTP status (draining the body
 /// into a provider-specific error on failure), and parsing `data:` lines. The
 /// per-line semantics live in the provider's ``ServerSentEventSink``.
-enum StreamingTransport {
+public enum StreamingTransport {
     /// Runs `request` and streams events parsed by a fresh `sink`.
     ///
     /// - Parameters:
@@ -45,10 +45,10 @@ enum StreamingTransport {
     ///   - retryPolicy: How to retry transient failures on the initial HTTP
     ///     round-trip. Only applies before the first byte is yielded to the
     ///     consumer — mid-stream failures never retry.
-    static func stream(
+    public static func stream(
         request: @escaping @Sendable () async throws -> URLRequest,
         urlSession: URLSession,
-        makeSink: @escaping @Sendable () -> ServerSentEventSink,
+        makeSink: @escaping @Sendable () -> any ServerSentEventSink,
         httpError: @escaping @Sendable (Int, String) -> Error,
         retryPolicy: RetryPolicy = .default
     ) -> AsyncThrowingStream<ProviderStreamEvent, Error> {
@@ -80,7 +80,7 @@ enum StreamingTransport {
     ///   - urlSession: The session used to issue the request.
     ///   - httpError: Maps a non-2xx `(status, body)` into the provider's error.
     /// - Returns: The decoded ``JSONValue`` of the response body.
-    static func fetchJSON(
+    public static func fetchJSON(
         request: @Sendable () async throws -> URLRequest,
         urlSession: URLSession,
         httpError: @Sendable (Int, String) -> Error
@@ -97,7 +97,7 @@ enum StreamingTransport {
     private static func run(
         request: @Sendable () async throws -> URLRequest,
         urlSession: URLSession,
-        makeSink: @Sendable () -> ServerSentEventSink,
+        makeSink: @Sendable () -> any ServerSentEventSink,
         httpError: @Sendable (Int, String) -> Error,
         retryPolicy: RetryPolicy,
         into continuation: AsyncThrowingStream<ProviderStreamEvent, Error>.Continuation

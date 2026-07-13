@@ -1,33 +1,35 @@
 import Foundation
 
-/// A ``ModelProvider`` backed by the OpenAI-compatible `/v1/chat/completions`
-/// streaming API.
+/// A ``ModelProvider`` backed by the OpenAI-compatible
+/// `/v1/chat/completions` streaming API.
 ///
-/// Works with the OpenAI API and local servers such as LM Studio and Ollama.
-/// Tool calling requires a model the server reports as tool-capable.
-public struct OpenAIProvider: ModelProvider, ModelLister {
-    private let config: OpenAIConfig
-    private let urlSession: URLSession
+/// Everything cross-cutting — HTTP, SSE, retry, error mapping — comes from
+/// the ``WireProvider`` extension. This type declares only the OpenAI
+/// specifics: request encoding, the streaming accumulator, and the
+/// model-catalog endpoint. Works with the OpenAI API and local servers such
+/// as LM Studio and Ollama.
+public struct OpenAIProvider: WireProvider {
+    public let config: OpenAIConfig
+    public let urlSession: URLSession
+    public let retryPolicy: RetryPolicy
 
-    public init(config: OpenAIConfig, urlSession: URLSession = .shared) {
+    public init(
+        config: OpenAIConfig,
+        urlSession: URLSession = .shared,
+        retryPolicy: RetryPolicy = .default
+    ) {
         self.config = config
         self.urlSession = urlSession
+        self.retryPolicy = retryPolicy
     }
 
-    public func send(
+    // MARK: - WireProvider
+
+    public func makeChatRequest(
         messages: [Message],
         system: String?,
         tools: [ToolSpec]
-    ) -> AsyncThrowingStream<ProviderStreamEvent, Error> {
-        StreamingTransport.stream(
-            request: { try makeRequest(messages: messages, system: system, tools: tools) },
-            urlSession: urlSession,
-            makeSink: { OpenAIStreamAccumulator() },
-            httpError: { status, body in OpenAIError.httpError(status: status, body: body) }
-        )
-    }
-
-    private func makeRequest(messages: [Message], system: String?, tools: [ToolSpec]) throws -> URLRequest {
+    ) async throws -> URLRequest {
         let body = OpenAIWire.requestBody(
             model: config.model,
             maxTokens: config.maxTokens,
@@ -45,22 +47,21 @@ public struct OpenAIProvider: ModelProvider, ModelLister {
         return request
     }
 
-    /// Fetches available models from `GET /v1/models`.
-    ///
-    /// Works with the OpenAI API and local servers (LM Studio, Ollama) that
-    /// implement the same endpoint.
-    public func listModels() async throws -> [ModelInfo] {
-        let mapError: @Sendable (Int, String) -> Error = { status, body in
-            OpenAIError.httpError(status: status, body: body)
-        }
-        let json = try await StreamingTransport.fetchJSON(
-            request: { makeModelsRequest() },
-            urlSession: urlSession,
-            httpError: mapError
-        )
-        guard case .object(let root) = json, case .array(let data)? = root["data"] else {
-            return []
-        }
+    public func makeAccumulator() -> any ServerSentEventSink { OpenAIStreamAccumulator() }
+
+    public func httpError(status: Int, body: String) -> Error {
+        OpenAIError.httpError(status: status, body: body)
+    }
+
+    public func makeModelsRequest() async throws -> URLRequest? {
+        var request = URLRequest(url: config.baseURL.appendingPathComponent("v1/models"))
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization")
+        return request
+    }
+
+    public func decodeModels(_ json: JSONValue) -> [ModelInfo] {
+        guard case .object(let root) = json, case .array(let data)? = root["data"] else { return [] }
         return data.compactMap { entry in
             guard case .object(let object) = entry,
                   case .string(let id)? = object["id"] else { return nil }
@@ -73,22 +74,9 @@ public struct OpenAIProvider: ModelProvider, ModelLister {
             return ModelInfo(id: id, ownedBy: ownedBy, created: created)
         }
     }
-
-    private func makeModelsRequest() -> URLRequest {
-        var request = URLRequest(url: config.baseURL.appendingPathComponent("v1/models"))
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization")
-        return request
-    }
 }
 
 /// Accumulates OpenAI streaming chunks into ``ProviderStreamEvent`` values.
-///
-/// OpenAI streams `choices[0].delta` objects. Text arrives as `content` strings.
-/// Tool calls arrive as a `tool_calls` array whose entries are keyed by `index`;
-/// the `function.arguments` for each is streamed as concatenated string
-/// fragments. Tool calls are emitted when streaming finishes, since no
-/// per-call terminator is sent.
 struct OpenAIStreamAccumulator: ServerSentEventSink {
     let doneSentinel: String? = "[DONE]"
 
@@ -119,7 +107,6 @@ struct OpenAIStreamAccumulator: ServerSentEventSink {
             throw OpenAIError.apiError(message: message)
         }
 
-        // The final usage chunk carries `usage` with an empty `choices` array.
         if case .object(let usageObject)? = root["usage"] {
             captureUsage(usageObject)
         }
@@ -154,7 +141,6 @@ struct OpenAIStreamAccumulator: ServerSentEventSink {
         self.usage = usage
     }
 
-    /// Emits the final text block (if any), assembled tool-use calls, and usage.
     mutating func finish() -> [ProviderStreamEvent] {
         var events: [ProviderStreamEvent] = []
         if sawText {
