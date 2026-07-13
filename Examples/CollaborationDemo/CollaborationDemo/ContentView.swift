@@ -6,32 +6,49 @@ struct ContentView: View {
     @Environment(CollaborationCredentials.self)
     private var credentials
     @State private var notes = DemoNotes()
+    @State private var sketch = DemoSketch()
     @State private var store: ConversationStore?
     @State private var buildError: String?
     @State private var showAssistant: Bool = true
     @State private var editing: EditingNote?
     @State private var approvals = ApprovalGate()
+    @State private var selectedTab: DemoTab = .notes
 
     private struct EditingNote: Identifiable {
         let id: Note.ID
     }
 
+    private enum DemoTab: Hashable {
+        case notes
+        case sketch
+    }
+
     var body: some View {
-        NotesListView(
-            notes: notes,
-            onSelect: { editing = EditingNote(id: $0) },
-            onDelete: { id in notes.notes.removeAll { $0.id == id } }
-        )
-        .navigationTitle("Notes")
+        TabView(selection: $selectedTab) {
+            NotesListView(
+                notes: notes,
+                onSelect: { editing = EditingNote(id: $0) },
+                onDelete: { id in notes.notes.removeAll { $0.id == id } }
+            )
+            .tabItem { Label("Notes", systemImage: "note.text") }
+            .tag(DemoTab.notes)
+
+            SketchCanvasView(sketch: sketch)
+                .tabItem { Label("Sketch", systemImage: "scribble") }
+                .tag(DemoTab.sketch)
+        }
+        .navigationTitle(selectedTab == .notes ? "Notes" : "Sketch")
         .inspector(isPresented: $showAssistant) { assistant }
         .toolbar {
-            Button {
-                let id: Note.ID = "n\(notes.nextID)"
-                notes.nextID += 1
-                notes.notes.append(Note(id: id, title: "", body: "", tag: nil, color: nil))
-                editing = EditingNote(id: id)
-            } label: {
-                Label("New Note", systemImage: "plus")
+            if selectedTab == .notes {
+                Button {
+                    let id: Note.ID = "n\(notes.nextID)"
+                    notes.nextID += 1
+                    notes.notes.append(Note(id: id, title: "", body: "", tag: nil, color: nil))
+                    editing = EditingNote(id: id)
+                } label: {
+                    Label("New Note", systemImage: "plus")
+                }
             }
             Button {
                 showAssistant.toggle()
@@ -106,13 +123,20 @@ struct ContentView: View {
             let session = LLMSession(
                 provider: provider,
                 system: """
-                IMPORTANT: You're an app called "DemoApp".
-                You help the user manage a small list of notes. Notes have a title, body, optional tag \
+                IMPORTANT: You're an app called "DemoApp" with two surfaces the user can switch between:
+
+                1. Notes — a small list of notes with title, body, optional tag \
                 (idea, todo, question, journal, follow-up), and optional color (red, orange, yellow, green, \
                 blue, purple, pink). Use the list, search, create, edit, setTag, setColor, and delete tools. \
                 Prefer setTag and setColor to make notes visually distinct when it helps the user scan them.
+
+                2. Sketch — a square canvas the user can draw on freehand. You can add shapes (addLine, \
+                addRectangle, addEllipse, addPath), change the background (setBackground), inspect the \
+                current shapes (list), undo the last shape, delete one by id, or clear the whole canvas. \
+                All canvas coordinates are in the 0–1 unit square with the top-left as the origin. \
+                Prefer thin strokes (width 0.003–0.008) unless the user asks for something bold.
                 """,
-                tools: notes.collaborationTools,
+                tools: notes.collaborationTools + sketch.collaborationTools,
                 approval: { [approvals] use in
                     await approvals.request(use)
                 }
