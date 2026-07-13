@@ -75,6 +75,15 @@ public final class ConversationStore {
     @ObservationIgnored
     private var pendingPrompts: [PendingPrompt] = []
 
+    /// Optional host hook consulted by ``send(_:images:snapshot:)`` when the
+    /// caller doesn't supply a snapshot explicitly. Lets a host wire
+    /// rollback into the built-in composer (which has no snapshot argument)
+    /// by capturing whatever document state should be restorable at the
+    /// moment each prompt is submitted. Return `nil` to skip the snapshot
+    /// for a particular turn.
+    @ObservationIgnored
+    public var snapshotProvider: (@MainActor @Sendable () -> RollbackSnapshot?)?
+
     private struct PendingPrompt {
         var text: String
         var images: [ImageContent]
@@ -116,10 +125,15 @@ public final class ConversationStore {
         let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !(trimmed.isEmpty && images.isEmpty) else { return }
 
+        // Fall back to the host-configured provider when no explicit
+        // snapshot was passed. Captured now so the state reflects the
+        // moment of send, not whenever the queued turn eventually runs.
+        let effectiveSnapshot = snapshot ?? snapshotProvider?()
+
         // Queue rather than drop when a turn is already running; the next
         // prompt starts automatically once the current one finishes.
         if isGenerating {
-            pendingPrompts.append(PendingPrompt(text: trimmed, images: images, snapshot: snapshot))
+            pendingPrompts.append(PendingPrompt(text: trimmed, images: images, snapshot: effectiveSnapshot))
             return
         }
 
@@ -131,8 +145,8 @@ public final class ConversationStore {
             ? .user(trimmed)
             : .user(text: trimmed, images: images)
         mirror.appendUser(userMessage)
-        if let snapshot {
-            rollbackSnapshots[userMessage.id] = (preTurnCount, snapshot)
+        if let effectiveSnapshot {
+            rollbackSnapshots[userMessage.id] = (preTurnCount, effectiveSnapshot)
         }
         isGenerating = true
         reproject()

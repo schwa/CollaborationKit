@@ -197,7 +197,18 @@ struct ContentView: View {
                 tools: doc.collaborationTools,
                 approval: approve
             )
-            docStore = ConversationStore(session: docSession)
+            let newDocStore = ConversationStore(session: docSession)
+            // Snapshot the document text on every send so the transcript's
+            // "Roll Back to Here" affordance can restore what the doc
+            // looked like before that turn ran.
+            newDocStore.snapshotProvider = { [weak doc] in
+                guard let doc else { return nil }
+                let saved = doc.text
+                return RollbackSnapshot { [weak doc] in
+                    doc?.userEdit(newText: saved)
+                }
+            }
+            docStore = newDocStore
         } catch {
             buildError = error.localizedDescription
         }

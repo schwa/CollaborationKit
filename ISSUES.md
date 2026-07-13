@@ -2863,3 +2863,16 @@ Sharp edges to design around:
 Deferred from the initial #98 pass because parallel-by-default was judged too dangerous for tools whose safety story we don't own.
 
 ---
+
+## 107: Approval prompt has no "always allow this tool" option
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T17:22:00Z
++++
+
+When a tool marked `requiresApproval: true` runs, the user gets an Allow/Deny prompt for every invocation. There is no way to whitelist a tool for the rest of the conversation (or session), so repeated calls to the same tool require repeated clicks.
+
+---
