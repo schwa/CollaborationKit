@@ -332,17 +332,19 @@ See rfcs/0002-collaborationkit-ui.md.
 ## 14: Implement RFC 0003 — Model-Object Tool Macro
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:xl
 created: 2026-07-13T00:40:29Z
-updated: 2026-07-13T01:49:52Z
+updated: 2026-07-13T05:53:21Z
+closed: 2026-07-13T05:53:21Z
 +++
 
 See rfcs/0003-model-object-tool-macro.md.
 
 - `2026-07-13T01:01:38Z`: Slice 1 landed: core `@CollaborationTools` / `@CollaborationTool` macros, primitives + Optional/Array/[String:T], throws/async/actor call-site handling, `CollaborationResultConvertible`. Framework bridges (FoundationModels/SwiftData/AppIntents), `@CollaborationField`, `@CollaborationSchema`, nested-object handling, doc-comment mining, and name prefixing are deferred to later slices.
+- `2026-07-13T05:53:21Z`: Slice 1 shipped (@CollaborationTools / @CollaborationTool, primitives + Optional/Array/[String:T], throws/async/actor + @MainActor call-site handling, CollaborationResultConvertible, CollaborationSchemaConvertible, prefix:, name:, requiresApproval:, and doc-comment mining via #19). Remaining RFC 0003 work — FoundationModels (#16), SwiftData (#17), and AppIntents (#18) bridges — tracked as trailing issues in their own right; no umbrella needed.
 
 ---
 
@@ -477,10 +479,10 @@ closed: 2026-07-13T05:50:10Z
 Every @CollaborationTool method has to repeat its description in the attribute argument, even when the method already has a /// doc comment saying the same thing.
 
 Missing per RFC 0003 open question 2:
-- If the attribute has no description argument, use the member's /// doc comment as the tool description.
-- Explicit attribute string always wins.
-- Requires enabling doc-comment trivia access in the macro.
 
+- `2026-07-13T01:02:51Z`: If the attribute has no description argument, use the member's /// doc comment as the tool description.
+- `2026-07-13T01:02:51Z`: Explicit attribute string always wins.
+- `2026-07-13T01:02:51Z`: Requires enabling doc-comment trivia access in the macro.
 - `2026-07-13T05:50:10Z`: Slice 2: description-less @CollaborationTool falls back to the method's /// doc-comment summary (stops at first blank line or DocC keyword). Explicit attribute string still wins. Missing description now diagnoses. Demo, README, and tests updated.
 
 ---
@@ -1745,5 +1747,120 @@ created: 2026-07-13T05:44:57Z
 The empty-conversation placeholder view renders a fixed instructional string. It's baked into CollaborationKit rather than provided by the host app, so it's wrong for the ~99% of integrations whose UI, tools, and workflow don't match what the placeholder describes.
 
 The placeholder text (and probably the whole placeholder view) needs to be host-configurable, with a sensible generic fallback — or removed entirely and left to the host.
+
+---
+
+## 66: Composer doesn't accept pasted images or file attachments
+
++++
+status: new
+priority: medium
+kind: none
+created: 2026-07-13T05:57:23Z
++++
+
+Pasting an image (or any file) into the composer's text field does nothing. Users have no way to attach visual/document content to a prompt short of describing it in words.
+
+The composer should accept pasted images and file attachments from the clipboard, surface them as attachment chips in the composer, and include them in the outgoing message.
+
+---
+
+## 67: Composer doesn't accept dragged images or file attachments
+
++++
+status: new
+priority: medium
+kind: none
+created: 2026-07-13T05:57:24Z
++++
+
+Dragging an image or file onto the composer's text field does nothing. Users can't drop a screenshot, PDF, or other document onto the input to attach it.
+
+The composer should accept dragged images and file attachments, surface them as attachment chips in the composer, and include them in the outgoing message.
+
+---
+
+## 68: Redesign the demo Settings window — current layout doesn't feel like a native macOS Settings scene
+
++++
+status: new
+priority: medium
+kind: none
+created: 2026-07-13T05:58:52Z
++++
+
+The CollaborationDemo Settings window is styled as three floating rounded 'cards' (AI SERVICE / OPENAI API CONFIGURATION / MODEL SELECTION) with all-caps section labels above each card, over a flat gray background. It reads as a bespoke landing page, not a macOS Settings window.
+
+Problems visible in the current layout:
+- Three separate cards for what is really one short form — lots of vertical whitespace and repeated chrome for very few controls.
+- All-caps hovering section headers don't match macOS Settings conventions.
+- The API Key row mixes a secure field, a 'Clear' button and a primary 'Save' button inline — the Save affordance implies unsaved state that doesn't otherwise exist elsewhere in Settings.
+- The 'Get an API key' link is embedded inside the API key card as a full-width row, which reads as another setting rather than help text.
+- Provider / Model pickers, API key, and a version footer are all fighting for equal visual weight.
+- No use of the standard macOS Settings scene / tab layout even though there are obvious groupings (provider, credentials, model).
+
+The Settings surface should look and behave like a native macOS Settings window and stop trying to be its own visual system.
+
+---
+
+## 69: Consider using a WebView for the conversation view
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T05:59:52Z
++++
+
+The current conversation view has limited text selection and other interaction affordances. Investigate rendering the conversation as a WebView to get better native selection, copy, find, and rich-content rendering.
+
+---
+
+## 70: ComposerView: no way to show a backend/model header
+
++++
+status: new
+priority: medium
+kind: enhancement
+created: 2026-07-13T06:13:38Z
++++
+
+Phosphor's composer shows a small caption above the prompt field: "cpu · <Backend display name> · <selected model id>". CollaborationKit's `ComposerView` has no slot for this and no built-in rendering of the active backend/model.
+
+Hosts currently have to fork the whole composer to add it.
+
+---
+
+## 71: CollaborationChatView: no onGeneratingChange callback
+
++++
+status: new
+priority: medium
+kind: enhancement
+created: 2026-07-13T06:14:12Z
++++
+
+Phosphor's GeneratePanel takes an `onGeneratingChange: (Bool) -> Void` closure and fires it via `.onChange(of: store.isGenerating)`, so the host can react (disable UI, pause compilation, etc.) when a turn starts or ends.
+
+`CollaborationChatView` has no equivalent hook. Hosts have to observe `store.isGenerating` themselves from outside.
+
+---
+
+## 72: CollaborationKitUI: built-in UI for session debug export
+
++++
+status: new
+priority: medium
+kind: enhancement
+created: 2026-07-13T06:14:17Z
++++
+
+#35 landed the `SessionExport` data model and `ConversationStore.buildExport(model:userInfo:)`, but hosts still have to hand-wire the UI to trigger it.
+
+Phosphor's composer adds a ladybug button that calls `buildExport`, wraps the result in a `Transferable`, and presents `.fileExporter`. It also publishes an `ExportDebugLogAction` via `focusedSceneValue` so a File menu command can invoke the same export.
+
+Missing surface in CollaborationKitUI:
+- Optional composer affordance to run the export (with defaultFilename hook).
+- A FocusedValueKey / focused-scene-value so hosts can add a File menu command that triggers export without reimplementing the plumbing.
 
 ---
