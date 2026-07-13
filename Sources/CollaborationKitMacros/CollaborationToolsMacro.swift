@@ -7,6 +7,7 @@ public enum CollaborationToolsMacro: MemberMacro {
     public static func expansion(
         of attribute: AttributeSyntax,
         providingMembersOf declaration: some DeclGroupSyntax,
+        conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
         let ownerInfo = try enclosingTypeInfo(from: declaration, context: context)
