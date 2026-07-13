@@ -4,13 +4,14 @@ import SwiftSyntaxMacros
 
 public enum CollaborationToolsMacro: MemberMacro {
     public static func expansion(
-        of _: AttributeSyntax,
+        of attribute: AttributeSyntax,
         providingMembersOf declaration: some DeclGroupSyntax,
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
         let ownerInfo = try enclosingTypeInfo(from: declaration, context: context)
+        let prefix = prefixArgument(from: attribute)
 
-        let tools = try annotatedMethods(in: declaration, context: context)
+        let tools = try annotatedMethods(in: declaration, context: context, prefix: prefix)
 
         // Emit even when empty — the accessor should exist so the user's site
         // compiles predictably.
@@ -56,11 +57,42 @@ public enum CollaborationToolsMacro: MemberMacro {
         throw MacroFailure.diagnosed
     }
 
+    // MARK: - Attribute arguments
+
+    /// Extracts the `prefix:` argument from `@CollaborationTools(prefix: "…")`,
+    /// or `nil` when the caller passed no prefix (or an empty string).
+    private static func prefixArgument(from attribute: AttributeSyntax) -> String? {
+        guard case .argumentList(let args) = attribute.arguments else { return nil }
+        for arg in args where arg.label?.text == "prefix" {
+            if let literal = arg.expression.as(StringLiteralExprSyntax.self),
+               let value = literal.representedLiteralValue,
+               !value.isEmpty {
+                return value
+            }
+        }
+        return nil
+    }
+
+    /// Extracts the `name:` argument from `@CollaborationTool("…", name: "…")`,
+    /// or `nil` when the caller passed no explicit name.
+    private static func nameArgument(from attribute: AttributeSyntax) -> String? {
+        guard case .argumentList(let args) = attribute.arguments else { return nil }
+        for arg in args where arg.label?.text == "name" {
+            if let literal = arg.expression.as(StringLiteralExprSyntax.self),
+               let value = literal.representedLiteralValue,
+               !value.isEmpty {
+                return value
+            }
+        }
+        return nil
+    }
+
     // MARK: - Discovery
 
     private static func annotatedMethods(
         in declaration: some DeclGroupSyntax,
-        context: some MacroExpansionContext
+        context: some MacroExpansionContext,
+        prefix: String?
     ) throws -> [DecodedTool] {
         var results: [DecodedTool] = []
 
@@ -112,10 +144,19 @@ public enum CollaborationToolsMacro: MemberMacro {
                 returnText = nil
             }
 
-            _ = attr
+            // Explicit `name:` on the per-method attribute wins outright.
+            // Otherwise: if the enclosing type declared a `prefix:`, join it
+            // to the method name with an underscore. Bare Swift method name
+            // is the fallback.
+            let toolName: String = {
+                if let override = nameArgument(from: attr) { return override }
+                if let prefix { return "\(prefix)_\(fn.name.text)" }
+                return fn.name.text
+            }()
+
             results.append(DecodedTool(
                 methodName: fn.name.text,
-                toolName: fn.name.text,
+                toolName: toolName,
                 description: description,
                 parameters: parameters,
                 isAsync: isAsync,

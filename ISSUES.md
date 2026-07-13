@@ -458,13 +458,14 @@ Missing per RFC 0003 open question 2:
 ## 20: RFC 0003: tool-name prefixing and collision handling across multiple annotated types
 
 +++
-status: open
+status: closed
 priority: medium
 kind: enhancement
 labels: effort:s
 depends: 14
 created: 2026-07-13T01:02:56Z
-updated: 2026-07-13T01:49:52Z
+updated: 2026-07-13T02:22:54Z
+closed: 2026-07-13T02:22:54Z
 +++
 
 Slice 1 uses the bare Swift member name as the tool name. When two @CollaborationTools types both expose e.g. 'create', the model sees two tools with the same name and one wins silently.
@@ -473,6 +474,13 @@ Missing per RFC 0003 open question 5:
 - Default naming prefixes the tool name with the owning type name (or a shortened form of it).
 - Per-attribute override to force a specific tool name.
 - Documented guidance for hosts that merge tools from multiple stores.
+
+- `2026-07-13T02:22:54Z`: Landed. Two knobs, both opt-in and non-breaking:
+
+- `@CollaborationTools(prefix: "Notes")` — every derived tool becomes `Notes_<method>`.
+- `@CollaborationTool("desc", name: "custom.name")` — per-tool override wins over both the prefix and the bare method name.
+
+Bare method name remains the default when neither is used, so existing call sites keep working. Added CollaborationToolsPrefixTests exercising the three combinations.
 
 ---
 

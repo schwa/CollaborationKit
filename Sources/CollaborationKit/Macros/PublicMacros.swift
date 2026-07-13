@@ -36,7 +36,7 @@ import Foundation
 ///
 /// See RFC 0003.
 @attached(member, names: named(collaborationTools), arbitrary)
-public macro CollaborationTools() = #externalMacro(
+public macro CollaborationTools(prefix: String? = nil) = #externalMacro(
     module: "CollaborationKitMacros",
     type: "CollaborationToolsMacro"
 )
@@ -46,9 +46,16 @@ public macro CollaborationTools() = #externalMacro(
 /// The `description` argument becomes the tool description shown to the model.
 /// The tool's name defaults to the Swift method name.
 ///
-/// Must be used inside a type annotated with ``CollaborationTools()``.
+/// Must be used inside a type annotated with ``CollaborationTools(prefix:)``.
+///
+/// - Parameters:
+///   - description: Tool description shown to the model.
+///   - name: Optional override for the exposed tool name. When `nil` (the
+///     default) the Swift method name is used, optionally prefixed by the
+///     enclosing type's `@CollaborationTools(prefix:)` setting. Use this to
+///     force a specific name when merging tools from multiple stores.
 @attached(peer)
-public macro CollaborationTool(_ description: String) = #externalMacro(
+public macro CollaborationTool(_ description: String, name: String? = nil) = #externalMacro(
     module: "CollaborationKitMacros",
     type: "CollaborationToolMacro"
 )
