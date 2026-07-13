@@ -520,13 +520,14 @@ Missing per RFC 0003 open question 6:
 ## 23: RFC 0003: macro-expansion tests via SwiftSyntaxMacrosTestSupport
 
 +++
-status: open
+status: closed
 priority: high
 kind: task
 labels: effort:m
 depends: 14
 created: 2026-07-13T01:03:17Z
-updated: 2026-07-13T01:53:09Z
+updated: 2026-07-13T02:10:29Z
+closed: 2026-07-13T02:10:29Z
 +++
 
 Slice 1 tests exercise the macro through its runtime output (collaborationTools, call, LLMSession loop). There are no assertions against the actual expanded source, so regressions in codegen shape are only caught indirectly.
@@ -534,6 +535,8 @@ Slice 1 tests exercise the macro through its runtime output (collaborationTools,
 Missing per RFC 0003 open question 7:
 - Add SwiftSyntaxMacrosTestSupport-based expansion tests for CollaborationToolsMacro covering: empty type, single method, all supported parameter kinds, async/throws/actor call sites, and diagnostic-emitting cases (non-type target, unsupported parameter type).
 - Keep the runtime tests too; the two catch different bugs.
+
+- `2026-07-13T02:10:29Z`: Landed 7 expansion tests using SwiftSyntaxMacrosTestSupport (via XCTest since assertMacroExpansion requires it): empty type, single method, actor await, throws, void return, custom-type parameter through the escape hatch, and diagnostic on unsupported metatype parameter. Runtime tests kept as-is — the two catch different bugs.
 
 ---
 
