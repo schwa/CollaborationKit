@@ -563,13 +563,14 @@ Whichever we support should have expansion tests and a clear line vs. the escape
 ## 25: RFC 0003: CollaborationSchemaConvertible escape hatch for custom parameter/return types
 
 +++
-status: open
+status: closed
 priority: high
 kind: feature
 labels: effort:m
 depends: 14
 created: 2026-07-13T01:02:28Z
-updated: 2026-07-13T01:53:09Z
+updated: 2026-07-13T02:03:11Z
+closed: 2026-07-13T02:03:11Z
 +++
 
 Slice 1 only supports primitives + Optional/Array/[String: T]. Anything else (user structs, enums, tuples, generics) fails macro expansion with 'Unsupported parameter/return type'.
@@ -582,6 +583,8 @@ Missing:
 - @CollaborationSchema attached macro that emits the conformance (or documents how to write it by hand).
 
 See rfcs/0003-model-object-tool-macro.md, sections 'Supported parameter/return types (initial)' and '3.4 User-sprinkled macros'.
+
+- `2026-07-13T02:03:11Z`: Landed. Added `public protocol CollaborationSchemaConvertible: Decodable, Sendable` requiring `static var collaborationSchema: JSONValue { get }`. The macro now routes any unknown identifier type as `ParamType.custom(name)` and emits `<Type>.collaborationSchema` for the runtime schema lookup — if the user's type doesn't conform, the generated code fails to compile at the .collaborationSchema access with a targeted error. Works uniformly under Optional, Array, and [String: T]. Added 4 end-to-end tests (string-backed enum + custom struct) exercising both schema flow and JSON decode dispatch.
 
 ---
 
@@ -968,5 +971,44 @@ Design:
 Update the demo to use `Note.ID` on `create` / `delete` and `[Note]` on `list` once inputs land.
 
 Related: RFC 0003, #14, #24 (enums/tuples/generics), #25 (custom escape hatch).
+
+---
+
+## 42: Increase test coverage
+
++++
+status: new
+priority: medium
+kind: task
+created: 2026-07-13T02:02:44Z
++++
+
+Test coverage across CollaborationKit is insufficient. Audit current coverage, identify uncovered code paths (especially in core sync/collaboration logic), and add tests to reach an acceptable coverage level.
+
+---
+
+## 43: SwiftUI review
+
++++
+status: new
+priority: medium
+kind: task
+created: 2026-07-13T02:02:45Z
++++
+
+Review SwiftUI code in CollaborationKit and Examples for correctness, modern API usage, and adherence to house rules. Areas to check include view identity, state ownership, ForEach usage, environment values, animations, and use of soft-deprecated APIs.
+
+---
+
+## 44: Swift concurrency review
+
++++
+status: new
+priority: medium
+kind: task
+created: 2026-07-13T02:02:45Z
++++
+
+Review Swift concurrency usage across CollaborationKit for correctness and modern API usage. Look for actor isolation issues, Sendable violations, task lifetime bugs, unstructured Task usage, MainActor misuse, and other async/await pitfalls.
 
 ---

@@ -12,6 +12,11 @@ enum ParamType {
     indirect case optional(ParamType)
     indirect case array(ParamType)
     indirect case stringDictionary(ParamType)
+    /// A user-declared type routed through
+    /// ``CollaborationSchemaConvertible``. The associated string is the
+    /// user's spelling of the type (used verbatim as both the Swift type and
+    /// the source of the runtime schema lookup).
+    case custom(String)
 
     /// The Swift source spelling to use inside the generated `Input` struct.
     var swiftTypeSource: String {
@@ -24,6 +29,7 @@ enum ParamType {
         case .optional(let inner): return "\(inner.swiftTypeSource)?"
         case .array(let inner): return "[\(inner.swiftTypeSource)]"
         case .stringDictionary(let inner): return "[Swift.String: \(inner.swiftTypeSource)]"
+        case .custom(let name): return name
         }
     }
 
@@ -48,6 +54,12 @@ enum ParamType {
             return #".object(["type": .string("array"), "items": \#(inner.jsonSchemaSource())])"#
         case .stringDictionary(let inner):
             return #".object(["type": .string("object"), "additionalProperties": \#(inner.jsonSchemaSource())])"#
+        case .custom(let name):
+            // Runtime lookup: the type supplies its own schema via
+            // `CollaborationSchemaConvertible`. If the type doesn't conform,
+            // the generated code fails to compile at the call site — the
+            // exact error the user needs to see.
+            return "\(name).collaborationSchema"
         }
     }
 
@@ -139,10 +151,15 @@ func parseParamType(_ type: TypeSyntax) throws -> ParamType {
         case "Float", "Swift.Float": return .float
         case "String", "Swift.String": return .string
         default:
-            throw SchemaDerivationError.unsupportedType(type.trimmedDescription)
+            // Escape hatch (#25): assume the user's type conforms to
+            // CollaborationSchemaConvertible. If it doesn't, the generated
+            // Tool struct fails to compile at `<Type>.collaborationSchema`
+            // — exactly the error message the user needs to see.
+            return .custom(type.trimmedDescription)
         }
     }
 
+    // Metatypes, function types, existentials, etc.: still unsupported.
     throw SchemaDerivationError.unsupportedType(type.trimmedDescription)
 }
 
