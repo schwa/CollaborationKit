@@ -2575,3 +2575,20 @@ When the assistant finishes a turn (or errors), post a user notification so the 
 Should probably only fire when the app/window is unfocused.
 
 ---
+
+## 96: Support local LLM servers (LM Studio, Ollama, etc.)
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T16:39:46Z
++++
+
+Support talking to local LLM servers that expose HTTP APIs \u2014 e.g. LM Studio, Ollama, llama.cpp server, vLLM.
+
+Most of these speak an OpenAI-compatible `/v1/chat/completions` dialect, so this may just need a configurable base URL + auth (optional API key) reusing the existing OpenAI provider, plus UI in Settings to add/manage local endpoints.
+
+Distinct from #93 (which is native `pi` over a Unix socket) \u2014 this issue covers HTTP-speaking local servers.
+
+---
