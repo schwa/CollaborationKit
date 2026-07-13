@@ -2632,3 +2632,20 @@ Want _some_ way to batch:
 Exact design is open — the goal is fewer round-trips for embarrassingly-parallel tool work.
 
 ---
+
+## 99: Tool rows sometimes don't show a duration
+
++++
+status: new
+priority: medium
+kind: bug
+created: 2026-07-13T16:41:24Z
++++
+
+The transcript should show how long each tool call took (the duration label in the row header), but it is missing on some tool rows.
+
+Not yet clear which tools or which conditions trigger it — could be tools that finish before a duration can be stamped, tools whose result arrives outside the mirrored event stream, or history-replay rows that never saw the live `.toolResult` event.
+
+Repro guidance for later investigation: run a session with several tool calls, look for rows where the header has no `Xs`/`Xms` label on the right.
+
+---
