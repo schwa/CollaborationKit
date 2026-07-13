@@ -96,5 +96,5 @@ func parseRetryAfter(_ value: String?, now: Date = Date()) -> TimeInterval? {
 /// returns immediately without a suspension.
 func retryDelay(_ delay: TimeInterval) async throws {
     guard delay > 0 else { return }
-    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+    try await Task.sleep(for: .seconds(delay))
 }

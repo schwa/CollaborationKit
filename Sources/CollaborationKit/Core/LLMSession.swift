@@ -10,6 +10,16 @@ public enum SessionError: Error, Sendable {
 
     /// The tool loop exceeded ``LLMSession/maxIterations`` without completing.
     case maxIterationsExceeded(Int)
+
+    /// A second ``LLMSession/send(_:)`` call arrived while another turn was
+    /// still in flight on the same session.
+    ///
+    /// Two concurrent turns would interleave onto the same event stream and
+    /// the same message history, so the session refuses the second call.
+    /// Well-behaved hosts (e.g. ``CollaborationKitUI``'s ConversationStore)
+    /// already serialize their sends and won't see this; direct API callers
+    /// should await one turn before starting the next.
+    case turnAlreadyInProgress
 }
 
 /// A provider-agnostic conversation that runs an agentic tool-use loop.
@@ -86,6 +96,7 @@ public actor LLMSession {
     }
 
     private var accumulatedUsage = TokenUsage()
+    private var isRunning = false
 
     /// Cumulative token usage across all turns in this session.
     ///
@@ -115,6 +126,9 @@ public actor LLMSession {
     /// - Throws: ``SessionError`` or any provider/transport error. Tool failures
     ///   are not thrown; they are fed back to the model as error results.
     public func send(text: String, images: [ImageContent] = []) async throws -> String {
+        guard !isRunning else { throw SessionError.turnAlreadyInProgress }
+        isRunning = true
+        defer { isRunning = false }
         history.append(images.isEmpty ? .user(text) : .user(text: text, images: images))
         return try await runLoop()
     }

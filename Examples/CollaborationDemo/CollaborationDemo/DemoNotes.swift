@@ -36,6 +36,16 @@ final class DemoNotes {
     var notes: [Note] = []
     var nextID: Int = 1
 
+    private func mutate(_ id: Note.ID, _ change: (inout Note) -> Void) throws {
+        guard let index = notes.firstIndex(where: { $0.id == id }) else {
+            throw ToolError("No note with id \(id).")
+        }
+        change(&notes[index])
+    }
+}
+
+extension DemoNotes {
+
     @CollaborationTool("List every note, oldest first, as a JSON array.")
     func list() async -> [Note] {
         notes
@@ -81,12 +91,5 @@ final class DemoNotes {
             throw ToolError("No note with id \(id).")
         }
         notes.remove(at: index)
-    }
-
-    private func mutate(_ id: Note.ID, _ change: (inout Note) -> Void) throws {
-        guard let index = notes.firstIndex(where: { $0.id == id }) else {
-            throw ToolError("No note with id \(id).")
-        }
-        change(&notes[index])
     }
 }

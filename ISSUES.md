@@ -1282,11 +1282,13 @@ Scope to explore:
 ## 50: Swift concurrency review: LLMSession actor reentrancy + smaller fixes
 
 +++
-status: new
+status: closed
 priority: high
 kind: task
 labels: effort:s
 created: 2026-07-13T03:38:48Z
+updated: 2026-07-13T03:45:16Z
+closed: 2026-07-13T03:45:16Z
 +++
 
 Review against the swift-concurrency-pro skill (Swift 6.2, strict concurrency). Ordered by impact.
@@ -1320,6 +1322,14 @@ Review against the swift-concurrency-pro skill (Swift 6.2, strict concurrency). 
 - TurnTimer (CLI) is a clean actor with no reentrancy risk.
 - FileDocument / InMemoryDocument / CLICredentialStore use `@unchecked Sendable` legitimately (NSLock or documented-thread-safe base).
 - Retry loops respect cancellation via Task.sleep.
+
+- `2026-07-13T03:45:16Z`: Landed the four items:
+
+- LLMSession actor reentrancy: guard `send` with an `isRunning` flag; concurrent send() calls now throw `SessionError.turnAlreadyInProgress` instead of interleaving onto the shared event stream. New regression test uses a gated provider to exercise the race.
+- Retry.swift: `Task.sleep(nanoseconds:)` → `Task.sleep(for: .seconds(delay))`.
+- AnthropicOAuth.exchange: dropped the leftover `if let http` + `_ = http` no-op from the retry refactor.
+
+Left open: the 'events stream never finishes' item overlaps with #4 (task cancellation) — cleaner to solve them together when #4's design lands. Noting here so the review has one destination.
 
 ---
 

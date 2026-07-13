@@ -266,3 +266,57 @@ func perToolApprovalCanAllowSomeAndDenyOthers() async throws {
     #expect(allowed?.result?.isError == false)
     #expect(denied?.result?.isError == true)
 }
+
+// MARK: - Reentrancy (#50)
+
+/// A provider whose stream stays open until the test resumes it.
+private actor GatedProvider: ModelProvider {
+    private var gate: CheckedContinuation<Void, Never>?
+
+    func open() {
+        gate?.resume()
+        gate = nil
+    }
+
+    nonisolated func send(
+        messages _: [Message],
+        system _: String?,
+        tools _: [ToolSpec]
+    ) -> AsyncThrowingStream<ProviderStreamEvent, Error> {
+        AsyncThrowingStream { continuation in
+            Task {
+                await withCheckedContinuation { c in
+                    Task { await self.setGate(c) }
+                }
+                continuation.yield(.text("done"))
+                continuation.yield(.messageComplete(stopReason: "end_turn"))
+                continuation.finish()
+            }
+        }
+    }
+
+    private func setGate(_ c: CheckedContinuation<Void, Never>) {
+        gate = c
+    }
+}
+
+@Test
+func secondSendWhileFirstInFlightThrowsTurnAlreadyInProgress() async throws {
+    let provider = GatedProvider()
+    let session = LLMSession(provider: provider)
+
+    // Kick off the first turn; it will suspend waiting for the provider.
+    async let first = session.send("first")
+
+    // Give the first send time to enter the actor and start awaiting.
+    try await Task.sleep(for: .milliseconds(50))
+
+    // Second call must be refused with turnAlreadyInProgress.
+    await #expect(throws: SessionError.self) {
+        _ = try await session.send("second")
+    }
+
+    // Let the first turn complete.
+    await provider.open()
+    _ = try await first
+}
