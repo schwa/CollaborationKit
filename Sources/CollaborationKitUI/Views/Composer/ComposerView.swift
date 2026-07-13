@@ -16,7 +16,7 @@ public enum ComposerBorderStyle: Sendable {
     case glow
 }
 
-public struct ComposerView: View {
+public struct ComposerView<Header: View>: View {
     public var store: ConversationStore
 
     /// Placeholder shown in the empty prompt field.
@@ -29,6 +29,11 @@ public struct ComposerView: View {
     /// How the prompt field is bordered. Defaults to ``ComposerBorderStyle/plain``.
     public let borderStyle: ComposerBorderStyle
 
+    /// Optional caption drawn above the prompt field. Hosts typically use this
+    /// to show the active backend and model ("cpu · OpenAI · gpt-4o"), but any
+    /// view is allowed.
+    private let header: () -> Header
+
     @State private var prompt: String = ""
     @State private var attachments: [Attachment] = []
     @State private var showImporter: Bool = false
@@ -38,16 +43,19 @@ public struct ComposerView: View {
         store: ConversationStore,
         placeholder: LocalizedStringKey = "Message…",
         allowsImageAttachments: Bool = true,
-        borderStyle: ComposerBorderStyle = .plain
+        borderStyle: ComposerBorderStyle = .plain,
+        @ViewBuilder header: @escaping () -> Header
     ) {
         self.store = store
         self.placeholder = placeholder
         self.allowsImageAttachments = allowsImageAttachments
         self.borderStyle = borderStyle
+        self.header = header
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            header()
             promptField
         }
         .padding(12)
@@ -191,6 +199,24 @@ private struct PromptFieldBackground: ViewModifier {
     }
 }
 
+extension ComposerView where Header == EmptyView {
+    /// Convenience initializer for composers without a header caption.
+    public init(
+        store: ConversationStore,
+        placeholder: LocalizedStringKey = "Message…",
+        allowsImageAttachments: Bool = true,
+        borderStyle: ComposerBorderStyle = .plain
+    ) {
+        self.init(
+            store: store,
+            placeholder: placeholder,
+            allowsImageAttachments: allowsImageAttachments,
+            borderStyle: borderStyle,
+            header: { EmptyView() }
+        )
+    }
+}
+
 private actor _PreviewNullProvider: ModelProvider {
     nonisolated func send(
         messages _: [Message],
@@ -211,4 +237,12 @@ private func _previewStore() -> ConversationStore {
 }
 #Preview("Glow") {
     ComposerView(store: _previewStore(), borderStyle: .glow).frame(width: 520)
+}
+#Preview("With Header") {
+    ComposerView(store: _previewStore()) {
+        Label("cpu · OpenAI · gpt-4o", systemImage: "cpu")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+    }
+    .frame(width: 520)
 }

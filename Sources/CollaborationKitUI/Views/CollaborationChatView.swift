@@ -31,6 +31,11 @@ public struct CollaborationChatView: View {
     /// should override this to describe what their assistant actually does.
     public let emptyPlaceholder: (() -> AnyView)?
 
+    /// Host-provided caption view forwarded to the composer. Typically shows
+    /// the active backend and model. When `nil`, the composer draws no
+    /// header.
+    public let composerHeader: (() -> AnyView)?
+
     @Environment(CollaborationCredentials.self)
     private var credentials
 
@@ -47,6 +52,7 @@ public struct CollaborationChatView: View {
         self.composerBorderStyle = composerBorderStyle
         self.onGeneratingChange = onGeneratingChange
         self.emptyPlaceholder = nil
+        self.composerHeader = nil
     }
 
     /// Creates a chat view with a custom empty-state placeholder.
@@ -64,6 +70,46 @@ public struct CollaborationChatView: View {
         self.composerBorderStyle = composerBorderStyle
         self.onGeneratingChange = onGeneratingChange
         self.emptyPlaceholder = { AnyView(emptyPlaceholder()) }
+        self.composerHeader = nil
+    }
+
+    /// Creates a chat view with a custom composer header caption (e.g. the
+    /// active backend and model).
+    public init<ComposerHeader: View>(
+        store: ConversationStore,
+        iconForTool: @escaping (String) -> String = ConversationRowView.defaultIcon(for:),
+        allowsImageAttachments: Bool = true,
+        composerBorderStyle: ComposerBorderStyle = .plain,
+        onGeneratingChange: @escaping (Bool) -> Void = { _ in },
+        @ViewBuilder composerHeader: @escaping () -> ComposerHeader
+    ) {
+        self.store = store
+        self.iconForTool = iconForTool
+        self.allowsImageAttachments = allowsImageAttachments
+        self.composerBorderStyle = composerBorderStyle
+        self.onGeneratingChange = onGeneratingChange
+        self.emptyPlaceholder = nil
+        self.composerHeader = { AnyView(composerHeader()) }
+    }
+
+    /// Creates a chat view with both a custom empty-state placeholder and a
+    /// custom composer header.
+    public init<Placeholder: View, ComposerHeader: View>(
+        store: ConversationStore,
+        iconForTool: @escaping (String) -> String = ConversationRowView.defaultIcon(for:),
+        allowsImageAttachments: Bool = true,
+        composerBorderStyle: ComposerBorderStyle = .plain,
+        onGeneratingChange: @escaping (Bool) -> Void = { _ in },
+        @ViewBuilder emptyPlaceholder: @escaping () -> Placeholder,
+        @ViewBuilder composerHeader: @escaping () -> ComposerHeader
+    ) {
+        self.store = store
+        self.iconForTool = iconForTool
+        self.allowsImageAttachments = allowsImageAttachments
+        self.composerBorderStyle = composerBorderStyle
+        self.onGeneratingChange = onGeneratingChange
+        self.emptyPlaceholder = { AnyView(emptyPlaceholder()) }
+        self.composerHeader = { AnyView(composerHeader()) }
     }
 
     public var body: some View {
@@ -71,11 +117,7 @@ public struct CollaborationChatView: View {
             if credentials.hasCredentials {
                 transcript
                 Divider()
-                ComposerView(
-                    store: store,
-                    allowsImageAttachments: allowsImageAttachments,
-                    borderStyle: composerBorderStyle
-                )
+                composer
             } else {
                 missingCredentials
             }
@@ -92,6 +134,24 @@ public struct CollaborationChatView: View {
             }
         } else {
             TranscriptView(store: store, iconForTool: iconForTool)
+        }
+    }
+
+    @ViewBuilder private var composer: some View {
+        if let composerHeader {
+            ComposerView(
+                store: store,
+                allowsImageAttachments: allowsImageAttachments,
+                borderStyle: composerBorderStyle
+            ) {
+                composerHeader()
+            }
+        } else {
+            ComposerView(
+                store: store,
+                allowsImageAttachments: allowsImageAttachments,
+                borderStyle: composerBorderStyle
+            )
         }
     }
 

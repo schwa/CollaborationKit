@@ -1861,12 +1861,13 @@ The current conversation view has limited text selection and other interaction a
 ## 70: ComposerView: no way to show a backend/model header
 
 +++
-status: open
+status: closed
 priority: high
 kind: enhancement
 labels: effort:s
 created: 2026-07-13T06:13:38Z
-updated: 2026-07-13T14:15:21Z
+updated: 2026-07-13T14:19:01Z
+closed: 2026-07-13T14:19:01Z
 +++
 
 Phosphor's composer shows a small caption above the prompt field: "cpu · <Backend display name> · <selected model id>". CollaborationKit's `ComposerView` has no slot for this and no built-in rendering of the active backend/model.
