@@ -348,12 +348,13 @@ See rfcs/0003-model-object-tool-macro.md.
 ## 15: Consolidate credential storage across targets
 
 +++
-status: open
+status: closed
 priority: high
 kind: task
 labels: effort:m
 created: 2026-07-13T00:55:41Z
-updated: 2026-07-13T01:54:05Z
+updated: 2026-07-13T03:10:40Z
+closed: 2026-07-13T03:10:40Z
 +++
 
 Credential-related types now live in three places with overlapping responsibilities:
@@ -375,6 +376,16 @@ Design work: pick one of
 Related: RFC 0002 (CollaborationKitUI).
 
 - `2026-07-13T02:10:52Z`: Punt from autonomous run: this is a design decision, not an implementation task. Issue itself lists three viable directions (common protocol; deprecate file store; formalize split) with different trade-offs for CLI vs UI vs host use cases. Autonomous run isn't comfortable picking a direction unilaterally — needs a product call on which option to pursue. In the meantime the two stores co-exist fine and every credential UI path today goes through the Keychain one.
+- `2026-07-13T03:10:40Z`: Landed. Core no longer ships credential persistence:
+
+- Deleted Sources/CollaborationKit/Credentials.swift (file-based CredentialStore).
+- Deleted Sources/CollaborationKit/Anthropic/OAuthTokenProvider.swift (the actor that persisted refreshes to disk).
+- Added Sources/collab-cli/CLICredentialStore.swift — UserDefaults-backed store used only by the CLI. Same shape (apiKey / oauth / self-refreshing token-provider closure) as KeychainCredentialStore, appropriate for a CLI executable.
+- Updated collab-cli's Login/Chat to use it. No more ~/.config/collaborationkit/credentials.json.
+- Dropped the file-store test in OAuthTests; the old CredentialStoreTests file went with the type.
+- README rewritten: Core stays storage-agnostic, apps use KeychainCredentialStore, CLI uses CLICredentialStore.
+
+CLI vs UI never see each other's credentials — expected; different security models. Two tests dropped, 102 remaining pass.
 
 ---
 

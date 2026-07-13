@@ -123,22 +123,6 @@ func cacheControlMarksLastToolOnly() {
 }
 
 @Test
-func credentialStoreKeepsApiKeyAndOAuthSeparately() throws {
-    let dir = FileManager.default.temporaryDirectory
-        .appendingPathComponent("collab-oauth-\(UUID().uuidString)")
-    defer { try? FileManager.default.removeItem(at: dir) }
-    let store = CredentialStore(directory: dir)
-
-    try store.save(apiKey: "sk-key")
-    let creds = OAuthCredentials(access: "sk-ant-oat-x", refresh: "r", expires: Date(timeIntervalSinceNow: 3_600))
-    try store.save(oauth: creds)
-
-    // Saving OAuth must not clobber the API key, and vice versa.
-    #expect(try store.apiKey() == "sk-key")
-    #expect(try store.oauthCredentials() == creds)
-}
-
-@Test
 func anthropicWireEncodesImageBlock() throws {
     let messages = [
         Message.user(text: "describe", images: [

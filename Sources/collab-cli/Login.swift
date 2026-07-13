@@ -16,20 +16,20 @@ struct Login: AsyncParsableCommand {
     var apiKey: String?
 
     func run() async throws {
-        let store = CredentialStore()
+        let store = CLICredentialStore()
         if oauth {
             try await runOAuth(store: store)
             return
         }
-        let key = try apiKey ?? promptForKey()
+        let key = apiKey ?? promptForKey()
         guard !key.isEmpty else {
             throw ValidationError("No API key provided.")
         }
-        try store.save(apiKey: key)
-        print("Saved credentials to \(store.fileURL.path)")
+        store.save(apiKey: key)
+        print("Saved credentials to UserDefaults.")
     }
 
-    private func runOAuth(store: CredentialStore) async throws {
+    private func runOAuth(store: CLICredentialStore) async throws {
         let flow = AnthropicOAuth()
         let request = flow.beginLogin()
 
@@ -53,7 +53,7 @@ struct Login: AsyncParsableCommand {
 
         let credentials = try await flow.completeLogin(input: input, request: request)
         try store.save(oauth: credentials)
-        print("Saved OAuth credentials to \(store.fileURL.path)")
+        print("Saved OAuth credentials to UserDefaults.")
     }
 
     private func openInBrowser(_ url: URL) throws {

@@ -31,8 +31,10 @@ SPM dependencies (CryptoKit, a system framework, is used for OAuth PKCE); the
 The `collab-cli` executable wraps the library for quick file collaboration.
 
 ```sh
-# Store your Anthropic API key (~/.config/collaborationkit/credentials.json, 0600).
+# Store your Anthropic API key in the CLI's UserDefaults (~/Library/Preferences).
 # Prompts with hidden input, or pass --api-key.
+# GUI apps should use CollaborationKitUI's KeychainCredentialStore instead.
+
 collab-cli login
 
 # Or log in with a Claude subscription via OAuth (paste flow, no local server).
@@ -117,9 +119,14 @@ let ds4 = OpenAIProvider(config: OpenAIConfig(
 ))
 
 // Claude via a subscription (OAuth) instead of a billed key.
-let creds = try CredentialStore().oauthCredentials()!   // after `collab-cli login --oauth`
-let tokens = OAuthTokenProvider(credentials: creds)      // refreshes automatically
-let claude = AnthropicProvider(config: AnthropicConfig(auth: .oauth(tokens.tokenProvider)))
+// GUI apps: use CollaborationKitUI's KeychainCredentialStore + CollaborationCredentials.
+// The CLI (`collab-cli`) keeps its credentials in UserDefaults. Core ships no
+// persistence — bring your own store and hand a token-provider closure to
+// `AnthropicAuth.oauth(_:)`.
+let claude = AnthropicProvider(config: AnthropicConfig(auth: .oauth {
+    /* return a currently-valid access token; refresh via AnthropicOAuth if expired */
+    try await currentAccessToken()
+}))
 ```
 
 ## Concepts
@@ -178,9 +185,10 @@ usage report zeros.
 `AnthropicConfig` takes an `auth`: `.apiKey(String)` (sent as `x-api-key`) or
 `.oauth(...)` (a Claude subscription token sent as `Authorization: Bearer`).
 `AnthropicOAuth` performs a PKCE login with manual code paste (no local server);
-`OAuthTokenProvider` refreshes and persists tokens. `CredentialStore` holds an
-API key and/or OAuth credentials at `~/.config/collaborationkit/credentials.json`
-(`0600`).
+Core ships no credential persistence. GUI apps use
+``CollaborationKitUI.KeychainCredentialStore`` (Keychain-backed, one slot each
+for Anthropic API key, Anthropic OAuth, and OpenAI API key). The
+`collab-cli` executable keeps its credentials in UserDefaults.
 
 > **OAuth caveat:** subscription login uses the Claude Code OAuth client and is
 > unofficial. It may violate Anthropic's terms and may break without notice.
@@ -198,15 +206,20 @@ those are the host application's concern.
 ```
 Sources/CollaborationKit/
   Core/        Message, JSONValue, TokenUsage, Tool (+AnyTool), SessionEvent,
-               ModelProvider, LLMSession  — provider-agnostic
+               ModelProvider, LLMSession, Retry  — provider-agnostic
   Anthropic/   AnthropicConfig (+AnthropicAuth), AnthropicWire,
-               AnthropicProvider (+StreamAccumulator), AnthropicOAuth,
-               OAuthTokenProvider
+               AnthropicProvider (+StreamAccumulator), AnthropicOAuth
   OpenAI/      OpenAIConfig, OpenAIWire,
                OpenAIProvider (+OpenAIStreamAccumulator) — OpenAI/LM Studio/ds4
-  FileTools/   TextDocument (+FileDocument/InMemoryDocument), read/write/edit
-  Credentials.swift   on-disk API key + OAuth store
-Sources/collab-cli/    Collab (entry), Login (+--oauth), Chat (--provider/--base-url)
+  FileTools/   TextDocument (+FileDocument/InMemoryDocument), read/write/edit,
+               PathPolicy
+  Macros/      @CollaborationTools, @CollaborationTool,
+               CollaborationResultConvertible, CollaborationSchemaConvertible
+Sources/CollaborationKitUI/
+  Keychain/                KeychainCredentialStore, KeychainReadResult
+  Views/, Transcript/,     SwiftUI transcript / composer / settings and the
+  Support/, Composer/      credentials + model-picker plumbing
+Sources/collab-cli/       Collab, Login, Chat, CLICredentialStore (UserDefaults)
 Tests/CollaborationKitTests/
 ```
 

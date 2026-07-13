@@ -120,12 +120,12 @@ struct Chat: AsyncParsableCommand {
     private func makeProvider() throws -> ModelProvider {
         switch provider {
         case .anthropic:
-            let store = CredentialStore()
+            let store = CLICredentialStore()
             let auth: AnthropicAuth
-            if let oauth = try store.oauthCredentials() {
-                let provider = OAuthTokenProvider(credentials: oauth, store: store)
-                auth = .oauth(provider.tokenProvider)
-            } else if let apiKey = try store.apiKey() {
+            if store.oauthCredentials() != nil {
+                let tokenProvider = store.anthropicOAuthTokenProvider()
+                auth = .oauth { try await tokenProvider() }
+            } else if let apiKey = store.apiKey() {
                 auth = .apiKey(apiKey)
             } else {
                 throw ValidationError("No credentials found. Run `collab-cli login` or `collab-cli login --oauth` first.")
@@ -159,7 +159,7 @@ struct Chat: AsyncParsableCommand {
     }
 
     private func requireStoredKey() throws -> String {
-        guard let apiKey = try CredentialStore().apiKey() else {
+        guard let apiKey = CLICredentialStore().apiKey() else {
             throw ValidationError("No API key found. Run `collab-cli login` first.")
         }
         return apiKey
