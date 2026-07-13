@@ -2615,12 +2615,13 @@ Needs:
 ## 95: Send a notification when a conversation turn finishes
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:s
 created: 2026-07-13T16:39:20Z
-updated: 2026-07-13T16:42:21Z
+updated: 2026-07-13T18:28:34Z
+closed: 2026-07-13T18:28:34Z
 +++
 
 When the assistant finishes a turn (or errors), post a user notification so the user can leave the window in the background and come back when work is done.

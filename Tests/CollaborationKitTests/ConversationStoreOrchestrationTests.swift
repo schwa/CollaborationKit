@@ -233,6 +233,61 @@ struct ConversationStoreOrchestrationTests {
         await provider.open()
     }
 
+    // MARK: - Turn-ended callback (#95)
+
+    /// Regression for issue #95: ``ConversationStore/onTurnEnded`` fires
+    /// exactly once per turn with a `.completed` outcome carrying the
+    /// turn's final text, usage, and stop reason.
+    @Test("onTurnEnded fires with completed outcome after a plain-text turn")
+    func onTurnEndedFiresOnCompletion() async {
+        let provider = ScriptedProvider([
+            [
+                .text("done."),
+                .usage(TokenUsage(inputTokens: 7, outputTokens: 3)),
+                .messageComplete(stopReason: "end_turn")
+            ]
+        ])
+        let session = LLMSession(provider: provider)
+        let store = ConversationStore(session: session)
+
+        var outcomes: [TurnOutcome] = []
+        store.onTurnEnded = { outcomes.append($0) }
+
+        store.send("hi")
+        await drainGenerating(store)
+
+        #expect(outcomes.count == 1)
+        guard case .completed(let text, let usage, let stopReason) = outcomes.first else {
+            Issue.record("expected .completed outcome, got \(outcomes)")
+            return
+        }
+        #expect(text == "done.")
+        #expect(usage == TokenUsage(inputTokens: 7, outputTokens: 3))
+        #expect(stopReason == "end_turn")
+    }
+
+    /// Cancelling mid-turn delivers a `.cancelled` outcome, not
+    /// `.completed`.
+    @Test("onTurnEnded fires with cancelled outcome after stop()")
+    func onTurnEndedFiresOnCancellation() async {
+        let provider = GatedProvider()
+        let session = LLMSession(provider: provider)
+        let store = ConversationStore(session: session)
+
+        var outcomes: [TurnOutcome] = []
+        store.onTurnEnded = { outcomes.append($0) }
+
+        store.send("hi")
+        store.stop()
+        await drainGenerating(store)
+        await provider.open()
+
+        #expect(outcomes.count == 1)
+        if case .cancelled = outcomes.first { } else {
+            Issue.record("expected .cancelled outcome, got \(outcomes)")
+        }
+    }
+
     // MARK: - Presentation stamping around historyChanged
 
     /// The presentation side-table keys off message ids the session

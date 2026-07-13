@@ -87,6 +87,20 @@ public final class ConversationStore {
     @ObservationIgnored
     public var snapshotProvider: (@MainActor @Sendable () -> RollbackSnapshot?)?
 
+    /// Optional host hook invoked whenever a turn ends, for any reason.
+    ///
+    /// Fires once per ``send(_:images:snapshot:)`` call: after a natural
+    /// completion, after cancellation via ``stop()``, or after a provider
+    /// or tool error. Hosts can use this to post a user notification,
+    /// play a sound, or drive any other end-of-turn side effect. The
+    /// callback runs on the main actor.
+    ///
+    /// The hook does not gate on window focus — the host decides whether
+    /// to act on any given outcome (e.g. only notify when the window is
+    /// unfocused).
+    @ObservationIgnored
+    public var onTurnEnded: (@MainActor (TurnOutcome) -> Void)?
+
     private struct PendingPrompt {
         var text: String
         var images: [ImageContent]
@@ -204,6 +218,7 @@ public final class ConversationStore {
             } else {
                 mirror.appendError("\(error)")
                 lastError = "\(error)"
+                onTurnEnded?(.failed("\(error)"))
             }
         }
         // Give the event pump a few ticks to dequeue any events still
@@ -301,6 +316,14 @@ public final class ConversationStore {
         }
         mirror.handle(event, summary: summarizeTool)
         reproject()
+        switch event {
+        case .turnComplete(let text, let usage, let stopReason):
+            onTurnEnded?(.completed(text: text, usage: usage, stopReason: stopReason))
+        case .turnCancelled(let partialText):
+            onTurnEnded?(.cancelled(partialText: partialText))
+        default:
+            break
+        }
     }
 
     // MARK: - Projection
