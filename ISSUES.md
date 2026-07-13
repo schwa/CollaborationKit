@@ -2197,6 +2197,8 @@ One candidate: a canvas sketch view with drawing tools, to demonstrate a richer 
 
 Other tab ideas welcome; this issue is a placeholder to expand the demo's coverage.
 
+- `2026-07-13T15:37:58Z`: Reviewed. Punting: the issue is a placeholder with no committed scope. Concrete build-out (e.g. a canvas sketch view with drawing tools driven through session tools) is a meaningful feature in its own right and not effort:m — closer to l/xl. Can you pick a specific tab to prioritize (canvas? a search-and-browse tab? a settings/model-picker showcase?) and file a focused issue for that one, or should this stay as a rolling wishlist?
+
 ---
 
 ## 82: Tapping an attachment in the composer/editor field should open a viewer
