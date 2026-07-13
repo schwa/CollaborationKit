@@ -20,6 +20,10 @@ import Foundation
 ///   ``CollaborationSchemaConvertible``.
 /// - Return types have no such restriction — anything `Encodable` or
 ///   ``CollaborationResultConvertible`` works.
+/// - **`@CollaborationTool` must be declared inside the same type body as
+///   the `@CollaborationTools` attribute.** Methods added in an extension
+///   are silently skipped — Swift attached-member macros only see the
+///   primary declaration's member block, not extensions. See issue #55.
 ///
 /// ## Nested-object rule
 ///

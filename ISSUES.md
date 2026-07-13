@@ -1509,13 +1509,15 @@ Total: 118 → 131 tests. macOS + demo xcb build clean.
 
 ---
 
-## 55: @CollaborationTool doesn't work in an extension
+## 55: @CollaborationTool in extensions: unsupported by Swift macros; document + diagnose
 
 +++
 status: new
-priority: medium
+priority: low
 kind: bug
+labels: docs
 created: 2026-07-13T04:04:01Z
+updated: 2026-07-13T04:13:43Z
 +++
 
 Marking a method with `@CollaborationTool` inside an `extension` of a `@CollaborationTools`-annotated type doesn't produce a working tool.
@@ -1523,6 +1525,20 @@ Marking a method with `@CollaborationTool` inside an `extension` of a `@Collabor
 Expected: methods annotated in extensions are picked up the same way as methods declared in the primary type body, and appear in the generated `collaborationTools` array.
 
 Actual: TBD — needs reproduction to confirm whether the peer macro is silently ignored, the member macro doesn't see extension members, or it fails to compile.
+
+- `2026-07-13T04:13:43Z`: Investigated. Root cause is a Swift macro limitation, not our bug — @attached(member) macros only see the primary type's member block, not extensions. There's no clean workaround:
+
+- Peer macros can't add conformances to the enclosing type (rules out runtime discovery via a protocol registry).
+- Mirror can't enumerate nested types (rules out reflection-based collection).
+- Static composition (`Self._ckExtTools_XYZ`) forces the primary type to enumerate every extension by hand — worse than just inlining the tools.
+
+Reduced to a documentation + diagnostics task:
+
+- (docs) @CollaborationTools doc comment: state that @CollaborationTool must be declared in the primary type body; extension methods are silently skipped.
+- (diagnostic, harder) Ideally a diagnostic when @CollaborationTool appears in an extension of a type that has @CollaborationTools elsewhere. The peer macro doesn't get told about the enclosing @CollaborationTools context though, so this is best-effort — could at least emit a warning saying 'this only works when the enclosing type is @CollaborationTools-annotated in the SAME declaration.'
+- (revisit) Reopen the codegen path if Swift ever gains cross-extension macro visibility.
+
+Kept open at low priority for the docs + optional diagnostic work.
 
 ---
 
