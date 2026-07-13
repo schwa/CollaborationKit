@@ -130,6 +130,7 @@ public struct AnthropicOAuth: Sendable {
                 let status = http?.statusCode ?? -1
 
                 if let http, (200..<300).contains(status) {
+                    _ = http
                     return try Self.decode(data: data, fallbackRefresh: fallbackRefresh)
                 }
 

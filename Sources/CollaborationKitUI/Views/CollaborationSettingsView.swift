@@ -50,6 +50,8 @@ public struct CollaborationSettingsView: View {
             case .openAI:
                 OpenAIAPIKeySection()
             }
+
+            ModelPickerSection()
         }
         .formStyle(.grouped)
     }

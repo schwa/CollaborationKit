@@ -95,9 +95,48 @@ public final class CollaborationCredentials {
     /// Builds a ``ModelProvider`` for the current backend and model choice.
     ///
     /// Convenience wrapper around
-    /// ``KeychainCredentialStore/makeProvider(for:model:maxTokens:)``.
+    /// ``KeychainCredentialStore/makeProvider(for:model:maxTokens:)``. Uses
+    /// ``selectedModel`` (the persisted user choice, or the backend default)
+    /// when `model` is `nil`.
     public func makeProvider(model: String? = nil, maxTokens: Int = 4_096) throws -> any ModelProvider {
-        try store.makeProvider(for: backend, model: model, maxTokens: maxTokens)
+        try store.makeProvider(for: backend, model: model ?? selectedModel, maxTokens: maxTokens)
+    }
+
+    // MARK: - Model selection persistence
+
+    /// The model identifier the user picked for the current backend, or the
+    /// backend's default when nothing has been persisted yet.
+    public var selectedModel: String {
+        UserDefaults.standard.string(forKey: modelDefaultsKey(for: backend)) ?? backend.defaultModel
+    }
+
+    /// Persists a model choice for the given backend (defaults to the current
+    /// backend). Setting an empty string reverts to the backend default.
+    public func selectModel(_ modelID: String, for backend: CollaborationBackend? = nil) {
+        let target = backend ?? self.backend
+        let key = modelDefaultsKey(for: target)
+        if modelID.isEmpty {
+            UserDefaults.standard.removeObject(forKey: key)
+        } else {
+            UserDefaults.standard.set(modelID, forKey: key)
+        }
+    }
+
+    /// Fetches the models available for the current backend by asking the
+    /// underlying ``ModelProvider`` for a catalog (via ``ModelLister``).
+    ///
+    /// Returns an empty array when the provider doesn't expose a catalog.
+    /// Throws a ``CollaborationCredentialsError`` when credentials are
+    /// missing or unreadable, or whatever error the provider surfaces.
+    public func listAvailableModels() async throws -> [ModelInfo] {
+        let provider = try makeProvider()
+        guard let lister = provider as? ModelLister else { return [] }
+        return try await lister.listModels()
+    }
+
+    /// UserDefaults key for the persisted model id of a backend.
+    public func modelDefaultsKey(for backend: CollaborationBackend) -> String {
+        "collaborationkit.model.\(backend.rawValue)"
     }
 
     private func evaluate(_ result: KeychainReadResult) -> Bool {

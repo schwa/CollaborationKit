@@ -822,12 +822,13 @@ Port the progress/stop button UI component from the Phosphor project into the Co
 ## 34: CollaborationKitUI: model picker per backend
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:m
 created: 2026-07-13T01:40:35Z
-updated: 2026-07-13T01:49:58Z
+updated: 2026-07-13T02:52:13Z
+closed: 2026-07-13T02:52:13Z
 +++
 
 Phosphor's Settings has a ModelPickerSection that fetches the available models for the selected backend (via ModelLister), filters to chat/tool-capable ids, sorts them, and persists the user's selection. CollaborationKitUI currently only knows CollaborationBackend.defaultModel.
@@ -842,6 +843,8 @@ Design:
 
 Blocks: any Phosphor migration onto CollaborationKitUI.
 Related: RFC 0002, #13, #28.
+
+- `2026-07-13T02:52:13Z`: Landed as ModelPickerSection in Sources/CollaborationKitUI/Views/. Fetches models via CollaborationCredentials.listAvailableModels() (which itself uses ModelLister on the built provider), filters via a caller-customizable predicate (default drops non-chat families and dated snapshots), sorts by displayName, persists selection to UserDefaults under 'collaborationkit.model.<backend>'. Wired into CollaborationSettingsView so hosts get it by default. CollaborationCredentials gained: selectedModel, selectModel(_:for:), listAvailableModels(), modelDefaultsKey(for:); makeProvider(model:) now defaults to selectedModel when no override is passed. Also fixed an unused-binding warning in AnthropicOAuth from the retry landing.
 
 ---
 
