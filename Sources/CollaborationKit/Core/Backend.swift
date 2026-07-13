@@ -138,9 +138,11 @@ extension Backend {
 
     /// The OpenAI API (or an OpenAI-compatible server) via an API key.
     ///
-    /// Uses the server's default for parallel tool calls. Hosts running
-    /// agentic loops that need sequential tool calls should use
-    /// ``openAI(parallelToolCalls:)`` instead.
+    /// Uses the server's default for parallel tool calls (currently:
+    /// enabled). Hosts running agentic loops that need sequential tool
+    /// calls should use ``openAI(parallelToolCalls:)`` instead. Anthropic
+    /// does not expose an equivalent client-side knob; parallel tool use
+    /// there is always at the server's default.
     public static let openAI = Backend.openAI()
 
     /// The OpenAI API (or an OpenAI-compatible server) via an API key,

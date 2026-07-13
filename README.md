@@ -215,6 +215,25 @@ shows a base-URL editor for whichever local backend is selected.
 > OAuth caveat: subscription login uses the Claude Code OAuth client and is
 > unofficial. It may violate Anthropic's terms and may break without notice.
 
+### Tool call parallelism
+
+Both backends default to whatever the provider's server does, which today
+means parallel tool calls are enabled:
+
+- **Anthropic** allows the model to emit multiple `tool_use` blocks per
+  assistant turn. CollaborationKit does not expose a client-side knob to
+  disable this.
+- **OpenAI** exposes `OpenAIConfig.parallelToolCalls` (also reachable as
+  `Backend.openAI(parallelToolCalls:)`). `nil` — the default — sends no
+  value and lets the server decide (currently enabled). Set to `false` to
+  serialize tool calls, which is useful for agentic edit/read/compile
+  loops where a blind tool call alongside another can operate on stale
+  state.
+
+Host apps should treat batched tool calls as the norm and make tool
+implementations tolerant of concurrent invocations. See issue #106 for a
+cross-provider abstraction and issue #98 for tool batching.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).

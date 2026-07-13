@@ -2953,12 +2953,13 @@ Audit whether prompt caching is actually working end-to-end for each supported p
 ## 111: Clarify default behavior for parallel/batch tool calls across providers
 
 +++
-status: open
+status: closed
 priority: medium
 kind: task
 labels: effort:xs
 created: 2026-07-13T17:35:12Z
-updated: 2026-07-13T17:37:13Z
+updated: 2026-07-13T18:23:18Z
+closed: 2026-07-13T18:23:18Z
 +++
 
 OpenAI exposes `parallelToolCalls: Bool?` (nil = provider default, which is enabled). Anthropic has no equivalent knob, so we implicitly accept the API default (parallel tool use enabled). There's no shared, documented stance on whether CollaborationKit opts in to parallel/batch tool dispatch, and no cross-provider way to disable it. Related to #106 (parallel tool dispatch within a single assistant turn).
