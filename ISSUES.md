@@ -2728,12 +2728,13 @@ updated: 2026-07-13T16:44:30Z
 ## 101: Composer: up/down arrow to recall previous prompts
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:s
 created: 2026-07-13T16:52:37Z
-updated: 2026-07-13T17:37:13Z
+updated: 2026-07-13T18:31:58Z
+closed: 2026-07-13T18:31:58Z
 +++
 
 Let the user press up/down in the composer to cycle through their previously-submitted prompts (shell/REPL style), so they can re-run or edit a past prompt without retyping.

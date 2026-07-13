@@ -35,6 +35,10 @@ public struct ComposerView: View {
     @State private var ownedBuffer = ComposerAttachmentBuffer()
     @State private var showImporter: Bool = false
     @FocusState private var promptFocused: Bool
+
+    /// Shell-style recall history. Scope is this composer instance's
+    /// lifetime — not persisted across launches.
+    @State private var history = PromptHistory()
     @Environment(\.composerAttachmentBuffer) private var injectedBuffer
     @Environment(\.exportDebugLogAction) private var exportDebugLogAction
     @Environment(\.collaborationComposerHeader) private var header
@@ -100,6 +104,25 @@ public struct ComposerView: View {
                         return .handled
                     }
                     submit()
+                    return .handled
+                }
+                .onKeyPress(keys: [.upArrow, .downArrow]) { keyPress in
+                    // A multi-line prompt uses up/down for caret
+                    // movement inside the field; only intercept when the
+                    // draft is a single line, so recall never fights
+                    // editing intent.
+                    guard !prompt.contains("\n") else { return .ignored }
+                    let recalled: String?
+                    switch keyPress.key {
+                    case .upArrow:
+                        recalled = history.recallPrevious(current: prompt)
+                    case .downArrow:
+                        recalled = history.recallNext(current: prompt)
+                    default:
+                        return .ignored
+                    }
+                    guard let recalled else { return .ignored }
+                    prompt = recalled
                     return .handled
                 }
 
@@ -205,6 +228,7 @@ public struct ComposerView: View {
         let images = attachments.map(\.content)
         prompt = ""
         buffer.clear()
+        history.record(submitted)
         store.send(submitted, images: images)
     }
 
