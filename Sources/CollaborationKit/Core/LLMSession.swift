@@ -154,10 +154,10 @@ public actor LLMSession {
     /// (see #7) plug in at the top of ``runTurn`` without touching this loop.
     private enum TurnOutcome {
         /// The model produced final text with no more tool calls to run.
-        case complete(text: String)
+        case complete(text: String, roundUsage: TokenUsage, stopReason: String?)
         /// The model requested tools; they've been executed and appended to
         /// the history. `text` is the assistant prose so far this turn.
-        case needsMoreTurns(text: String)
+        case needsMoreTurns(text: String, roundUsage: TokenUsage)
     }
 
     /// The turn-loop driver: repeatedly runs one ``runTurn()`` until either
@@ -171,14 +171,19 @@ public actor LLMSession {
         // pre-existing semantics of returning only the final turn's text —
         // the domain history on `messages` still holds every earlier block.
         var partialText = ""
+        var turnUsage = TokenUsage()
         for _ in 0..<maxIterations {
             switch try await runTurn() {
-            case .complete(let text):
-                eventContinuation.yield(.turnComplete(text: text))
+            case .complete(let text, let roundUsage, let stopReason):
+                turnUsage += roundUsage
+                eventContinuation.yield(
+                    .turnComplete(text: text, usage: turnUsage, stopReason: stopReason)
+                )
                 return text
 
-            case .needsMoreTurns(let text):
+            case .needsMoreTurns(let text, let roundUsage):
                 partialText += text
+                turnUsage += roundUsage
                 continue
             }
         }
@@ -194,6 +199,11 @@ public actor LLMSession {
         var blocks: [ContentBlock]
         var text: String
         var pendingToolUses: [ToolUse]
+        /// Aggregated token usage the provider reported for this single
+        /// round-trip. Zero when the provider omits usage.
+        var roundUsage: TokenUsage
+        /// The provider's stop reason for this round, if any.
+        var stopReason: String?
     }
 
     /// Runs a single model round-trip: streams provider events into the
@@ -209,11 +219,11 @@ public actor LLMSession {
         history.append(Message(role: .assistant, content: parts.blocks))
 
         guard !parts.pendingToolUses.isEmpty else {
-            return .complete(text: parts.text)
+            return .complete(text: parts.text, roundUsage: parts.roundUsage, stopReason: parts.stopReason)
         }
 
         await runPendingTools(parts.pendingToolUses, inMessageAt: assistantIndex)
-        return .needsMoreTurns(text: parts.text)
+        return .needsMoreTurns(text: parts.text, roundUsage: parts.roundUsage)
     }
 
     /// Consumes one full provider stream and produces the components of the
@@ -226,6 +236,8 @@ public actor LLMSession {
         var assistantBlocks: [ContentBlock] = []
         var turnText = ""
         var pendingToolUses: [ToolUse] = []
+        var roundUsage = TokenUsage()
+        var stopReason: String?
 
         let stream = provider.send(messages: history, system: system, tools: toolSpecs)
         for try await event in stream {
@@ -247,17 +259,20 @@ public actor LLMSession {
 
             case .usage(let usage):
                 accumulatedUsage += usage
+                roundUsage += usage
                 eventContinuation.yield(.usage(usage))
 
-            case .messageComplete:
-                break
+            case .messageComplete(let reason):
+                stopReason = reason
             }
         }
 
         return AssistantMessageParts(
             blocks: assistantBlocks,
             text: turnText,
-            pendingToolUses: pendingToolUses
+            pendingToolUses: pendingToolUses,
+            roundUsage: roundUsage,
+            stopReason: stopReason
         )
     }
 

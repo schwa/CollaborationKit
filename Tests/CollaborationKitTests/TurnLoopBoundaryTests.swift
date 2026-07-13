@@ -115,6 +115,48 @@ func turnCompleteEventFiresExactlyOnceAtTheEndOfTheLoop() async throws {
 }
 
 @Test
+func turnCompleteCarriesAggregatedUsageAndFinalStopReason() async throws {
+    // Regression for #6: turnComplete must expose per-turn TokenUsage
+    // summed across every model round-trip plus the stop reason from the
+    // final round. Two-turn script: turn 1 (tool_use, 100/50 tokens),
+    // turn 2 (end_turn, 10/20 tokens); the aggregate should be 110/70
+    // with stopReason == "end_turn".
+    let doc = InMemoryDocument("hi")
+    let provider = ScriptedProvider([
+        [
+            .toolUse(ToolUse(id: "t1", name: "read", input: .object([:]))),
+            .usage(TokenUsage(inputTokens: 100, outputTokens: 50)),
+            .messageComplete(stopReason: "tool_use")
+        ],
+        [
+            .text("final."),
+            .usage(TokenUsage(inputTokens: 10, outputTokens: 20)),
+            .messageComplete(stopReason: "end_turn")
+        ]
+    ])
+    let session = LLMSession(provider: provider, tools: .fileTools(for: doc))
+
+    let stream = session.events
+    let collector = Task { () -> SessionEvent? in
+        for await event in stream {
+            if case .turnComplete = event { return event }
+        }
+        return nil
+    }
+
+    _ = try await session.send("hi")
+    let completion = await collector.value
+
+    guard case .turnComplete(let text, let usage, let stopReason) = completion else {
+        Issue.record("missing turnComplete event")
+        return
+    }
+    #expect(text == "final.")
+    #expect(usage == TokenUsage(inputTokens: 110, outputTokens: 70))
+    #expect(stopReason == "end_turn")
+}
+
+@Test
 func multiToolTurnEmitsAllToolCallsBeforeAnyToolResults() async throws {
     // One turn returns two tool calls in a row; the extracted
     // streamAssistantMessage must yield both .toolCall events before

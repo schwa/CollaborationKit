@@ -21,6 +21,17 @@ public enum SessionEvent: Sendable {
     /// Token usage reported for one model response within the turn.
     case usage(TokenUsage)
 
-    /// The turn finished; `text` is the final assistant text for the turn.
-    case turnComplete(text: String)
+    /// The turn finished.
+    ///
+    /// - Parameters:
+    ///   - text: The final assistant text for the turn.
+    ///   - usage: Token usage aggregated across every model round-trip in
+    ///     this turn (i.e. the sum of every ``usage(_:)`` event since the
+    ///     current ``LLMSession/send(_:)`` began). Providers that omit
+    ///     usage contribute zero.
+    ///   - stopReason: The provider-specific stop reason reported by the
+    ///     final model round (typically `"end_turn"` for a natural stop
+    ///     or `"tool_use"` if the loop is interrupted). `nil` when the
+    ///     provider didn't report one.
+    case turnComplete(text: String, usage: TokenUsage, stopReason: String?)
 }

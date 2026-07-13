@@ -102,12 +102,13 @@ SessionError.maxIterationsExceeded throws out of send() and discards the partial
 ## 6: Add a turn-complete summary event with total usage and stop reason
 
 +++
-status: open
+status: closed
 priority: medium
 kind: enhancement
 labels: enhancement, effort:s
 created: 2026-06-23T23:14:14Z
-updated: 2026-07-13T06:20:04Z
+updated: 2026-07-13T14:59:50Z
+closed: 2026-07-13T14:59:50Z
 +++
 
 Usage is emitted per model response (SessionEvent.usage), but there is no single turn-level summary: total tokens for the turn plus the stop reason. turnComplete currently carries only the final text. Consider enriching turnComplete (or adding a new event) with aggregated TokenUsage for the turn and the provider stop reason, so callers don't have to sum usage events themselves.
