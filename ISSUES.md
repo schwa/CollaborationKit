@@ -306,3 +306,32 @@ created: 2026-07-13T00:40:29Z
 See rfcs/0003-model-object-tool-macro.md.
 
 ---
+
+## 15: Consolidate credential storage across targets
+
++++
+status: new
+priority: medium
+kind: task
+created: 2026-07-13T00:55:41Z
++++
+
+Credential-related types now live in three places with overlapping responsibilities:
+
+- CollaborationKit/Credentials.swift — file-based `CredentialStore` (API key + OAuth JSON at ~/.config/collaborationkit/credentials.json).
+- CollaborationKit/Anthropic/OAuthTokenProvider.swift — actor that refreshes and persists back to the file-based `CredentialStore`.
+- CollaborationKitUI/Keychain/KeychainCredentialStore.swift — Keychain-backed store with slots for Anthropic API key, Anthropic OAuth, OpenAI API key, plus its own self-refreshing token-provider closure.
+- CollaborationKitUI/CollaborationBackend.swift — `hasCredentials(for:)` / `makeProvider(for:)` on the Keychain store only; the file store has no equivalent.
+- collab-cli/Login.swift — writes exclusively to the file store.
+
+Result: two independent sources of truth (file vs Keychain), duplicated refresh logic (`OAuthTokenProvider` actor vs. the closure returned by `KeychainCredentialStore.anthropicOAuthTokenProvider`), OpenAI slot only in the Keychain store, and the CLI vs the UI can never see each other's credentials.
+
+Design work: pick one of
+
+1. Common `CredentialStorage` protocol in Core with file + Keychain conformers, one `OAuthTokenProvider` that talks to it, `hasCredentials`/`makeProvider` defined once.
+2. Deprecate the file-based store; the Keychain becomes the default and the CLI moves to it (option: continue writing the JSON file as a portable export for headless / CI use).
+3. Keep both but formalize the split: file store is CLI-only, Keychain store is app-only, share nothing but `OAuthCredentials`.
+
+Related: RFC 0002 (CollaborationKitUI).
+
+---

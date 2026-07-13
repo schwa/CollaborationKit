@@ -8,6 +8,7 @@ let package = Package(
     ],
     products: [
         .library(name: "CollaborationKit", targets: ["CollaborationKit"]),
+        .library(name: "CollaborationKitUI", targets: ["CollaborationKitUI"]),
         .executable(name: "collab-cli", targets: ["collab-cli"])
     ],
     dependencies: [
@@ -16,6 +17,13 @@ let package = Package(
     targets: [
         .target(
             name: "CollaborationKit",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
+        .target(
+            name: "CollaborationKitUI",
+            dependencies: ["CollaborationKit"],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]
