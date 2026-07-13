@@ -439,13 +439,13 @@ updated: 2026-07-13T15:13:26Z
 Slice 1 does not know about SwiftData @Model types. Annotating a @Model with @CollaborationTools does nothing useful — the user still has to hand-write list/fetch/create/update/delete tools.
 
 Missing per RFC 0003 §3.2:
-- Derived CRUD tools (list, fetch(id:), create, update(id:, ...), delete(id:)) for a @Model type.
-- @CollaborationField(.readOnly | .hidden | .writable) per property to control the derived surface.
-- Predicate parameter → declarative filter schema (not full Predicate DSL).
-- A collaborationTools(in: ModelContext) accessor variant, since these tools need a ModelContext.
-- Hand-written @CollaborationTool methods on the same @Model override the derived tool of the same name.
-- OS-version gating in the bridge module.
 
+- `2026-07-13T01:02:41Z`: Derived CRUD tools (list, fetch(id:), create, update(id:, ...), delete(id:)) for a @Model type.
+- `2026-07-13T01:02:41Z`: @CollaborationField(.readOnly | .hidden | .writable) per property to control the derived surface.
+- `2026-07-13T01:02:41Z`: Predicate parameter → declarative filter schema (not full Predicate DSL).
+- `2026-07-13T01:02:41Z`: A collaborationTools(in: ModelContext) accessor variant, since these tools need a ModelContext.
+- `2026-07-13T01:02:41Z`: Hand-written @CollaborationTool methods on the same @Model override the derived tool of the same name.
+- `2026-07-13T01:02:41Z`: OS-version gating in the bridge module.
 - `2026-07-13T17:06:27Z`: Drafted as [RFC 0004](rfcs/0004-swiftdata-bridge.md) — standalone spec expanding RFC 0003 §3.2. Proposes 4 slices (A: read-only, B: filter/sort, C: mutations, D: relationships). Open questions still to resolve: id inference vs. explicit `.id`, concurrency gating, implicit `save()`, default `requiresApproval` for mutations.
 
 ---
@@ -2328,12 +2328,13 @@ Tasks:
 ## 87: CollaborationKitUI: transcript-row customization hooks (per-tool icon, per-tool result filter)
 
 +++
-status: open
+status: closed
 priority: medium
 kind: enhancement
 labels: effort:m, phosphor-adoption
 created: 2026-07-13T15:49:46Z
-updated: 2026-07-13T16:42:09Z
+updated: 2026-07-13T17:07:10Z
+closed: 2026-07-13T17:07:10Z
 +++
 
 For Phosphor to drop its hand-rolled ConversationRow, CollaborationKitUI's transcript row needs host-supplied hooks for per-tool presentation.
@@ -2354,17 +2355,20 @@ Design decisions:
 
 Blocker for the Phosphor migration umbrella.
 
+- `2026-07-13T17:07:10Z`: Resolved by change rlomzonm ('Fix #87: transcript-row result-visibility hook'). ToolPresenterRegistry now exposes resultVisibility(_:) for the lightweight per-tool result predicate. Per-tool icons (iconForTool) and full-body overrides (ToolPresenterRegistry.presenter(for:view:)) were already in place.
+
 ---
 
 ## 88: CollaborationKitUI: empty-state customization slot for the transcript
 
 +++
-status: open
+status: closed
 priority: medium
 kind: enhancement
 labels: effort:s, phosphor-adoption
 created: 2026-07-13T15:49:59Z
-updated: 2026-07-13T16:42:09Z
+updated: 2026-07-13T17:04:24Z
+closed: 2026-07-13T17:04:24Z
 +++
 
 For Phosphor to drop its hand-rolled GeneratePanel, CollaborationKitUI's transcript needs a host-supplied empty state.
@@ -2384,17 +2388,20 @@ Related: composer-status slot (companion issue) and #37 (menu-command hooks).
 
 Child of the Phosphor adoption umbrella.
 
+- `2026-07-13T17:04:24Z`: Empty-state slot shipped in change tzmvomtkzrsy (fix for #65): TranscriptView and CollaborationChatView both expose an emptyPlaceholder ViewBuilder init. Follow-up for the separate credentials-missing slot filed as its own issue.
+
 ---
 
 ## 89: CollaborationKitUI: composer status/model-info slot above the prompt field
 
 +++
-status: open
+status: closed
 priority: medium
 kind: enhancement
 labels: effort:s, phosphor-adoption
 created: 2026-07-13T15:50:08Z
-updated: 2026-07-13T16:42:09Z
+updated: 2026-07-13T17:04:18Z
+closed: 2026-07-13T17:04:18Z
 +++
 
 For Phosphor to drop its hand-rolled composer, CollaborationKitUI's composer needs a host-supplied status strip above the prompt field.
@@ -2418,6 +2425,8 @@ Consider whether this should be one slot or a small set (leading caption / trail
 Related: transcript-row hooks and empty-state slot (companion issues).
 
 Child of the Phosphor adoption umbrella.
+
+- `2026-07-13T17:04:18Z`: Already shipped in change unuxlslntlmx ('ComposerView: add optional header slot for backend/model caption'). ComposerView has a @ViewBuilder header slot and CollaborationChatView exposes composerHeader: on its init; matches the proposal in this issue exactly.
 
 ---
 
@@ -2745,5 +2754,52 @@ Shape:
 - Optional stretch: an "accept/reject" affordance per edit before it lands.
 
 Purpose: show off tool-driven document editing and the store/mirror handling a fast stream of small mutations to a large body of text.
+
+---
+
+## 104: ConversationStore: rehydrate from a persisted SessionExport / MessageMirror
+
++++
+status: new
+priority: medium
+kind: feature
+labels: phosphor-adoption, api
+depends: 73
+created: 2026-07-13T17:09:09Z
++++
+
+`ConversationStore.buildExport(model:userInfo:)` produces a `SessionExport` today, but there is no corresponding initializer or method that restores a store from one. A host that persists a conversation across launches (see #73) has no way to bring a store back into the same state it left.
+
+Two related shapes are also non-`Codable` at present:
+
+- `MessageMirror` is `Sendable` but not `Codable`. Its `messages` array is public, but the streaming overlay, error overlays, and per-item presentation metadata (timestamps, durations, summaries) are not persistable.
+- `ConversationItem` is `Codable` and can be serialized via the projection, but there's no way to feed a saved array back into a mirror.
+
+Impact:
+
+- Blocks Phosphor adoption on the persistence axis of the #91 umbrella. Phosphor is document-based and wants sessions to survive open/close.
+- Any host addressing #73 will hit this the moment they try to reopen a saved document.
+
+Surfaced by the #90 public-API audit for Phosphor adoption. Child of #73.
+
+---
+
+## 105: CollaborationChatView: missing-credentials placeholder is not host-customizable
+
++++
+status: new
+priority: medium
+kind: enhancement
+labels: phosphor-adoption
+depends: 91
+created: 2026-07-13T17:04:35Z
+updated: 2026-07-13T17:15:47Z
++++
+
+CollaborationChatView shows a hard-coded ContentUnavailableView ("Sign in to Continue" + SettingsLink) when the ambient CollaborationCredentials reports no stored credentials for the current backend.
+
+Hosts have no way to replace or customize this view. Phosphor, for example, wants "Sign in to Generate" with a shader-specific hint. #88 added an emptyPlaceholder slot for the empty-transcript case; the credentials-missing case is a separate, still-uncustomizable state.
+
+Companion to #88 (which shipped only the empty-transcript slot). Child of the #91 Phosphor adoption umbrella.
 
 ---

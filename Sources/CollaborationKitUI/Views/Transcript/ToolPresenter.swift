@@ -43,6 +43,13 @@ public struct ToolRowContext: Sendable {
 ///
 /// The registry is a reference type so hosts can mutate it after
 /// construction (e.g. inside `.task`) without re-injecting.
+///
+/// In addition to full body overrides, the registry also carries a
+/// host-supplied predicate (``resultVisibility(_:)``) for the lighter-weight
+/// case: keep the default tool row layout but decide per row whether the
+/// monospaced result blob is worth showing. Handy for tools whose success
+/// message is boilerplate ("Edit applied.", "Compiles cleanly.") but whose
+/// error output is essential.
 @MainActor
 @Observable
 public final class ToolPresenterRegistry {
@@ -51,6 +58,7 @@ public final class ToolPresenterRegistry {
     // sidesteps the "closures in @Entry" trap that would otherwise
     // invalidate every row on every re-render.
     private var presenters: [String: (ToolRowContext) -> AnyView] = [:]
+    private var resultVisibility: ((ToolRowContext) -> Bool)?
 
     public init() {}
 
@@ -70,5 +78,24 @@ public final class ToolPresenterRegistry {
     /// `context.name`, or `nil` if none is registered.
     public func view(for context: ToolRowContext) -> AnyView? {
         presenters[context.name].map { $0(context) }
+    }
+
+    /// Installs a predicate that decides whether the default tool row
+    /// should render its result body for a given row. Only consulted for
+    /// rows that don't have a full presenter registered. Returns `self`
+    /// so it can be chained during `@State` initialization.
+    @discardableResult
+    public func resultVisibility(
+        _ predicate: @escaping (ToolRowContext) -> Bool
+    ) -> ToolPresenterRegistry {
+        resultVisibility = predicate
+        return self
+    }
+
+    /// Returns the host's decision for `context`, or `nil` when no
+    /// visibility predicate is installed and the default rule
+    /// (``ConversationRowView`` built-in) should be used instead.
+    public func shouldShowResult(for context: ToolRowContext) -> Bool? {
+        resultVisibility?(context)
     }
 }

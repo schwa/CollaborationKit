@@ -269,7 +269,7 @@ public struct ConversationRowView: View {
                     ProgressView().controlSize(.mini)
                 }
             }
-            if let result, resultWorthShowing(name: name, result: result, isError: isError) {
+            if let result, shouldShowResult(name: name, summary: summary, result: result, isError: isError) {
                 Text(result)
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(isError ? .red : .secondary)
@@ -305,9 +305,23 @@ public struct ConversationRowView: View {
         return String(format: "%.1fs", seconds)
     }
 
-    /// Only show a tool result when it carries useful detail. For unknown
-    /// tools, show when the tool errored or looks like a read.
-    private func resultWorthShowing(name: String, result _: String, isError: Bool) -> Bool {
+    /// Whether to show the monospaced result blob for a given row.
+    ///
+    /// Prefers a host-installed predicate on ``ToolPresenterRegistry`` when
+    /// present, so hosts can suppress uninteresting success text like
+    /// "Edit applied." / "Compiles cleanly." without having to replace the
+    /// whole row body via ``ToolPresenterRegistry/presenter(for:view:)``.
+    /// Falls back to a minimal built-in rule: show errors, plus results for
+    /// the built-in `read` file tool.
+    private func shouldShowResult(name: String, summary: String, result: String, isError: Bool) -> Bool {
+        let context = ToolRowContext(name: name, summary: summary, result: result, isError: isError)
+        if let override = toolPresenters?.shouldShowResult(for: context) {
+            return override
+        }
+        return defaultResultWorthShowing(name: name, isError: isError)
+    }
+
+    private func defaultResultWorthShowing(name: String, isError: Bool) -> Bool {
         if isError { return true }
         switch name {
         case "read":
@@ -374,6 +388,38 @@ private func previewItem(id: ConversationItem.ID, kind: ConversationItem.Kind, d
     }
     .environment(registry)
     .frame(width: 520, height: 200)
+}
+
+#Preview("Result visibility override") {
+    // Two tool rows: one for a noisy "edit" success (host suppresses),
+    // one for a "read" success (host shows).
+    let samples = [
+        previewItem(
+            id: .tool("e1"),
+            kind: .tool(name: "edit", summary: "editing Foo.swift", result: "Edit applied.", isError: false)
+        ),
+        previewItem(
+            id: .tool("r1"),
+            kind: .tool(name: "read", summary: "reading Foo.swift", result: "public struct Foo {}", isError: false)
+        )
+    ]
+    let registry = ToolPresenterRegistry()
+        .resultVisibility { ctx in
+            // Hide plain success confirmations; always show errors and reads.
+            if ctx.isError { return true }
+            if ctx.name == "read" { return true }
+            return false
+        }
+    return ScrollView {
+        VStack(spacing: 10) {
+            ForEach(samples) { item in
+                ConversationRowView(item: item)
+            }
+        }
+        .padding()
+    }
+    .environment(registry)
+    .frame(width: 520, height: 240)
 }
 
 #Preview("Row samples") {
