@@ -1961,3 +1961,23 @@ The image is added to the composer's attachment strip, matching the transcript-d
 Related: #66 (paste has the same underlying cause — focused TextField wins over container-level drop/paste destinations for URL/text payloads). #36 wired the transcript drop but did not extend the drop destination to the composer itself.
 
 ---
+
+## 75: ComposerView: send/queue arrow visible while generating even when the field is empty
+
++++
+status: new
+priority: medium
+kind: enhancement
+labels: effort:xs
+created: 2026-07-13T14:39:23Z
++++
+
+While a response is generating, the composer shows both a stop button and a send/queue arrow. The arrow stays visible even when the prompt field is empty, so there's nothing to queue.
+
+## Expected
+The send/queue arrow only appears while generating if the user has typed something (or added an attachment). When the field is empty, only the stop button shows.
+
+## Notes
+Introduced by #64 (queue prompts while assistant responding).
+
+---
