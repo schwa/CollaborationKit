@@ -1,4 +1,6 @@
+import CoreTransferable
 import Foundation
+import UniformTypeIdentifiers
 import CollaborationKit
 
 /// A serialisable snapshot of one ``ConversationStore`` session, suitable for
@@ -61,6 +63,18 @@ public struct SessionExport: Codable, Sendable {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode(SessionExport.self, from: data)
+    }
+}
+
+// MARK: - Transferable
+
+extension SessionExport: Transferable {
+    public static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(contentType: .json) { export in
+            try export.jsonData()
+        } importing: { data in
+            try SessionExport.decode(data)
+        }
     }
 }
 
