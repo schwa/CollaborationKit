@@ -7,7 +7,11 @@ import Foundation
 /// ``MessageMirror`` is a value type with no SwiftUI or actor coupling. It
 /// consumes ``SessionEvent``s and maintains:
 ///
-/// - The finalized message history (``messages``).
+/// - The finalized message history (``messages``), replaced whole from
+///   the session's ``SessionEvent/historyChanged(_:)`` snapshots. The
+///   mirror deliberately does not reduce individual `.text`/`.toolCall`/
+///   `.toolResult` events into messages — that would duplicate the
+///   session's reducer and create a divergence seam (see issue #60).
 /// - The live assistant streaming overlay (``streamingAssistantText``).
 /// - Harness/transport error overlays (``errorOverlays``).
 /// - Presentation metadata keyed by ``ItemID`` — per-row timing plus tool
@@ -81,20 +85,21 @@ public struct MessageMirror: Sendable {
         case .textDelta(let chunk):
             appendAssistantDelta(chunk, at: date)
 
-        case .text(let block):
-            finalizeAssistantProse(block, at: date)
+        case .text:
+            // History was replaced by the preceding `.historyChanged`;
+            // here we just hand the streaming overlay's timing off to
+            // the finalized assistant row.
+            finalizeStreamingOverlay(at: date)
 
         case .toolCall(let use):
             finishStreamingAssistant(at: date)
             presentation[.tool(use.id)] = Presentation(timestamp: date, summary: summary(use))
-            appendToolUseToMirror(use)
 
         case .toolResult(let result):
             let id = ItemID.tool(result.toolUseID)
             if let start = presentation[id]?.timestamp {
                 presentation[id]?.duration = date.timeIntervalSince(start)
             }
-            attachResultToMirror(result)
 
         case .usage:
             // Usage lives on the session; the mirror doesn't need it.
@@ -109,6 +114,12 @@ public struct MessageMirror: Sendable {
             // partial bubble open. The host layer above adds any
             // "Stopped." overlay via `appendError`.
             finishStreamingAssistant(at: date)
+
+        case .historyChanged(let snapshot):
+            // Authoritative history from the session. Replacing whole
+            // (rather than reducing per-block) is the whole point of
+            // this event — it keeps the reducer in one place.
+            messages = snapshot
         }
     }
 
@@ -146,7 +157,7 @@ public struct MessageMirror: Sendable {
         errorSeq = 0
     }
 
-    // MARK: - Assistant prose plumbing
+    // MARK: - Streaming overlay plumbing
 
     private mutating func appendAssistantDelta(_ chunk: String, at date: Date) {
         if streamingAssistantText == nil {
@@ -157,18 +168,22 @@ public struct MessageMirror: Sendable {
         }
     }
 
-    /// Finalizes a completed assistant prose block into the mirror, keyed by
-    /// its message id, and carries the streaming overlay's timing (start,
-    /// freshly stamped duration) onto the finalized row so visible timing
-    /// survives the hand-off.
-    private mutating func finalizeAssistantProse(_ block: String, at date: Date) {
-        let destID = appendAssistantProseToMirror(block)
+    /// Finalizes the streaming overlay when a `.text` block arrives. The
+    /// text is already in ``messages`` (the preceding `.historyChanged`
+    /// put it there); this call just carries the overlay's timing onto
+    /// the trailing assistant row so visible timing survives the
+    /// hand-off.
+    private mutating func finalizeStreamingOverlay(at date: Date) {
+        defer {
+            presentation[.streamingAssistant] = nil
+            streamingAssistantText = nil
+        }
+        guard let last = messages.last, last.role == .assistant else { return }
+        let destID = ItemID.message(last.id)
         if var meta = presentation[.streamingAssistant] {
             meta.duration = date.timeIntervalSince(meta.timestamp)
             presentation[destID] = meta
         }
-        presentation[.streamingAssistant] = nil
-        streamingAssistantText = nil
     }
 
     /// Clears the streaming overlay without finalizing (turn end / tool
@@ -178,42 +193,5 @@ public struct MessageMirror: Sendable {
             presentation[.streamingAssistant]?.duration = date.timeIntervalSince(start)
         }
         streamingAssistantText = nil
-    }
-
-    /// Appends a finalized assistant prose block, merging into the trailing
-    /// assistant message when it doesn't yet have prose. Returns the
-    /// ``ItemID`` of the assistant message holding it.
-    private mutating func appendAssistantProseToMirror(_ block: String) -> ItemID {
-        if let last = messages.indices.last,
-           messages[last].role == .assistant,
-           !messages[last].content.contains(where: { if case .text = $0 { true } else { false } }) {
-            messages[last].content.insert(.text(block), at: 0)
-            return .message(messages[last].id)
-        }
-        let message = Message(role: .assistant, content: [.text(block)])
-        messages.append(message)
-        return .message(message.id)
-    }
-
-    private mutating func appendToolUseToMirror(_ use: ToolUse) {
-        let call = ToolCall(use: use)
-        if let last = messages.indices.last, messages[last].role == .assistant {
-            messages[last].content.append(.toolCall(call))
-        } else {
-            messages.append(Message(role: .assistant, content: [.toolCall(call)]))
-        }
-    }
-
-    private mutating func attachResultToMirror(_ result: ToolResult) {
-        for messageIndex in messages.indices.reversed() {
-            for blockIndex in messages[messageIndex].content.indices {
-                if case .toolCall(var call) = messages[messageIndex].content[blockIndex],
-                   call.use.id == result.toolUseID {
-                    call.result = result
-                    messages[messageIndex].content[blockIndex] = .toolCall(call)
-                    return
-                }
-            }
-        }
     }
 }

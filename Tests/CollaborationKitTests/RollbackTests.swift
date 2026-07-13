@@ -84,15 +84,18 @@ struct RollbackTests {
     @Test("rollBack truncates the mirror's messages to the pre-turn count")
     func rollBackTruncatesMirror() async {
         let store = ConversationStore(session: LLMSession(provider: NullProvider()))
-        // Two user turns with snapshots. NullProvider doesn't produce assistant
-        // messages, so mirror.messages has just the two user prompts after both
-        // sends complete.
+        // Two user turns with snapshots. NullProvider produces no stream
+        // events but LLMSession still appends an (empty) assistant message
+        // per turn, so mirror.messages has user + emptyAssistant per turn
+        // — four rows after two sends. Empty assistant messages project
+        // to zero rows, so store.items is unaffected.
         store.send("first", snapshot: .empty)
         await drainGenerating(store)
         store.send("second", snapshot: .empty)
         await drainGenerating(store)
 
-        #expect(store.mirror.messages.count == 2)
+        #expect(store.mirror.messages.count == 4)
+        #expect(store.items.count == 2)
 
         let firstUserID = store.items.first!.id
         store.rollBack(through: firstUserID)
@@ -136,8 +139,9 @@ struct RollbackTests {
         await drainGenerating(store)
         let userItemID = store.items.first!.id
         store.rollBack(through: userItemID)
-        // Mirror is unchanged.
-        #expect(store.mirror.messages.count == 1)
+        // Mirror is unchanged: one user + one empty assistant from the
+        // completed turn (see rollBackTruncatesMirror).
+        #expect(store.mirror.messages.count == 2)
     }
 
     @Test("rollBack clears any surfaced lastError")

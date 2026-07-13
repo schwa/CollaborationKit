@@ -4,6 +4,10 @@ import Foundation
 import Testing
 
 /// Pure-function tests for TranscriptProjection: mirror in, items out.
+///
+/// After #60, `messages` is populated exclusively by `.historyChanged`
+/// snapshots, so tests that need finalized rows feed a snapshot in
+/// alongside the streaming/timing events.
 struct TranscriptProjectionTests {
     @Test
     func emptyMirrorProjectsToNoItems() {
@@ -30,7 +34,10 @@ struct TranscriptProjectionTests {
     func assistantTextProjectsAndCarriesTiming() {
         var mirror = MessageMirror()
         let t0 = Date(timeIntervalSince1970: 1_700_000_000)
+        let assistant = Message(role: .assistant, content: [.text("Hi there.")])
         mirror.handle(.textDelta("Hi"), at: t0)
+        // Session commits the finalized message before the `.text` hand-off.
+        mirror.handle(.historyChanged([assistant]), at: t0.addingTimeInterval(1.2))
         mirror.handle(.text("Hi there."), at: t0.addingTimeInterval(1.2))
 
         let (items, _) = TranscriptProjection.project(mirror)
@@ -48,10 +55,11 @@ struct TranscriptProjectionTests {
     func toolCallProjectsWithSummaryAndPendingResult() {
         var mirror = MessageMirror()
         let use = ToolUse(id: "t1", name: "list", input: .object([:]))
+        let assistant = Message(role: .assistant, content: [.toolCall(ToolCall(use: use))])
+        mirror.handle(.historyChanged([assistant]))
         mirror.handle(.toolCall(use)) { _ in "listing rows" }
 
         let (items, _) = TranscriptProjection.project(mirror)
-        // Might be one tool row (the tool call became a message).
         let tool = items.first { if case .tool = $0.kind { true } else { false } }
         if case let .tool(_, summary, result, isError) = tool?.kind {
             #expect(summary == "listing rows")
@@ -66,9 +74,13 @@ struct TranscriptProjectionTests {
     func latencyIsGapBetweenConsecutiveItems() {
         var mirror = MessageMirror()
         let t0 = Date(timeIntervalSince1970: 1_700_000_000)
-        mirror.appendUser(.user("go"), at: t0)
-        // Assistant reply starts 2s later.
+        let userMsg = Message.user("go")
+        mirror.appendUser(userMsg, at: t0)
+        // Assistant reply starts 2s later; session emits historyChanged
+        // once the assistant message is finalized.
+        let assistant = Message(role: .assistant, content: [.text("ok")])
         mirror.handle(.textDelta("ok"), at: t0.addingTimeInterval(2.0))
+        mirror.handle(.historyChanged([userMsg, assistant]), at: t0.addingTimeInterval(2.1))
         mirror.handle(.text("ok"), at: t0.addingTimeInterval(2.1))
 
         let (items, _) = TranscriptProjection.project(mirror)

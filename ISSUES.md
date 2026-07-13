@@ -1704,15 +1704,18 @@ CredentialStore has 9 methods hard-coding three slots (anthropicKey/openAIKey/an
 ## 60: Transcript pipeline duplicates the message-history reducer; risky orchestration in ConversationStore is untested
 
 +++
-status: open
+status: closed
 priority: high
 kind: enhancement
 labels: architecture, testing, effort:xl
 created: 2026-07-13T05:06:25Z
-updated: 2026-07-13T06:18:59Z
+updated: 2026-07-13T16:29:22Z
+closed: 2026-07-13T16:29:22Z
 +++
 
 LLMSession.history and MessageMirror each independently implement 'append assistant blocks, attach tool result by toolUseID' (LLMSession.attachResult vs MessageMirror.attachResultToMirror/appendToolUseToMirror) with different merge rules — a latent divergence seam. Understanding one model turn requires bouncing across six files (LLMSession → SessionEvent → ConversationStore → MessageMirror → TranscriptProjection → views). The pure parts (MessageMirror, TranscriptProjection) are unit-tested, but the risky logic is untested: ConversationStore event-pump ordering (startPump races vs send appending directly to the mirror), reproject() mutating mirror.compact, cancellation/'Stopped.' overlay handling, and usage apparently accumulated twice (from .usage events in handle() and re-read from session.totalUsage in run()). No test constructs ConversationStore against a fake ModelProvider end-to-end. Related: issue #10 (runLoop decomposition) and #7 (history compaction) will stress this dual-history seam.
+
+- `2026-07-13T16:29:22Z`: Fixed: session emits authoritative history snapshots via new SessionEvent.historyChanged; MessageMirror no longer reduces per-block events into messages. Added end-to-end orchestration tests exercising ConversationStore against a fake ModelProvider. Removed the store.usage double-count race.
 
 ---
 

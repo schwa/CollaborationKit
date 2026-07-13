@@ -196,7 +196,7 @@ struct Chat: AsyncParsableCommand {
                     await timer.addOutputTokens(usage.outputTokens)
                     print("\n  [usage] in: \(usage.inputTokens)  out: \(usage.outputTokens)")
 
-                case .text, .turnComplete:
+                case .text, .turnComplete, .historyChanged:
                     break
 
                 case .turnCancelled:

@@ -21,6 +21,19 @@ public enum SessionEvent: Sendable {
     /// Token usage reported for one model response within the turn.
     case usage(TokenUsage)
 
+    /// The authoritative message history after any mutation.
+    ///
+    /// Emitted after every change to the session's history — user append,
+    /// each streamed assistant block, each tool result attachment,
+    /// compaction, and rollback. Consumers that need to mirror the
+    /// history (e.g. ``CollaborationKitUI``'s ``MessageMirror``) should
+    /// replace their local copy with the snapshot rather than reducing
+    /// individual `.text` / `.toolCall` / `.toolResult` events into
+    /// messages themselves — that path is a divergence seam. The other
+    /// events remain for streaming UI (`.textDelta`) and per-row timing
+    /// hooks (`.toolCall` / `.toolResult`).
+    case historyChanged([Message])
+
     /// The turn finished.
     ///
     /// - Parameters:

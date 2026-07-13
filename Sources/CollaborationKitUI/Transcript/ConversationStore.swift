@@ -138,7 +138,7 @@ public final class ConversationStore {
         reproject()
 
         sendTask = Task { [weak self] in
-            await self?.run(trimmed, images: images)
+            await self?.run(userMessage)
         }
     }
 
@@ -157,7 +157,7 @@ public final class ConversationStore {
         pendingPrompts.removeAll()
     }
 
-    private func run(_ trimmed: String, images: [ImageContent]) async {
+    private func run(_ userMessage: Message) async {
         defer {
             isGenerating = false
             sendTask = nil
@@ -166,7 +166,19 @@ public final class ConversationStore {
         }
 
         do {
-            _ = try await session.send(text: trimmed, images: images)
+            // Pass the pre-constructed Message so its id matches the one
+            // the mirror already stamped for presentation and rollback
+            // — the subsequent `.historyChanged` snapshot overwrites
+            // `mirror.messages` and the ids need to line up.
+            _ = try await session.send(userMessage)
+            // A cancelled `AsyncThrowingStream` returns end-of-stream
+            // rather than throwing, so session.send may complete
+            // "normally" from a cancellation. Surface that as a
+            // Stopped. overlay too, or `stop()` would look like a
+            // silent no-op.
+            if Task.isCancelled {
+                mirror.appendError("Stopped.")
+            }
         } catch is CancellationError {
             mirror.appendError("Stopped.")
         } catch {
@@ -177,7 +189,30 @@ public final class ConversationStore {
                 lastError = "\(error)"
             }
         }
-        usage = await session.totalUsage
+        // Give the event pump a few ticks to dequeue any events still
+        // buffered on the AsyncStream. session.send returns as soon as
+        // its final event is yielded onto the stream; a `.historyChanged`
+        // or `.usage` event just before that yield may still be waiting
+        // on the pump task's `await next()`. Yielding on @MainActor lets
+        // the pump run before we clear `isGenerating`, so observers who
+        // read state right after the flag flips see up-to-date mirror /
+        // usage values instead of a version from a few events ago.
+        //
+        // Usage was accumulated live in `handle` from `.usage` events.
+        // Re-reading `session.totalUsage` here would race the pump: any
+        // `.usage` event still buffered would be added on top of a value
+        // that already included it. Trust the pump — just wait for it.
+        await waitForEventPump()
+    }
+
+    /// Waits for the event pump to catch up with events buffered on the
+    /// AsyncStream. On @MainActor the pump is serialized with this task,
+    /// so a handful of yields is enough for it to drain the queue and
+    /// re-suspend at `await next()`. See ``run(_:)`` for the rationale.
+    private func waitForEventPump() async {
+        for _ in 0..<8 {
+            await Task.yield()
+        }
     }
 
     /// Pops the next queued prompt (if any) and re-enters ``send`` so the

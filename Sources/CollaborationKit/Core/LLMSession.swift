@@ -119,6 +119,7 @@ public actor LLMSession {
     public func truncateHistory(keeping count: Int) {
         let clamped = max(0, min(count, history.count))
         history.removeLast(history.count - clamped)
+        yieldHistory()
     }
 
     private var accumulatedUsage = TokenUsage()
@@ -158,6 +159,18 @@ public actor LLMSession {
     /// - Throws: ``SessionError`` or any provider/transport error. Tool failures
     ///   are not thrown; they are fed back to the model as error results.
     public func send(text: String, images: [ImageContent] = []) async throws -> String {
+        let message: Message = images.isEmpty
+            ? .user(text)
+            : .user(text: text, images: images)
+        return try await send(message)
+    }
+
+    /// Sends a pre-constructed user message and runs the tool loop until
+    /// the model stops. Preserves the caller's message id so hosts that
+    /// keyed UI state on it (e.g. rollback snapshots in
+    /// ``CollaborationKitUI``'s ConversationStore) stay in sync with the
+    /// session's history after the next ``SessionEvent/historyChanged(_:)``.
+    public func send(_ message: Message) async throws -> String {
         guard !isRunning else { throw SessionError.turnAlreadyInProgress }
         isRunning = true
         currentTurnText = ""
@@ -165,7 +178,8 @@ public actor LLMSession {
             isRunning = false
             currentTurnText = ""
         }
-        history.append(images.isEmpty ? .user(text) : .user(text: text, images: images))
+        history.append(message)
+        yieldHistory()
         do {
             return try await runLoop()
         } catch is CancellationError {
@@ -231,12 +245,12 @@ public actor LLMSession {
         )
     }
 
-    /// The three parts of an assistant message produced by one provider
-    /// stream: the content blocks (as they'll be appended to history), the
-    /// aggregated final prose for the turn, and any pending tool uses the
-    /// model asked for.
+    /// The parts of an assistant message produced by one provider stream:
+    /// the aggregated final prose for the turn, any pending tool uses the
+    /// model asked for, the round's usage, and the stop reason. The
+    /// message itself is already committed to ``history`` by the time
+    /// this is returned — see ``streamAssistantMessage()``.
     private struct AssistantMessageParts {
-        var blocks: [ContentBlock]
         var text: String
         var pendingToolUses: [ToolUse]
         /// Aggregated token usage the provider reported for this single
@@ -259,10 +273,13 @@ public actor LLMSession {
         // provider stream so the wire request reflects the compacted
         // shape. NoCompactionStrategy is a passthrough.
         history = await compactionStrategy.compact(history: history, usage: accumulatedUsage)
+        yieldHistory()
 
         let parts = try await streamAssistantMessage()
-        let assistantIndex = history.count
-        history.append(Message(role: .assistant, content: parts.blocks))
+        // streamAssistantMessage appended the assistant message to
+        // `history` before returning; the last index is where its tool
+        // results will land.
+        let assistantIndex = history.count - 1
 
         guard !parts.pendingToolUses.isEmpty else {
             return .complete(text: parts.text, roundUsage: parts.roundUsage, stopReason: parts.stopReason)
@@ -279,12 +296,20 @@ public actor LLMSession {
     /// The event-fan-out concern lives entirely here, so the turn loop and
     /// tool dispatcher don't touch ``eventContinuation`` for stream events.
     private func streamAssistantMessage() async throws -> AssistantMessageParts {
+        // Reserve the assistant message's identity up front so every
+        // in-flight `.historyChanged` snapshot and the final committed
+        // message share the same row id — consumers keyed on it (e.g.
+        // ``MessageMirror``'s presentation side-table) see one stable id.
+        let inFlightID = UUID()
+        let inFlightTimestamp = Date()
         var assistantBlocks: [ContentBlock] = []
         var turnText = ""
         var pendingToolUses: [ToolUse] = []
         var roundUsage = TokenUsage()
         var stopReason: String?
 
+        // The provider sees `history` without any placeholder — the
+        // in-flight snapshots only appear on the `events` stream.
         let stream = provider.send(messages: history, system: system, tools: toolSpecs)
         for try await event in stream {
             switch event {
@@ -295,6 +320,7 @@ public actor LLMSession {
                 turnText += block
                 currentTurnText += block
                 assistantBlocks.append(.text(block))
+                yieldInFlightHistory(id: inFlightID, timestamp: inFlightTimestamp, blocks: assistantBlocks)
                 eventContinuation.yield(.text(block))
 
             case .toolUse(let use):
@@ -302,6 +328,7 @@ public actor LLMSession {
                 // with a pending (nil) result that fills in after execution.
                 assistantBlocks.append(.toolCall(ToolCall(use: use)))
                 pendingToolUses.append(use)
+                yieldInFlightHistory(id: inFlightID, timestamp: inFlightTimestamp, blocks: assistantBlocks)
                 eventContinuation.yield(.toolCall(use))
 
             case .usage(let usage):
@@ -319,8 +346,17 @@ public actor LLMSession {
         // emits `turnCancelled` instead of appending an empty message.
         try Task.checkCancellation()
 
+        // Commit the completed assistant message to authoritative history
+        // with the same id used in every in-flight snapshot.
+        history.append(Message(
+            id: inFlightID,
+            timestamp: inFlightTimestamp,
+            role: .assistant,
+            content: assistantBlocks
+        ))
+        yieldHistory()
+
         return AssistantMessageParts(
-            blocks: assistantBlocks,
             text: turnText,
             pendingToolUses: pendingToolUses,
             roundUsage: roundUsage,
@@ -336,8 +372,26 @@ public actor LLMSession {
         for use in uses {
             let result = await execute(use)
             attachResult(result, toUse: use.id, inMessageAt: messageIndex)
+            yieldHistory()
             eventContinuation.yield(.toolResult(result))
         }
+    }
+
+    /// Emits `.historyChanged` with the current authoritative history so
+    /// consumers replace their local copy rather than reducing per-block
+    /// events — the reducer lives here, not in every mirror.
+    private func yieldHistory() {
+        eventContinuation.yield(.historyChanged(history))
+    }
+
+    /// Emits an in-flight snapshot: `history` plus a synthetic assistant
+    /// message with a stable id representing the still-streaming turn.
+    /// The provider was called with the pre-placeholder `history`, so
+    /// no empty assistant message escapes to the wire.
+    private func yieldInFlightHistory(id: UUID, timestamp: Date, blocks: [ContentBlock]) {
+        var snapshot = history
+        snapshot.append(Message(id: id, timestamp: timestamp, role: .assistant, content: blocks))
+        eventContinuation.yield(.historyChanged(snapshot))
     }
 
     /// Attaches a tool result to its pending ``ToolCall`` within the message at
