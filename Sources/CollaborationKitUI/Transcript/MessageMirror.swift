@@ -122,6 +122,23 @@ public struct MessageMirror: Sendable {
         }
     }
 
+    /// Truncates the mirror to the first `messageCount` messages and drops
+    /// every overlay that could refer to a truncated row. Used by
+    /// ``ConversationStore/rollBack(through:)``.
+    ///
+    /// `messageCount` is clamped to the current message count; values larger
+    /// than ``messages`` leave state unchanged, negative values clear it.
+    /// The caller (``ConversationStore``) still needs to re-project after
+    /// this, and separately truncate the underlying ``LLMSession`` to keep
+    /// the two in sync.
+    public mutating func truncate(keepingMessages messageCount: Int) {
+        let clamped = max(0, min(messageCount, messages.count))
+        messages.removeLast(messages.count - clamped)
+        streamingAssistantText = nil
+        errorOverlays.removeAll()
+        errorSeq = 0
+    }
+
     // MARK: - Assistant prose plumbing
 
     private mutating func appendAssistantDelta(_ chunk: String, at date: Date) {

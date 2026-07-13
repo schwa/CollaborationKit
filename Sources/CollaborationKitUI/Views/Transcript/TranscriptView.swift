@@ -48,8 +48,13 @@ public struct TranscriptView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 10) {
                     ForEach(store.items) { item in
-                        ConversationRowView(item: item, iconForTool: iconForTool)
-                            .id(item.id)
+                        ConversationRowView(
+                            item: item,
+                            iconForTool: iconForTool,
+                            canRollBack: store.canRollBack(to: item.id),
+                            onRollBack: { store.rollBack(through: item.id) }
+                        )
+                        .id(item.id)
                     }
                     if store.isGenerating {
                         thinkingRow

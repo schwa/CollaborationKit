@@ -49,6 +49,14 @@ public final class ConversationStore {
     private var eventTask: Task<Void, Never>?
     private var sendTask: Task<Void, Never>?
 
+    /// Rollback snapshots keyed by the user message's id. Each entry pairs
+    /// the host's restore closure with the mirror's message count *before*
+    /// the user prompt was appended — the point ``rollBack(through:)`` will
+    /// truncate to. Populated by ``send(_:images:snapshot:)`` and pruned
+    /// after each rollback so entries for turns that no longer exist are
+    /// released.
+    private var rollbackSnapshots: [Message.ID: (messageCount: Int, snapshot: RollbackSnapshot)] = [:]
+
     @preconcurrency
     public init(
         session: LLMSession,
@@ -72,15 +80,29 @@ public final class ConversationStore {
     /// Starts a turn: appends the user message to the mirror, runs the
     /// agentic tool loop in a cancellable task, and streams events into
     /// ``items`` as they arrive.
-    public func send(_ prompt: String, images: [ImageContent] = []) {
+    ///
+    /// Pass a ``RollbackSnapshot`` to make the turn rewindable: hosts can
+    /// then call ``rollBack(through:)`` on any earlier user prompt and the
+    /// snapshot's apply closure restores whatever host state was captured.
+    public func send(
+        _ prompt: String,
+        images: [ImageContent] = [],
+        snapshot: RollbackSnapshot? = nil
+    ) {
         let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !(trimmed.isEmpty && images.isEmpty), !isGenerating else { return }
 
         lastError = nil
+        // Message count captured *before* the user message is appended, so
+        // rolling back truncates to just before this turn ran.
+        let preTurnCount = mirror.messages.count
         let userMessage: Message = images.isEmpty
             ? .user(trimmed)
             : .user(text: trimmed, images: images)
         mirror.appendUser(userMessage)
+        if let snapshot {
+            rollbackSnapshots[userMessage.id] = (preTurnCount, snapshot)
+        }
         isGenerating = true
         reproject()
 
@@ -117,6 +139,47 @@ public final class ConversationStore {
             }
         }
         usage = await session.totalUsage
+    }
+
+    // MARK: - Rollback
+
+    /// True if the item at `id` is a user prompt with a rollback snapshot
+    /// attached and no turn is in flight. UI affordances ("Roll Back to
+    /// Here") should hide themselves when this returns `false`.
+    public func canRollBack(to id: ItemID) -> Bool {
+        guard !isGenerating, case .message(let uuid) = id else { return false }
+        return rollbackSnapshots[uuid] != nil
+    }
+
+    /// Rolls the whole session back to just before the user prompt at `id`:
+    /// applies the host's restore closure, truncates the mirror + session
+    /// history to the recorded pre-turn count, drops error overlays and
+    /// streaming state, and reprojects. A no-op if the id has no snapshot
+    /// or a turn is currently in flight.
+    ///
+    /// Later turns' snapshots are discarded too — rolling back past a turn
+    /// implicitly invalidates every turn after it.
+    public func rollBack(through id: ItemID) {
+        guard !isGenerating,
+              case .message(let uuid) = id,
+              let entry = rollbackSnapshots[uuid] else { return }
+
+        // Host state first, so any UI observers of the host's state see it
+        // return to the pre-turn value before the transcript rows fall away.
+        entry.snapshot.apply()
+
+        // Truncate the projection's source of truth (mirror) and the
+        // session's own history to the same pre-turn count.
+        let keep = entry.messageCount
+        mirror.truncate(keepingMessages: keep)
+        Task { [session] in await session.truncateHistory(keeping: keep) }
+
+        // Any snapshot whose pre-turn count is >= the rollback point
+        // referred to a turn that no longer exists.
+        rollbackSnapshots = rollbackSnapshots.filter { _, entry in entry.messageCount < keep }
+
+        lastError = nil
+        reproject()
     }
 
     // MARK: - Event pump

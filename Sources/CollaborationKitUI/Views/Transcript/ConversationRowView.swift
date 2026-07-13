@@ -19,12 +19,24 @@ public struct ConversationRowView: View {
     /// Hosts can pass a closure to override.
     public let iconForTool: (String) -> String
 
+    /// When `true` on a `.user` row, renders a "Roll Back to Here"
+    /// affordance below the prompt. Hosts wire this through
+    /// ``ConversationStore/canRollBack(to:)``.
+    public let canRollBack: Bool
+
+    /// Invoked when the user taps "Roll Back to Here" on this row.
+    public let onRollBack: () -> Void
+
     public init(
         item: ConversationItem,
-        iconForTool: @escaping (String) -> String = Self.defaultIcon(for:)
+        iconForTool: @escaping (String) -> String = Self.defaultIcon(for:),
+        canRollBack: Bool = false,
+        onRollBack: @escaping () -> Void = {}
     ) {
         self.item = item
         self.iconForTool = iconForTool
+        self.canRollBack = canRollBack
+        self.onRollBack = onRollBack
     }
 
     public var body: some View {
@@ -203,6 +215,16 @@ public struct ConversationRowView: View {
             if !text.isEmpty {
                 Text(text)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+            if canRollBack {
+                Button(action: onRollBack) {
+                    Label("Roll Back to Here", systemImage: "arrow.uturn.backward")
+                }
+                .buttonStyle(.borderless)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .help("Restore host state and truncate the conversation to just before this message.")
+                .accessibilityHint("Rolls back the conversation to just before this prompt.")
             }
         }
     }

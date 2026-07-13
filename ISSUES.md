@@ -657,12 +657,13 @@ See rfcs/0003-model-object-tool-macro.md, sections 'Supported parameter/return t
 ## 26: CollaborationKitUI: rollback/snapshot support
 
 +++
-status: open
+status: closed
 priority: high
 kind: feature
 labels: effort:l
 created: 2026-07-13T01:28:00Z
-updated: 2026-07-13T06:20:23Z
+updated: 2026-07-13T06:41:55Z
+closed: 2026-07-13T06:41:55Z
 +++
 
 Phosphor's ConversationStore lets a user roll back the session to just before a prior user prompt: it snapshots host state (in Phosphor's case, the shader source) alongside the pre-turn history depth, then restores both on demand and truncates the LLMSession history.
