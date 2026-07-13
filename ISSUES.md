@@ -2832,3 +2832,34 @@ Hosts have no way to replace or customize this view. Phosphor, for example, want
 Companion to #88 (which shipped only the empty-transcript slot). Child of the #91 Phosphor adoption umbrella.
 
 ---
+
+## 106: Parallel tool dispatch within a single assistant turn
+
++++
+status: new
+priority: low
+kind: feature
+labels: effort:m
+depends: 98
+created: 2026-07-13T17:14:35Z
+updated: 2026-07-13T17:18:06Z
++++
+
+Follow-up to #98. Today LLMSession.runPendingTools runs each pending tool serially, in the order the model emitted them. The wire already batches results (one user message with N tool_result blocks), so #98's round-trip/token win is covered — this is purely about wall-clock inside our loop when the model emits multiple independent I/O-bound calls in the same turn.
+
+Would like to fan the batch out via a task group so N HTTP fetches / file reads / etc. can overlap instead of adding up.
+
+Sharp edges to design around:
+
+- Approval flow: the host's approval closure is currently awaited serially. Parallel dispatch must keep prompts serialized in emitted order so interactive UIs don't pop N dialogs at once.
+- Tool safety: tool authors need a way to say "don't run me concurrently with siblings" for tools with shared side effects (writing the same file, hitting a rate-limited endpoint, mutating a shared store). Design options considered so far:
+  - Per-tool bool (allowsParallelExecution) — coarse but easy.
+  - Exclusion keys (exclusionKey: String?) — tools sharing a key serialize; expresses cross-tool exclusion too.
+  - Session-level kill switch — one bool on LLMSession; simplest, no per-tool surface.
+  - Do nothing; expect tools to guard their own state with actors/locks.
+- Event ordering: .toolResult events would fire in completion order, not request order. Consumers should already key by ToolUse.id (attachResult does), but any that rely on emission order break.
+- Provider defaults: Anthropic parallel tool use is on by default (opt-out disable_parallel_tool_use); OpenAI has parallelToolCalls already wired. Nothing new needed on the wire.
+
+Deferred from the initial #98 pass because parallel-by-default was judged too dangerous for tools whose safety story we don't own.
+
+---
