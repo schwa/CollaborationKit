@@ -53,6 +53,20 @@ func openAIAccumulatorEmitsUsage() throws {
 }
 
 @Test
+func openAIAccumulatorReportsCachedTokens() throws {
+    var acc = OpenAIWire.Accumulator()
+    _ = try acc.consume(#"{"choices":[{"delta":{"content":"hi"}}]}"#)
+    _ = try acc.consume(#"{"choices":[],"usage":{"prompt_tokens":128,"completion_tokens":4,"total_tokens":132,"prompt_tokens_details":{"cached_tokens":96}}}"#)
+    let events = acc.finish()
+
+    var usage: TokenUsage?
+    for event in events {
+        if case .usage(let u) = event { usage = u }
+    }
+    #expect(usage == TokenUsage(inputTokens: 128, outputTokens: 4, cacheReadInputTokens: 96))
+}
+
+@Test
 func openAIAccumulatorThrowsOnError() {
     var acc = OpenAIWire.Accumulator()
     #expect(throws: OpenAIError.self) {

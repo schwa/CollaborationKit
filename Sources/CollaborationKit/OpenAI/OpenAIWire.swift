@@ -221,6 +221,14 @@ enum OpenAIWire {
             var usage = TokenUsage()
             if case .number(let prompt)? = object["prompt_tokens"] { usage.inputTokens = Int(prompt) }
             if case .number(let completion)? = object["completion_tokens"] { usage.outputTokens = Int(completion) }
+            // OpenAI reports server-side prompt-cache hits under
+            // `prompt_tokens_details.cached_tokens`. Surface it as
+            // `cacheReadInputTokens` so hosts can verify caching is engaging
+            // without having to know each provider's shape.
+            if case .object(let details)? = object["prompt_tokens_details"],
+               case .number(let cached)? = details["cached_tokens"] {
+                usage.cacheReadInputTokens = Int(cached)
+            }
             self.usage = usage
         }
 

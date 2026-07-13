@@ -11,10 +11,14 @@ public struct TokenUsage: Sendable, Equatable, Codable {
     /// Tokens generated in the response.
     public var outputTokens: Int
     /// Tokens written to the prompt cache this turn (Anthropic only; billed at a
-    /// premium). Zero when caching is unused or unreported.
+    /// premium). Zero when caching is unused or unreported. OpenAI does not
+    /// report cache writes separately from ``inputTokens``.
     public var cacheCreationInputTokens: Int
-    /// Tokens read from the prompt cache this turn (Anthropic only; billed at a
-    /// discount). Zero when caching is unused or unreported.
+    /// Tokens read from the prompt cache this turn, billed at a discount.
+    /// Zero when caching is unused or unreported. Populated for Anthropic
+    /// (``AnthropicConfig/promptCaching``) and for OpenAI (from
+    /// `prompt_tokens_details.cached_tokens`, which reflects OpenAI's
+    /// automatic server-side cache).
     public var cacheReadInputTokens: Int
 
     public init(

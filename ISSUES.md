@@ -2936,12 +2936,13 @@ Render queued prompts inline in the transcript with a cancel (×) button on each
 ## 110: Verify prompt caching is enabled and effective across all providers
 
 +++
-status: open
+status: closed
 priority: medium
 kind: task
 labels: effort:s
 created: 2026-07-13T17:35:12Z
-updated: 2026-07-13T17:37:13Z
+updated: 2026-07-13T18:25:59Z
+closed: 2026-07-13T18:25:59Z
 +++
 
 Anthropic has `promptCaching: Bool = true` and inserts `cache_control` breakpoints on the stable request prefix. OpenAI has no explicit prompt-caching handling — it relies on server-side automatic caching, with no client-side verification that it's actually engaging (or surfacing the resulting hit/miss stats). No coverage or docs for future providers.
@@ -3066,5 +3067,21 @@ Settings has no way to point CollaborationKit at a local LM Studio server. The p
 Same story for other local OpenAI-compatible servers (Ollama).
 
 - `2026-07-13T18:10:23Z`: Fixed in 6f6caa77.
+
+---
+
+## 116: Surface cached tokens in the UI token-usage display
+
++++
+status: new
+priority: medium
+kind: feature
+labels: effort:s, ui
+created: 2026-07-13T18:24:54Z
++++
+
+TokenUsage carries `cacheReadInputTokens` (and `cacheCreationInputTokens`) for both Anthropic and OpenAI, but the UI token-usage indicator only shows the input/output totals. Users can't tell whether prompt caching is actually engaging on a given turn or across a session.
+
+Show the cache-read (and, where relevant, cache-write) counts alongside the existing token totals in whatever surface currently displays TokenUsage.
 
 ---
