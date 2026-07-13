@@ -2593,3 +2593,22 @@ Most of these speak an OpenAI-compatible `/v1/chat/completions` dialect, so this
 Distinct from #93 (which is native `pi` over a Unix socket) — this issue covers HTTP-speaking local servers.
 
 ---
+
+## 97: Support extended thinking / reasoning content
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T16:40:20Z
++++
+
+Handle models that emit thinking / reasoning content separately from the assistant response — Anthropic extended thinking, OpenAI o-series reasoning tokens, etc.
+
+Needs:
+- Request-side: opt in to thinking (per-model or per-turn), with a budget where the API supports one.
+- Wire: parse and preserve thinking blocks from the stream (including signed/redacted variants for Anthropic).
+- History: keep thinking blocks on the assistant message so multi-turn tool use round-trips them back correctly.
+- UI: render as a collapsible/dimmed block distinct from the main answer.
+
+---
