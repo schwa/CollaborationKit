@@ -2202,15 +2202,18 @@ Other tab ideas welcome; this issue is a placeholder to expand the demo's covera
 ## 82: Tapping an attachment in the composer/editor field should open a viewer
 
 +++
-status: open
+status: closed
 priority: medium
 kind: enhancement
 labels: effort:s
 created: 2026-07-13T15:20:26Z
-updated: 2026-07-13T15:26:46Z
+updated: 2026-07-13T15:35:01Z
+closed: 2026-07-13T15:35:01Z
 +++
 
 In the composer/editor field, attachments are shown but tapping them does nothing. Tapping an attachment should open it in a viewer, same as attachments elsewhere in the UI.
+
+- `2026-07-13T15:35:01Z`: Tapping a pending composer attachment now opens a popover with the full-size image. Popover chosen over sheet per #83.
 
 ---
 
