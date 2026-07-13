@@ -1525,3 +1525,95 @@ Expected: methods annotated in extensions are picked up the same way as methods 
 Actual: TBD — needs reproduction to confirm whether the peer macro is silently ignored, the member macro doesn't see extension members, or it fails to compile.
 
 ---
+
+## 56: Wire encode and decode for each provider live in unrelated modules
+
++++
+status: new
+priority: low
+kind: task
+labels: architecture, effort:m
+created: 2026-07-13T04:20:54Z
++++
+
+Each provider translates between the neutral `Message` model and its own wire format in two halves that live apart:
+
+- Anthropic: `AnthropicWire` (encode) + `StreamAccumulator` inside `AnthropicProvider.swift` (decode).
+- OpenAI: `OpenAIWire` (encode) + `OpenAIStreamAccumulator` inside `OpenAIProvider.swift` (decode).
+
+They are inverse halves of one concept — "translate messages ↔ the wire for provider X" — but the split lives across two files per provider, wired together by the 5-method `WireProvider` protocol (`makeChatRequest`, `makeAccumulator`, `httpError`, `makeModelsRequest`, `decodeModels`).
+
+Consequences:
+
+- There is nowhere to write a round-trip test that asserts "these neutral messages, sent through provider X's encode + decode, come back as this event sequence." `AnthropicWireTests`, `StreamAccumulatorTests`, and `OpenAITests` each cover only a half.
+- The `WireProvider` protocol has to expose separate seams for encode and decode because they live in separate types, so it's wider than it needs to be.
+- Changes that touch the neutral model (a new `ContentBlock` case, tool approval metadata, etc.) require edits in four unrelated files.
+
+Related: #9 covers the encode half only. This issue is the superset.
+
+---
+
+## 57: Backend/Credentials/Keychain layering only supports the concrete Keychain store
+
++++
+status: new
+priority: low
+kind: task
+labels: architecture, effort:l
+created: 2026-07-13T04:20:57Z
++++
+
+The credentials layer is spread across three modules that all cross each other's boundaries:
+
+- `Backend` (in `CollaborationKitUI/Backend.swift`) claims to be a pluggable value-type registry, but every closure it holds (`hasCredentials`, `makeProvider`) takes `KeychainCredentialStore` concretely. A custom `Backend` cannot use a different credential source.
+- `KeychainCredentialStore` (a persistence type) exposes `anthropicOAuthTokenProvider(oauth:)`, which orchestrates read + expiry check + HTTP refresh via `AnthropicOAuth` + re-persist. The store is doing two jobs (Keychain persistence and OAuth refresh orchestration).
+- `CollaborationCredentials` is `@Observable` state that only works with `KeychainCredentialStore`; its `makeProvider(model:maxTokens:)` delegates to `Backend`, which delegates back to the store.
+
+Consequences:
+
+- There is no way to run these types against an in-memory credential source. Tests either hit the real Keychain or work around the store entirely. `BackendTests` covers the built-in backends but only by constructing a real `KeychainCredentialStore` and cleaning up after itself.
+- Adding a new credential source (env-var for the CLI, in-memory for tests, a different secure store) requires either editing every built-in `Backend` value or subclassing the concrete store.
+- Adding a new backend requires touching `Backend`, `KeychainCredentialStore` (for named-slot accessors), and `CollaborationCredentials` (for model persistence keys).
+- The layered flow "read stored credentials → refresh if expired → persist → build provider → issue request" is glued together by a chain of closures captured across three types, so it's hard to reason about as one operation.
+
+The abstraction the code presents (pluggable `Backend`) is not the abstraction the code actually supports (Keychain-only backends). Either the pluggability is real or it should be dropped.
+
+---
+
+## 58: SessionExport shadow types silently drop new domain fields
+
++++
+status: new
+priority: low
+kind: task
+labels: architecture, effort:m
+created: 2026-07-13T04:21:00Z
+updated: 2026-07-13T04:25:37Z
++++
+
+`SessionExport` (in `CollaborationKitUI/Transcript/SessionExport.swift`, 233 lines) is a hand-maintained parallel schema for every serialisable domain type in the package:
+
+- `MessageExport` shadows `Message`
+- `ContentBlockExport` shadows `ContentBlock`
+- `ToolCallExport` shadows `ToolCall`
+- `ToolResultExport` shadows `ToolResult`
+- `ItemExport` shadows `ConversationItem`
+- `UsageExport` shadows `TokenUsage`
+
+Each shadow struct is paired with a hand-written `init(from:)` mapper.
+
+The stated reason for the shadows is to keep wire-level `Codable` off the domain types. The cost is that any new field on `Message`, `ContentBlock`, `ToolCall`, `ToolResult`, `ConversationItem`, or `TokenUsage` silently disappears from exports until someone edits `SessionExport` in a second commit — and there is no test that fails when this happens.
+
+Consequences:
+
+- `SessionExportTests` (58 lines) can only assert on hand-picked fields; there is no golden-JSON test that would catch a dropped field.
+- Every domain-model change carries an invisible obligation to update the export shadow. In practice this obligation gets forgotten.
+- The friction is pure duplication with no compile-time link between the halves.
+
+## Direction
+
+Delete the shadow types. Put `Codable` directly on `Message`, `ContentBlock`, `ToolCall`, `ToolResult`, `ConversationItem`, and `TokenUsage` with hand-written `init(from:)` / `encode(to:)` where the on-disk shape needs to differ from the in-memory shape. Add a round-trip test so a dropped field fails the build.
+
+See the `swift-no-shadow-types` skill.
+
+---
