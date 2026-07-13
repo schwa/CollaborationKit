@@ -50,7 +50,12 @@ struct ContentView: View {
             let provider = try credentials.makeProvider()
             let session = LLMSession(
                 provider: provider,
-                system: "You help the user manage a small list of notes. Use the list, create, and delete tools.",
+                system: """
+                You help the user manage a small list of notes. Notes have a title, body, optional tag \
+                (idea, todo, question, journal, follow-up), and optional color (red, orange, yellow, green, \
+                blue, purple, pink). Use the list, search, create, setTag, setColor, and delete tools. \
+                Prefer setTag and setColor to make notes visually distinct when it helps the user scan them.
+                """,
                 tools: notes.collaborationTools
             )
             self.session = session
