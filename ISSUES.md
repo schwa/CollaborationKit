@@ -751,17 +751,19 @@ Related: RFC 0002, #13.
 ## 31: Tool approval
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:m
 created: 2026-07-13T01:34:27Z
-updated: 2026-07-13T01:49:58Z
+updated: 2026-07-13T02:47:54Z
+closed: 2026-07-13T02:47:54Z
 +++
 
 Add a mechanism for the host to approve (or deny) tool invocations before they run. Related to #22 (per-tool metadata like requiresApproval).
 
 - `2026-07-13T01:50:12Z`: Related to #32 (path approval for built-in file tools) and #22 (per-tool requiresApproval metadata): #22 surfaces the flag, #31 defines the host-side hook that consumes it, #32 is a concrete built-in application of the same hook for filesystem paths.
+- `2026-07-13T02:47:54Z`: Landed. LLMSession.init now takes an optional `approval: @Sendable (ToolUse) async -> ToolApprovalDecision` closure (defaults to allow-all). The gate runs before each tool invocation; a `.deny(reason:)` decision produces an `is_error` ToolResult carrying the reason so the model can adapt to a different plan. New public ToolApprovalDecision enum with .allow / .deny(reason:) and a .deny shorthand for the fallback message. 4 tests: default allow-all, deny with reason, empty-reason fallback, per-tool decision by inspecting the input.
 
 ---
 

@@ -24,6 +24,7 @@ public actor LLMSession {
     private let system: String?
     private let tools: [String: AnyTool]
     private let toolSpecs: [ToolSpec]
+    private let approval: @Sendable (ToolUse) async -> ToolApprovalDecision
 
     /// The maximum number of model/tool round-trips per ``send(_:)`` call.
     public let maxIterations: Int
@@ -40,17 +41,23 @@ public actor LLMSession {
     ///   - provider: The backend used to run model turns.
     ///   - system: An optional system prompt.
     ///   - tools: The tools the model may invoke. Names must be unique.
+    ///   - approval: An async gate consulted before each tool invocation.
+    ///     Return ``ToolApprovalDecision/deny(reason:)`` to block a call —
+    ///     the model receives an `is_error` tool result carrying the reason
+    ///     and can adapt. Defaults to allow-all.
     ///   - maxIterations: A cap on model/tool round-trips per turn.
     public init(
         provider: ModelProvider,
         system: String? = nil,
         tools: [AnyTool] = [],
+        approval: @escaping @Sendable (ToolUse) async -> ToolApprovalDecision = { _ in .allow },
         maxIterations: Int = 32
     ) {
         self.provider = provider
         self.system = system
         self.tools = Dictionary(tools.map { ($0.name, $0) }) { _, new in new }
         self.toolSpecs = tools.map { ToolSpec(name: $0.name, description: $0.description, inputSchema: $0.inputSchema) }
+        self.approval = approval
         self.maxIterations = maxIterations
 
         var continuation: AsyncStream<SessionEvent>.Continuation!
@@ -190,6 +197,16 @@ public actor LLMSession {
                 isError: true
             )
         }
+        // Ask the host before running side-effectful code. A denial is
+        // reported to the model as an error result so it can pivot to a
+        // different plan on the next turn.
+        switch await approval(use) {
+        case .allow:
+            break
+        case .deny(let reason):
+            let message = reason.isEmpty ? "Denied by the host." : "Denied: \(reason)"
+            return ToolResult(toolUseID: use.id, content: message, isError: true)
+        }
         do {
             let output = try await tool.call(use.input)
             return ToolResult(toolUseID: use.id, content: output)
@@ -199,4 +216,19 @@ public actor LLMSession {
             return ToolResult(toolUseID: use.id, content: "\(error)", isError: true)
         }
     }
+}
+
+/// The host's decision for whether a specific tool invocation may proceed.
+///
+/// Returned from the approval closure supplied to
+/// ``LLMSession/init(provider:system:tools:approval:maxIterations:)``.
+public enum ToolApprovalDecision: Sendable, Equatable {
+    /// Allow the call to run.
+    case allow
+    /// Deny the call. The model receives an `is_error` tool result carrying
+    /// `reason`. Empty reason falls back to "Denied by the host."
+    case deny(reason: String)
+
+    /// Convenience: deny with no explanation.
+    public static let deny: ToolApprovalDecision = .deny(reason: "")
 }
