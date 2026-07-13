@@ -33,7 +33,7 @@ final class DemoNotes {
     }
 
     @CollaborationTool("Create a new note with a title and an optional body. Returns the note's id.")
-    func create(title: String, body: String) async -> String {
+    func create(title: String, body: String) async -> Note.ID {
         let id = "n\(nextID)"
         nextID += 1
         notes.append(Note(id: id, title: title, body: body))
@@ -41,7 +41,7 @@ final class DemoNotes {
     }
 
     @CollaborationTool("Delete the note with the given id. Errors if no note has that id.")
-    func delete(id: String) async throws {
+    func delete(id: Note.ID) async throws {
         guard let index = notes.firstIndex(where: { $0.id == id }) else {
             throw ToolError("No note with id \(id).")
         }

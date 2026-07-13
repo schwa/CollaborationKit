@@ -7,11 +7,12 @@ File format: <https://github.com/schwa/issues-format>
 ## 1: Add live transport tests with a mock URLProtocol
 
 +++
-status: new
+status: open
 priority: high
-kind: none
-labels: testing
+kind: task
+labels: testing, effort:m
 created: 2026-06-23T23:13:55Z
+updated: 2026-07-13T01:49:39Z
 +++
 
 All provider tests are parser-level (StreamAccumulator / OpenAIStreamAccumulator). Nothing exercises AnthropicProvider/OpenAIProvider end-to-end over a real URLSession. Add a MockURLProtocol that feeds canned SSE byte streams through the actual providers to verify: request construction (auth headers, anthropic-beta/user-agent for OAuth, x-api-key vs Bearer), HTTP status handling (non-2xx -> httpError with body), and partial-line SSE buffering. Largest gap: the networking layer is unproven by tests, only manually verified against LM Studio and Anthropic.
@@ -21,11 +22,12 @@ All provider tests are parser-level (StreamAccumulator / OpenAIStreamAccumulator
 ## 2: Harden SSE parsing against awkward chunk boundaries
 
 +++
-status: new
+status: open
 priority: medium
-kind: none
-labels: bug, testing
+kind: bug
+labels: bug, testing, effort:s
 created: 2026-06-23T23:14:06Z
+updated: 2026-07-13T01:49:39Z
 +++
 
 Both providers parse the SSE stream via bytes.lines, which assumes each 'data:' payload is a single newline-delimited line. Real SSE can split a JSON payload across reads, use CRLF, or include multi-line data fields. Verify/handle: CRLF line endings, a JSON payload that spans chunk boundaries, and blank-line event separators. Add tests that drive the provider with deliberately split chunks.
@@ -35,11 +37,12 @@ Both providers parse the SSE stream via bytes.lines, which assumes each 'data:' 
 ## 3: Add bounded retry with backoff for transient API failures
 
 +++
-status: new
+status: open
 priority: medium
-kind: none
-labels: enhancement
+kind: enhancement
+labels: enhancement, effort:m
 created: 2026-06-23T23:14:06Z
+updated: 2026-07-13T01:49:39Z
 +++
 
 No retry anywhere. A transient 429 or 5xx (e.g. Anthropic 529 overloaded) kills the whole turn. pi's reference OAuth code retried token exchange on 429/5xx with backoff and honored Retry-After / x-should-retry. Add bounded retry (a few attempts, exponential backoff, respect Retry-After) to: the Anthropic OAuth token exchange/refresh, and the streaming message call for both providers. Must not retry non-idempotent partial streams blindly — only retry before the first byte is yielded.
@@ -49,11 +52,12 @@ No retry anywhere. A transient 429 or 5xx (e.g. Anthropic 529 overloaded) kills 
 ## 4: Honor task cancellation cleanly in LLMSession and providers
 
 +++
-status: new
+status: open
 priority: medium
-kind: none
-labels: enhancement
+kind: enhancement
+labels: enhancement, effort:m
 created: 2026-06-23T23:14:06Z
+updated: 2026-07-13T01:49:39Z
 +++
 
 send() is not easily cancellable mid-turn and the session events stream never finishes (its continuation is never terminated). For any UI, cancelling a turn should stop the in-flight request, stop the tool loop, and let observers know. Wire Task cancellation through the provider streams and the session loop; consider finishing or yielding a terminal event so the events AsyncStream completes.
@@ -63,11 +67,12 @@ send() is not easily cancellable mid-turn and the session events stream never fi
 ## 5: Preserve partial work when maxIterations is exceeded
 
 +++
-status: new
+status: open
 priority: low
-kind: none
-labels: enhancement
+kind: enhancement
+labels: enhancement, effort:s
 created: 2026-06-23T23:14:14Z
+updated: 2026-07-13T01:49:39Z
 +++
 
 SessionError.maxIterationsExceeded throws out of send() and discards the partial turn (accumulated text, tool calls/results so far are lost to the caller, though history is mutated). Consider returning what happened instead of throwing it away — e.g. include the partial assistant text in the error, or return a result type that distinguishes 'completed' vs 'hit iteration cap'.
@@ -77,11 +82,12 @@ SessionError.maxIterationsExceeded throws out of send() and discards the partial
 ## 6: Add a turn-complete summary event with total usage and stop reason
 
 +++
-status: new
+status: open
 priority: low
-kind: none
-labels: enhancement
+kind: enhancement
+labels: enhancement, effort:s
 created: 2026-06-23T23:14:14Z
+updated: 2026-07-13T01:49:39Z
 +++
 
 Usage is emitted per model response (SessionEvent.usage), but there is no single turn-level summary: total tokens for the turn plus the stop reason. turnComplete currently carries only the final text. Consider enriching turnComplete (or adding a new event) with aggregated TokenUsage for the turn and the provider stop reason, so callers don't have to sum usage events themselves.
@@ -91,10 +97,12 @@ Usage is emitted per model response (SessionEvent.usage), but there is no single
 ## 7: Conversation history compaction with user-defined strategy
 
 +++
-status: new
+status: open
 priority: medium
-kind: none
+kind: feature
+labels: effort:l
 created: 2026-06-24T01:06:10Z
+updated: 2026-07-13T01:49:39Z
 +++
 
 LLMSession.history grows unbounded and is sent in full every turn; there is no compaction, truncation, or summarization, so long sessions will eventually exceed the provider's context window.
@@ -154,10 +162,12 @@ Acceptance:
 ## 9: Consolidate neutral-message wire encoding ownership
 
 +++
-status: new
+status: open
 priority: low
-kind: none
+kind: task
+labels: effort:m
 created: 2026-06-24T01:10:57Z
+updated: 2026-07-13T01:49:39Z
 +++
 
 Message -> wire encoding knowledge is split across AnthropicWire, OpenAIWire, and the provider request builders:
@@ -187,10 +197,12 @@ Note: lower priority — cohesion/readability win, not a correctness or testabil
 ## 10: Decompose LLMSession.runLoop responsibilities (turn loop / event fan-out / tool dispatch)
 
 +++
-status: new
+status: open
 priority: medium
-kind: none
+kind: task
+labels: effort:m
 created: 2026-06-24T01:10:58Z
+updated: 2026-07-13T01:49:39Z
 +++
 
 LLMSession.runLoop mixes three responsibilities in one method:
@@ -301,10 +313,12 @@ See rfcs/0002-collaborationkit-ui.md.
 ## 14: Implement RFC 0003 — Model-Object Tool Macro
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:xl
 created: 2026-07-13T00:40:29Z
+updated: 2026-07-13T01:49:52Z
 +++
 
 See rfcs/0003-model-object-tool-macro.md.
@@ -316,10 +330,12 @@ See rfcs/0003-model-object-tool-macro.md.
 ## 15: Consolidate credential storage across targets
 
 +++
-status: new
+status: open
 priority: medium
 kind: task
+labels: effort:m
 created: 2026-07-13T00:55:41Z
+updated: 2026-07-13T01:49:52Z
 +++
 
 Credential-related types now live in three places with overlapping responsibilities:
@@ -345,11 +361,13 @@ Related: RFC 0002 (CollaborationKitUI).
 ## 16: RFC 0003: FoundationModels bridge for @Generable types and cross-backend tool reuse
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:l
 depends: 14, 15
 created: 2026-07-13T01:02:34Z
+updated: 2026-07-13T01:49:52Z
 +++
 
 Slice 1 has no awareness of FoundationModels. A @Generable value used as a tool parameter or return type is rejected as an unsupported type; there is no way to reuse the schema FoundationModels already generates.
@@ -366,11 +384,13 @@ Depends on the CollaborationSchemaConvertible / schema-lookup mechanism from #15
 ## 17: RFC 0003: SwiftData bridge synthesizes CRUD tools for @Model types
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:l
 depends: 14, 15
 created: 2026-07-13T01:02:41Z
+updated: 2026-07-13T01:49:52Z
 +++
 
 Slice 1 does not know about SwiftData @Model types. Annotating a @Model with @CollaborationTools does nothing useful — the user still has to hand-write list/fetch/create/update/delete tools.
@@ -388,11 +408,13 @@ Missing per RFC 0003 §3.2:
 ## 18: RFC 0003: AppIntents bridge exposes AppIntent.perform() as a tool
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:l
 depends: 14, 15
 created: 2026-07-13T01:02:46Z
+updated: 2026-07-13T01:49:52Z
 +++
 
 Slice 1 does not know about AppIntent. A type conforming to AppIntent isn't recognised by the macro; parameters declared with @Parameter are ignored.
@@ -410,11 +432,13 @@ Missing per RFC 0003 §3.3:
 ## 19: RFC 0003: doc-comment mining feeds tool descriptions
 
 +++
-status: new
+status: open
 priority: low
 kind: enhancement
+labels: effort:s
 depends: 14
 created: 2026-07-13T01:02:51Z
+updated: 2026-07-13T01:49:52Z
 +++
 
 Every @CollaborationTool method has to repeat its description in the attribute argument, even when the method already has a /// doc comment saying the same thing.
@@ -429,11 +453,13 @@ Missing per RFC 0003 open question 2:
 ## 20: RFC 0003: tool-name prefixing and collision handling across multiple annotated types
 
 +++
-status: new
+status: open
 priority: medium
 kind: enhancement
+labels: effort:s
 depends: 14
 created: 2026-07-13T01:02:56Z
+updated: 2026-07-13T01:49:52Z
 +++
 
 Slice 1 uses the bare Swift member name as the tool name. When two @CollaborationTools types both expose e.g. 'create', the model sees two tools with the same name and one wins silently.
@@ -448,11 +474,13 @@ Missing per RFC 0003 open question 5:
 ## 21: RFC 0003: nested @CollaborationTools objects as parameters (ID reference vs value)
 
 +++
-status: new
+status: open
 priority: low
 kind: feature
+labels: effort:m
 depends: 14, 15
 created: 2026-07-13T01:03:03Z
+updated: 2026-07-13T01:49:52Z
 +++
 
 There is no defined behaviour when a @CollaborationTool method takes a value of another @CollaborationTools-annotated type as a parameter, or returns one. Right now such a parameter fails schema derivation.
@@ -468,11 +496,13 @@ Missing per RFC 0003 open question 3:
 ## 22: RFC 0003: expose per-tool metadata (e.g. requiresApproval) for host-side gating
 
 +++
-status: new
+status: open
 priority: low
 kind: feature
+labels: effort:s
 depends: 14
 created: 2026-07-13T01:03:09Z
+updated: 2026-07-13T01:49:52Z
 +++
 
 Derived tools frequently have side effects (delete, update, perform an intent). CollaborationKit intentionally leaves approval / gating to the host, but Slice 1 doesn't surface any metadata for a host to key off.
@@ -487,11 +517,13 @@ Missing per RFC 0003 open question 6:
 ## 23: RFC 0003: macro-expansion tests via SwiftSyntaxMacrosTestSupport
 
 +++
-status: new
+status: open
 priority: low
 kind: task
+labels: effort:m
 depends: 14
 created: 2026-07-13T01:03:17Z
+updated: 2026-07-13T01:49:52Z
 +++
 
 Slice 1 tests exercise the macro through its runtime output (collaborationTools, call, LLMSession loop). There are no assertions against the actual expanded source, so regressions in codegen shape are only caught indirectly.
@@ -505,11 +537,13 @@ Missing per RFC 0003 open question 7:
 ## 24: RFC 0003: expand built-in schema derivation to enums, tuples, and generic wrappers
 
 +++
-status: new
+status: open
 priority: low
 kind: enhancement
+labels: effort:m
 depends: 14
 created: 2026-07-13T01:03:25Z
+updated: 2026-07-13T01:49:52Z
 +++
 
 Slice 1's built-in schema derivation covers primitives, Optional, Array, and [String: T]. Anything else falls through to CollaborationSchemaConvertible (#15) or errors.
@@ -527,12 +561,13 @@ Whichever we support should have expansion tests and a clear line vs. the escape
 ## 25: RFC 0003: CollaborationSchemaConvertible escape hatch for custom parameter/return types
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:m
 depends: 14
 created: 2026-07-13T01:02:28Z
-updated: 2026-07-13T01:24:08Z
+updated: 2026-07-13T01:49:52Z
 +++
 
 Slice 1 only supports primitives + Optional/Array/[String: T]. Anything else (user structs, enums, tuples, generics) fails macro expansion with 'Unsupported parameter/return type'.
@@ -551,10 +586,12 @@ See rfcs/0003-model-object-tool-macro.md, sections 'Supported parameter/return t
 ## 26: CollaborationKitUI: rollback/snapshot support
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:l
 created: 2026-07-13T01:28:00Z
+updated: 2026-07-13T01:49:58Z
 +++
 
 Phosphor's ConversationStore lets a user roll back the session to just before a prior user prompt: it snapshots host state (in Phosphor's case, the shader source) alongside the pre-turn history depth, then restores both on demand and truncates the LLMSession history.
@@ -573,10 +610,12 @@ Related: RFC 0002, #13.
 ## 27: CollaborationKitUI: Theme type with environment plumbing
 
 +++
-status: new
+status: open
 priority: low
 kind: feature
+labels: effort:m
 created: 2026-07-13T01:28:00Z
+updated: 2026-07-13T01:49:58Z
 +++
 
 RFC 0002 calls for a small Theme struct (colors, spacing, corner radii, typography) read from the environment, with hosts overriding per-view or per-tree. Currently ConversationRowView and ComposerView hard-code accent/secondary/red colors and 10/12/16pt spacing.
@@ -593,10 +632,12 @@ Related: RFC 0002, #13.
 ## 28: CollaborationKitUI: iOS platform support
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:m
 created: 2026-07-13T01:28:00Z
+updated: 2026-07-13T01:49:58Z
 +++
 
 Package currently declares only macOS 14. RFC 0002 calls for macOS 14+ AND iOS 17+.
@@ -616,10 +657,12 @@ Related: RFC 0002, #13.
 ## 29: CollaborationKitUI: tool-presenter registry for custom row content
 
 +++
-status: new
+status: open
 priority: low
 kind: feature
+labels: effort:m
 created: 2026-07-13T01:28:00Z
+updated: 2026-07-13T01:49:58Z
 +++
 
 Right now ConversationRowView renders every tool call the same way: icon + summary line + optional monospaced result. Rich hosts want per-tool custom content (e.g. Phosphor's compileShader row showing diagnostics inline, a diff view for edit results, an image preview for an image-gen tool).
@@ -633,10 +676,12 @@ Related: RFC 0002, #13.
 ## 30: CollaborationKitUI: accessibility pass
 
 +++
-status: new
+status: open
 priority: medium
 kind: task
+labels: effort:m
 created: 2026-07-13T01:28:00Z
+updated: 2026-07-13T01:49:58Z
 +++
 
 RFC 0002 open question 6: roles/labels for the transcript, streaming announcements, focus management on the composer.
@@ -655,26 +700,34 @@ Related: RFC 0002, #13.
 ## 31: Tool approval
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:m
 created: 2026-07-13T01:34:27Z
+updated: 2026-07-13T01:49:58Z
 +++
 
 Add a mechanism for the host to approve (or deny) tool invocations before they run. Related to #22 (per-tool metadata like requiresApproval).
+
+- `2026-07-13T01:50:12Z`: Related to #32 (path approval for built-in file tools) and #22 (per-tool requiresApproval metadata): #22 surfaces the flag, #31 defines the host-side hook that consumes it, #32 is a concrete built-in application of the same hook for filesystem paths.
 
 ---
 
 ## 32: Path approval
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:m
 created: 2026-07-13T01:34:27Z
+updated: 2026-07-13T01:49:58Z
 +++
 
 Add a mechanism for the host to approve (or deny) filesystem path access by built-in file tools (read/write/edit).
+
+- `2026-07-13T01:50:12Z`: Related to #31 (general tool-approval mechanism). Filesystem-path gating for read/write/edit is arguably a specialization: consider implementing it as a built-in participant in whatever host-approval hook #31 lands.
 
 ---
 
@@ -698,10 +751,12 @@ Port the progress/stop button UI component from the Phosphor project into the Co
 ## 34: CollaborationKitUI: model picker per backend
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:m
 created: 2026-07-13T01:40:35Z
+updated: 2026-07-13T01:49:58Z
 +++
 
 Phosphor's Settings has a ModelPickerSection that fetches the available models for the selected backend (via ModelLister), filters to chat/tool-capable ids, sorts them, and persists the user's selection. CollaborationKitUI currently only knows CollaborationBackend.defaultModel.
@@ -722,10 +777,12 @@ Related: RFC 0002, #13, #28.
 ## 35: CollaborationKitUI: session debug export (JSON)
 
 +++
-status: new
+status: open
 priority: medium
 kind: feature
+labels: effort:m
 created: 2026-07-13T01:40:35Z
+updated: 2026-07-13T01:49:58Z
 +++
 
 Phosphor's ConversationExport bundles a full session snapshot (raw transcript, system prompt, model id, cumulative usage, last error, tool calls/results, and any host-specific state like current shader source) into a Codable JSON export, then hands it to .fileExporter.
@@ -744,10 +801,12 @@ Related: RFC 0002, #13.
 ## 36: CollaborationKitUI: image drop destination on the transcript
 
 +++
-status: new
+status: open
 priority: low
 kind: feature
+labels: effort:s
 created: 2026-07-13T01:40:35Z
+updated: 2026-07-13T01:49:58Z
 +++
 
 Phosphor's transcript accepts image file drops (URLs) directly onto the scroll area and routes them into the pending composer attachments. CollaborationKitUI's TranscriptView has no dropDestination — users must go through the paperclip importer.
@@ -765,10 +824,12 @@ Related: RFC 0002, #13.
 ## 37: CollaborationKitUI: menu-command / focused-scene-value hooks
 
 +++
-status: new
+status: open
 priority: low
 kind: feature
+labels: effort:s
 created: 2026-07-13T01:40:35Z
+updated: 2026-07-13T01:49:58Z
 +++
 
 Phosphor exposes actions (export debug info, stop generation, roll back) to the app menu via focusedSceneValue with typed FocusedValueKey values, so the File / Edit menus can trigger them contextually.
@@ -809,10 +870,12 @@ Related: RFC 0002, #13, #27 (theme).
 ## 39: RFC 0003: replace `String(describing:)` fallback in `_ckStringify`
 
 +++
-status: new
+status: open
 priority: medium
 kind: enhancement
+labels: effort:s
 created: 2026-07-13T01:43:27Z
+updated: 2026-07-13T01:49:58Z
 +++
 
 Today `_ckStringify` (Sources/CollaborationKit/Macros/CollaborationResult.swift) handles a return type in this order:
@@ -838,10 +901,12 @@ Related: RFC 0003, #14, #25.
 ## 40: RFC 0003: improve unsupported-input-type macro diagnostic
 
 +++
-status: new
+status: open
 priority: low
 kind: enhancement
+labels: effort:s
 created: 2026-07-13T01:43:27Z
+updated: 2026-07-13T01:49:58Z
 +++
 
 Today `SchemaDerivationError.unsupportedType` (Sources/CollaborationKitMacros/SchemaDerivation.swift) surfaces as:
