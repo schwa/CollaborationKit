@@ -7,11 +7,14 @@ struct ContentView: View {
     private var credentials
     @State private var notes = DemoNotes()
     @State private var sketch = DemoSketch()
+    @State private var doc = DemoDoc()
     // Per-tab stores keep each surface's tool set isolated so tool names
-    // (list, delete, …) can't collide across DemoNotes and DemoSketch —
-    // Anthropic rejects a request whose tools[] contains duplicates.
+    // (list, delete, …) can't collide across DemoNotes, DemoSketch, and
+    // DemoDoc — Anthropic rejects a request whose tools[] contains
+    // duplicates.
     @State private var notesStore: ConversationStore?
     @State private var sketchStore: ConversationStore?
+    @State private var docStore: ConversationStore?
     @State private var buildError: String?
     @State private var showAssistant: Bool = true
     @State private var editing: EditingNote?
@@ -25,6 +28,15 @@ struct ContentView: View {
     enum DemoTab: Hashable {
         case notes
         case sketch
+        case document
+    }
+
+    private var navigationTitle: String {
+        switch selectedTab {
+        case .notes: "Notes"
+        case .sketch: "Sketch"
+        case .document: "Document"
+        }
     }
 
     var body: some View {
@@ -40,8 +52,12 @@ struct ContentView: View {
             SketchCanvasView(sketch: sketch)
                 .tabItem { Label("Sketch", systemImage: "scribble") }
                 .tag(DemoTab.sketch)
+
+            DocumentEditorView(doc: doc)
+                .tabItem { Label("Document", systemImage: "doc.text") }
+                .tag(DemoTab.document)
         }
-        .navigationTitle(selectedTab == .notes ? "Notes" : "Sketch")
+        .navigationTitle(navigationTitle)
         .inspector(isPresented: $showAssistant) { assistant }
         .toolbar {
             if selectedTab == .notes {
@@ -106,6 +122,7 @@ struct ContentView: View {
         switch selectedTab {
         case .notes: notesStore
         case .sketch: sketchStore
+        case .document: docStore
         }
     }
 
@@ -128,6 +145,7 @@ struct ContentView: View {
     private func rebuild() {
         notesStore = nil
         sketchStore = nil
+        docStore = nil
         buildError = nil
         guard credentials.hasCredentials else { return }
         do {
@@ -164,6 +182,22 @@ struct ContentView: View {
                 approval: approve
             )
             sketchStore = ConversationStore(session: sketchSession)
+
+            let docSession = LLMSession(
+                provider: provider,
+                system: """
+                IMPORTANT: You're the Document surface of an app called "DemoApp". The user has \
+                one large plain-text document open. You can read it with getText or length, and \
+                mutate it with insert, replace, delete, append, and (with approval) rewrite. All \
+                offsets and ranges are character offsets into the current text; offset 0 is the \
+                start and `length()` is the end. Ranges are half-open [start, end). Prefer small, \
+                targeted edits over rewriting the whole document. After you edit, the user sees \
+                the changed spans highlighted briefly, so keep individual edits coherent.
+                """,
+                tools: doc.collaborationTools,
+                approval: approve
+            )
+            docStore = ConversationStore(session: docSession)
         } catch {
             buildError = error.localizedDescription
         }
@@ -175,6 +209,7 @@ private extension ContentView.DemoTab {
         switch self {
         case .notes: "notes"
         case .sketch: "sketch"
+        case .document: "document"
         }
     }
 }

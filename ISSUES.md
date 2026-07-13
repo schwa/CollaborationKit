@@ -2722,10 +2722,12 @@ Details to nail down:
 ## 103: New demo: collaborative document editor
 
 +++
-status: new
+status: closed
 priority: medium
 kind: feature
 created: 2026-07-13T17:06:26Z
+updated: 2026-07-13T17:13:15Z
+closed: 2026-07-13T17:13:15Z
 +++
 
 A third demo alongside Notes and Sketch: one big text editor that the user and the assistant edit together.
