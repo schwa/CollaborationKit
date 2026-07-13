@@ -2682,3 +2682,63 @@ updated: 2026-07-13T16:44:30Z
 +++
 
 ---
+
+## 101: Composer: up/down arrow to recall previous prompts
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T16:52:37Z
++++
+
+Let the user press up/down in the composer to cycle through their previously-submitted prompts (shell/REPL style), so they can re-run or edit a past prompt without retyping.
+
+Behavior questions to resolve during implementation:
+- History scope: per session, per store, or persisted across launches?
+- Up on a non-empty prompt: replace, or only trigger on empty?
+- Do we snapshot the in-progress prompt so down-arrow can return to it?
+
+---
+
+## 102: Transcript doesn't auto-scroll to the bottom
+
++++
+status: new
+priority: medium
+kind: bug
+created: 2026-07-13T16:56:32Z
++++
+
+The transcript is supposed to keep the newest content in view as messages/tool calls stream in, but it stops scrolling to the bottom.
+
+Details to nail down:
+- Does it happen from the start of a session, or only after some interaction (e.g. the user scrolls up once)?
+- Streaming assistant text vs. new user message vs. tool result — does it break for all of them or just some?
+- Which platform (macOS window resize? iOS keyboard?).
+
+---
+
+## 103: New demo: collaborative document editor
+
++++
+status: new
+priority: medium
+kind: feature
+created: 2026-07-13T17:06:26Z
++++
+
+A third demo alongside Notes and Sketch: one big text editor that the user and the assistant edit together.
+
+Shape:
+- The whole window is a single text document the user can freely edit.
+- The chat inspector is available as usual; the assistant can make edits to the document via tools (insert, replace ranges, etc.).
+- When the assistant edits, the demo should visually surface where the changes are — options to explore:
+  - Inline highlight of changed spans (fades out over a few seconds).
+  - Dots/markers in the gutter next to changed lines.
+  - Auto-scroll to the first edit of the batch.
+- Optional stretch: an "accept/reject" affordance per edit before it lands.
+
+Purpose: show off tool-driven document editing and the store/mirror handling a fast stream of small mutations to a large body of text.
+
+---
