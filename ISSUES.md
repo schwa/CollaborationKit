@@ -2433,12 +2433,13 @@ Child of the Phosphor adoption umbrella.
 ## 90: Public API surface audit for Phosphor adoption
 
 +++
-status: open
+status: closed
 priority: medium
 kind: task
 labels: effort:m, phosphor-adoption, api
 created: 2026-07-13T15:50:17Z
-updated: 2026-07-13T16:42:09Z
+updated: 2026-07-13T17:09:45Z
+closed: 2026-07-13T17:09:45Z
 +++
 
 Before Phosphor migrates off its hand-rolled UI/store onto CollaborationKit + CollaborationKitUI, inventory the surface it will consume and make sure everything is public, documented, and stable.
@@ -2458,6 +2459,13 @@ Related to the other Phosphor-adoption children — resolving those may add new 
 
 Child of the Phosphor adoption umbrella.
 
+- `2026-07-13T17:09:45Z`: Audit written up in rfcs/phosphor-adoption-audit.md (change kxvlonqm). Follow-ups filed:
+
+- #103 — CollaborationChatView missing-credentials placeholder is hard-coded.
+- #104 — ConversationStore has no rehydrate-from-SessionExport path (child of #73).
+
+The rest of the phosphor-adoption umbrella children (#37, #27, #73, #74, #78) are the right home for their gaps; #87/#88/#89 already shipped.
+
 ---
 
 ## 91: Prepare for Phosphor Adoption
@@ -2467,9 +2475,9 @@ status: open
 priority: high
 kind: task
 labels: epic, phosphor-adoption, effort:xl
-depends: 37, 27, 73, 74, 78, 87, 88, 89, 90
+depends: 37, 27, 73, 74, 78, 87, 88, 89, 90, 103, 104
 created: 2026-07-13T15:50:39Z
-updated: 2026-07-13T16:42:21Z
+updated: 2026-07-13T17:09:59Z
 +++
 
 Umbrella tracking the work needed so Phosphor can retire its hand-rolled GeneratePanel / ConversationStore / ExportDebugLogCommand and consume CollaborationKit + CollaborationKitUI directly.
@@ -2513,6 +2521,27 @@ New:
 ## Notes
 
 - The bulk of the migration is UI-facing; the Core-side APIs Phosphor uses (Message, ImageContent, LLMSession, ToolSpec, ProviderStreamEvent, TokenUsage, RollbackSnapshot) are already stable enough. #90 will confirm.
+
+- `2026-07-13T17:09:59Z`: Progress update (change kxvlonqm):
+
+Phosphor-labeled children resolved:
+- #87 ✅ transcript-row result-visibility hook
+- #88 ✅ empty-state slot (shipped earlier as #65)
+- #89 ✅ composer header slot (shipped earlier)
+- #90 ✅ public-API audit — see rfcs/phosphor-adoption-audit.md
+
+New follow-ups added to this umbrella:
+- #103 — CollaborationChatView missing-credentials placeholder is hard-coded.
+- #104 — ConversationStore rehydration path (blocks the persistence child #73).
+
+Still open on the umbrella (from the original dependency list):
+- #37 menu-command / focused-scene hooks
+- #27 Theme type
+- #73 persistence
+- #74 image-drop-as-text bug
+- #78 tokens/% until compaction
+
+None of these are phosphor-adoption-labeled today; they're deferred separately.
 
 ---
 
