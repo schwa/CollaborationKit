@@ -2240,15 +2240,18 @@ Attachment viewing should be presented as a popover (anchored to the attachment)
 ## 84: Cannot drag or export attachments out of editor/transcript
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:m
 created: 2026-07-13T15:21:30Z
-updated: 2026-07-13T15:27:59Z
+updated: 2026-07-13T15:41:46Z
+closed: 2026-07-13T15:41:46Z
 +++
 
 Attachments in the editor and transcript views can be dropped in, but there is no way to drag them back out or export them to disk. Users need a way to save/extract attachments once they're in the app.
+
+- `2026-07-13T15:41:46Z`: Composer and transcript attachment thumbnails are now draggable (FileRepresentation to a temp file with the correct extension), and each preview popover has a Save… button that opens fileExporter with the right UTType and default filename.
 
 ---
 

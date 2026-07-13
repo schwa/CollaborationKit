@@ -1,9 +1,12 @@
+import CollaborationKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// The pending-attachment thumbnail strip shown above the composer text
 /// field, each with a remove button. Tapping a thumbnail opens a popover
 /// with the full-size image so the user can verify what they're about to
-/// send.
+/// send. Thumbnails are also draggable — drop them into Finder or another
+/// app to export the underlying file bytes.
 struct ComposerAttachmentsView: View {
     let attachments: [Attachment]
     let onRemove: (UUID) -> Void
@@ -32,6 +35,12 @@ struct ComposerAttachmentsView: View {
                 .clipShape(.rect(cornerRadius: 6))
         }
         .buttonStyle(.plain)
+        .draggable(
+            ImageContentTransfer(
+                content: attachment.content,
+                suggestedName: attachment.filename
+            )
+        )
         .popover(
             isPresented: Binding(
                 get: { previewID == attachment.id },
@@ -61,17 +70,40 @@ struct ComposerAttachmentsView: View {
 
 /// Popover preview of a pending composer attachment. Uses the SwiftUI
 /// `Image` the ``Attachment`` already built at pick time so decoding
-/// happens once.
+/// happens once. Includes a Save… button that writes the underlying
+/// file bytes with the correct extension.
 private struct ComposerAttachmentPreview: View {
     let attachment: Attachment
 
+    @State private var isExporting = false
+
+    private var contentType: UTType {
+        UTType(mimeType: attachment.content.mediaType) ?? .image
+    }
+
     var body: some View {
-        attachment.image
-            .resizable()
-            .scaledToFit()
-            .frame(maxWidth: 480, maxHeight: 480)
-            .padding()
-            .accessibilityLabel("Attached image: \(attachment.filename)")
+        VStack(spacing: 8) {
+            attachment.image
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: 480, maxHeight: 480)
+                .accessibilityLabel("Attached image: \(attachment.filename)")
+
+            HStack {
+                Spacer()
+                Button("Save\u{2026}") { isExporting = true }
+            }
+        }
+        .padding()
+        .fileExporter(
+            isPresented: $isExporting,
+            item: ImageContentTransfer(
+                content: attachment.content,
+                suggestedName: attachment.filename
+            ),
+            contentTypes: [contentType],
+            defaultFilename: attachment.filename
+        ) { _ in }
     }
 }
 

@@ -1,5 +1,6 @@
 import CollaborationKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 #if canImport(AppKit)
 import AppKit
@@ -31,13 +32,22 @@ struct AttachmentThumbnailsView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Attached image")
                 .accessibilityHint("View full-size image.")
+                .draggable(
+                    ImageContentTransfer(
+                        content: image,
+                        suggestedName: image.suggestedFilename(index: index)
+                    )
+                )
                 .popover(
                     isPresented: Binding(
                         get: { previewIndex == index },
                         set: { if !$0 { previewIndex = nil } }
                     )
                 ) {
-                    AttachmentPreviewView(image: image)
+                    AttachmentPreviewView(
+                        image: image,
+                        suggestedName: image.suggestedFilename(index: index)
+                    )
                 }
             }
         }
@@ -78,16 +88,36 @@ struct AttachmentThumbnailsView: View {
 
 /// Full-size attachment preview shown from ``AttachmentThumbnailsView`` as a
 /// popover. Fits the image inside a bounded frame; the popover chrome
-/// provides its own dismissal (tap outside / Esc), so no Done button is
-/// needed.
+/// provides its own dismissal (tap outside / Esc). A Save… button lets the
+/// user export the underlying file bytes.
 private struct AttachmentPreviewView: View {
     let image: ImageContent
+    let suggestedName: String
+
+    @State private var isExporting = false
+
+    private var contentType: UTType {
+        UTType(mimeType: image.mediaType) ?? .image
+    }
 
     var body: some View {
-        fullImage
-            .frame(minWidth: 320, minHeight: 240)
-            .frame(maxWidth: 720, maxHeight: 720)
-            .padding()
+        VStack(spacing: 8) {
+            fullImage
+                .frame(minWidth: 320, minHeight: 240)
+                .frame(maxWidth: 720, maxHeight: 720)
+
+            HStack {
+                Spacer()
+                Button("Save\u{2026}") { isExporting = true }
+            }
+        }
+        .padding()
+        .fileExporter(
+            isPresented: $isExporting,
+            item: ImageContentTransfer(content: image, suggestedName: suggestedName),
+            contentTypes: [contentType],
+            defaultFilename: suggestedName
+        ) { _ in }
     }
 
     @ViewBuilder
