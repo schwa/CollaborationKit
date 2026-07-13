@@ -146,7 +146,8 @@ public enum TranscriptProjection {
 
     /// Builds one projected row. Latency is computed from `priorEnd` (the
     /// end of the previous row) — the wall-clock gap the user waited between
-    /// rows appearing.
+    /// rows appearing. Skipped for user rows: that gap is just how long the
+    /// user spent typing, which isn't information worth surfacing.
     private static func makeRow(
         id: ItemID,
         fallbackTimestamp: Date,
@@ -155,7 +156,13 @@ public enum TranscriptProjection {
         priorEnd: Date?
     ) -> ConversationItem {
         let timestamp = presentation?.timestamp ?? fallbackTimestamp
-        let latency = priorEnd.map { timestamp.timeIntervalSince($0) }.flatMap { $0 >= 0 ? $0 : nil }
+        let latency: TimeInterval?
+        switch kind {
+        case .user:
+            latency = nil
+        case .assistant, .tool, .error:
+            latency = priorEnd.map { timestamp.timeIntervalSince($0) }.flatMap { $0 >= 0 ? $0 : nil }
+        }
         return ConversationItem(
             id: id,
             kind: kind,
