@@ -216,12 +216,13 @@ Note: lower priority — cohesion/readability win, not a correctness or testabil
 ## 10: Decompose LLMSession.runLoop responsibilities (turn loop / event fan-out / tool dispatch)
 
 +++
-status: open
+status: closed
 priority: high
 kind: task
 labels: effort:m
 created: 2026-06-24T01:10:58Z
-updated: 2026-07-13T06:20:13Z
+updated: 2026-07-13T06:45:02Z
+closed: 2026-07-13T06:45:02Z
 +++
 
 LLMSession.runLoop mixes three responsibilities in one method:

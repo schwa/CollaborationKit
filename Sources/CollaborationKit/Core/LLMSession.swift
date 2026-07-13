@@ -134,61 +134,116 @@ public actor LLMSession {
         return try await runLoop()
     }
 
+    // MARK: - Turn loop
+
+    /// The outcome of running one model round-trip.
+    ///
+    /// Distinguishing the two states lets ``runLoop()`` be a plain
+    /// terminate-or-continue driver over ``runTurn()`` — no interleaved
+    /// bookkeeping, no shared mutable state to reason about. Compaction hooks
+    /// (see #7) plug in at the top of ``runTurn`` without touching this loop.
+    private enum TurnOutcome {
+        /// The model produced final text with no more tool calls to run.
+        case complete(text: String)
+        /// The model requested tools; they've been executed and appended to
+        /// the history. `text` is the assistant prose so far this turn.
+        case needsMoreTurns(text: String)
+    }
+
+    /// The turn-loop driver: repeatedly runs one ``runTurn()`` until either
+    /// the model completes or ``maxIterations`` is exceeded. Every side
+    /// effect — event fan-out, history mutation, tool dispatch — lives
+    /// inside the helpers below; this method is pure control flow.
     private func runLoop() async throws -> String {
-        var lastText = ""
-
         for _ in 0..<maxIterations {
-            var assistantBlocks: [ContentBlock] = []
-            var turnText = ""
-            var pendingToolUses: [ToolUse] = []
+            switch try await runTurn() {
+            case .complete(let text):
+                eventContinuation.yield(.turnComplete(text: text))
+                return text
 
-            let stream = provider.send(messages: history, system: system, tools: toolSpecs)
-            for try await event in stream {
-                switch event {
-                case .textDelta(let chunk):
-                    eventContinuation.yield(.textDelta(chunk))
-
-                case .text(let block):
-                    turnText += block
-                    assistantBlocks.append(.text(block))
-                    eventContinuation.yield(.text(block))
-
-                case .toolUse(let use):
-                    // Domain shape: the call lands in the assistant message now,
-                    // with a pending (nil) result that fills in after execution.
-                    assistantBlocks.append(.toolCall(ToolCall(use: use)))
-                    pendingToolUses.append(use)
-                    eventContinuation.yield(.toolCall(use))
-
-                case .usage(let usage):
-                    accumulatedUsage += usage
-                    eventContinuation.yield(.usage(usage))
-
-                case .messageComplete:
-                    break
-                }
-            }
-
-            let assistantIndex = history.count
-            history.append(Message(role: .assistant, content: assistantBlocks))
-            lastText = turnText
-
-            guard !pendingToolUses.isEmpty else {
-                eventContinuation.yield(.turnComplete(text: lastText))
-                return lastText
-            }
-
-            // Run the tools and attach each result to its call in place, so the
-            // history stays domain-shaped (one assistant message owns its tool
-            // calls and their results; no separate tool-result message).
-            for use in pendingToolUses {
-                let result = await execute(use)
-                attachResult(result, toUse: use.id, inMessageAt: assistantIndex)
-                eventContinuation.yield(.toolResult(result))
+            case .needsMoreTurns:
+                continue
             }
         }
 
         throw SessionError.maxIterationsExceeded(maxIterations)
+    }
+
+    /// Runs a single model round-trip: streams provider events into the
+    /// session's event continuation, appends the assistant message to the
+    /// history, and dispatches any pending tools.
+    ///
+    /// Extension seam: a future compaction pass (#7) can trim ``history``
+    /// here — before the provider is called — without disturbing the
+    /// turn-loop control flow above.
+    private func runTurn() async throws -> TurnOutcome {
+        let (assistantBlocks, turnText, pendingToolUses) = try await streamAssistantMessage()
+        let assistantIndex = history.count
+        history.append(Message(role: .assistant, content: assistantBlocks))
+
+        guard !pendingToolUses.isEmpty else {
+            return .complete(text: turnText)
+        }
+
+        await runPendingTools(pendingToolUses, inMessageAt: assistantIndex)
+        return .needsMoreTurns(text: turnText)
+    }
+
+    /// Consumes one full provider stream and produces the components of the
+    /// assistant message: content blocks, aggregated prose, and any pending
+    /// tool uses. Fans each provider event out onto ``events`` in order.
+    ///
+    /// The event-fan-out concern lives entirely here, so the turn loop and
+    /// tool dispatcher don't touch ``eventContinuation`` for stream events.
+    private func streamAssistantMessage() async throws -> (
+        blocks: [ContentBlock],
+        text: String,
+        pendingToolUses: [ToolUse]
+    ) {
+        var assistantBlocks: [ContentBlock] = []
+        var turnText = ""
+        var pendingToolUses: [ToolUse] = []
+
+        let stream = provider.send(messages: history, system: system, tools: toolSpecs)
+        for try await event in stream {
+            switch event {
+            case .textDelta(let chunk):
+                eventContinuation.yield(.textDelta(chunk))
+
+            case .text(let block):
+                turnText += block
+                assistantBlocks.append(.text(block))
+                eventContinuation.yield(.text(block))
+
+            case .toolUse(let use):
+                // Domain shape: the call lands in the assistant message now,
+                // with a pending (nil) result that fills in after execution.
+                assistantBlocks.append(.toolCall(ToolCall(use: use)))
+                pendingToolUses.append(use)
+                eventContinuation.yield(.toolCall(use))
+
+            case .usage(let usage):
+                accumulatedUsage += usage
+                eventContinuation.yield(.usage(usage))
+
+            case .messageComplete:
+                break
+            }
+        }
+
+        return (assistantBlocks, turnText, pendingToolUses)
+    }
+
+    /// Runs each pending tool in order, attaches its result to the matching
+    /// ``ToolCall`` inside the assistant message at `messageIndex` (keeping
+    /// the history domain-shaped: one assistant message owns its tool calls
+    /// and their results), and emits a `.toolResult` event.
+    private func runPendingTools(_ uses: [ToolUse], inMessageAt messageIndex: Int) async {
+        for use in uses {
+            let result = await execute(use)
+            attachResult(result, toUse: use.id, inMessageAt: messageIndex)
+            eventContinuation.yield(.toolResult(result))
+        }
     }
 
     /// Attaches a tool result to its pending ``ToolCall`` within the message at
