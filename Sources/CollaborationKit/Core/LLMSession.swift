@@ -123,6 +123,12 @@ public actor LLMSession {
 
     private var accumulatedUsage = TokenUsage()
     private var isRunning = false
+    /// Assistant prose accumulated across every round-trip of the current
+    /// turn. Reset at the start of each ``send(text:images:)`` call and
+    /// used to populate ``SessionEvent/turnCancelled(partialText:)`` and
+    /// ``SessionError/maxIterationsExceeded(iterations:partialText:)``
+    /// without threading the buffer through every helper.
+    private var currentTurnText = ""
 
     /// Cumulative token usage across all turns in this session.
     ///
@@ -154,9 +160,26 @@ public actor LLMSession {
     public func send(text: String, images: [ImageContent] = []) async throws -> String {
         guard !isRunning else { throw SessionError.turnAlreadyInProgress }
         isRunning = true
-        defer { isRunning = false }
+        currentTurnText = ""
+        defer {
+            isRunning = false
+            currentTurnText = ""
+        }
         history.append(images.isEmpty ? .user(text) : .user(text: text, images: images))
-        return try await runLoop()
+        do {
+            return try await runLoop()
+        } catch is CancellationError {
+            eventContinuation.yield(.turnCancelled(partialText: currentTurnText))
+            throw CancellationError()
+        }
+    }
+
+    /// Finishes the ``events`` stream so long-lived observers can exit
+    /// their `for await` loops. History and token accounting are preserved
+    /// but no further events fire. Call once when the host is done with
+    /// the session.
+    public func close() {
+        eventContinuation.finish()
     }
 
     // MARK: - Turn loop
@@ -180,14 +203,14 @@ public actor LLMSession {
     /// effect — event fan-out, history mutation, tool dispatch — lives
     /// inside the helpers below; this method is pure control flow.
     private func runLoop() async throws -> String {
-        // Accumulate every needsMoreTurns text delta so a maxIterations
-        // failure can hand the caller whatever prose the model managed to
-        // produce before the cap tripped. The success path keeps its
-        // pre-existing semantics of returning only the final turn's text —
-        // the domain history on `messages` still holds every earlier block.
-        var partialText = ""
+        // Every round's assistant text lands on `currentTurnText` so a
+        // maxIterations failure or mid-turn cancellation can hand back
+        // whatever prose was produced before we bailed. The success
+        // path still returns only the final turn's text; the domain
+        // history on `messages` retains every earlier block.
         var turnUsage = TokenUsage()
         for _ in 0..<maxIterations {
+            try Task.checkCancellation()
             switch try await runTurn() {
             case .complete(let text, let roundUsage, let stopReason):
                 turnUsage += roundUsage
@@ -196,14 +219,16 @@ public actor LLMSession {
                 )
                 return text
 
-            case .needsMoreTurns(let text, let roundUsage):
-                partialText += text
+            case .needsMoreTurns(_, let roundUsage):
                 turnUsage += roundUsage
                 continue
             }
         }
 
-        throw SessionError.maxIterationsExceeded(iterations: maxIterations, partialText: partialText)
+        throw SessionError.maxIterationsExceeded(
+            iterations: maxIterations,
+            partialText: currentTurnText
+        )
     }
 
     /// The three parts of an assistant message produced by one provider
@@ -268,6 +293,7 @@ public actor LLMSession {
 
             case .text(let block):
                 turnText += block
+                currentTurnText += block
                 assistantBlocks.append(.text(block))
                 eventContinuation.yield(.text(block))
 
@@ -287,6 +313,11 @@ public actor LLMSession {
                 stopReason = reason
             }
         }
+
+        // On cancellation the provider stream ends cleanly (next()
+        // returns nil); turn that into CancellationError so `send()`
+        // emits `turnCancelled` instead of appending an empty message.
+        try Task.checkCancellation()
 
         return AssistantMessageParts(
             blocks: assistantBlocks,

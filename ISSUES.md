@@ -71,12 +71,13 @@ Added 7 unit tests (RetryTests) for policy/classifier/header parsing and 3 seria
 ## 4: Honor task cancellation cleanly in LLMSession and providers
 
 +++
-status: open
+status: closed
 priority: high
 kind: enhancement
-labels: enhancement, effort:m, deferred
+labels: enhancement, effort:m
 created: 2026-06-23T23:14:06Z
-updated: 2026-07-13T14:53:02Z
+updated: 2026-07-13T16:28:28Z
+closed: 2026-07-13T16:28:28Z
 +++
 
 send() is not easily cancellable mid-turn and the session events stream never finishes (its continuation is never terminated). For any UI, cancelling a turn should stop the in-flight request, stop the tool loop, and let observers know. Wire Task cancellation through the provider streams and the session loop; consider finishing or yielding a terminal event so the events AsyncStream completes.

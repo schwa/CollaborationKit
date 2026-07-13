@@ -198,6 +198,9 @@ struct Chat: AsyncParsableCommand {
 
                 case .text, .turnComplete:
                     break
+
+                case .turnCancelled:
+                    print("\n  [stopped]")
                 }
             }
         }

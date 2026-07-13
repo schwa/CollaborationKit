@@ -34,4 +34,13 @@ public enum SessionEvent: Sendable {
     ///     or `"tool_use"` if the loop is interrupted). `nil` when the
     ///     provider didn't report one.
     case turnComplete(text: String, usage: TokenUsage, stopReason: String?)
+
+    /// The turn was cancelled via task cancellation before it could
+    /// complete. Emitted on the events stream just before ``LLMSession/send(_:)``
+    /// rethrows `CancellationError`.
+    ///
+    /// - Parameter partialText: All assistant prose produced across every
+    ///   round-trip of the cancelled turn, concatenated in order. Empty
+    ///   when the model had not yet emitted any text.
+    case turnCancelled(partialText: String)
 }

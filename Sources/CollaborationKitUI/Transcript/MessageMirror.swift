@@ -102,6 +102,13 @@ public struct MessageMirror: Sendable {
 
         case .turnComplete:
             finishStreamingAssistant(at: date)
+
+        case .turnCancelled:
+            // Same visual shape as a natural turn completion: stop the
+            // streaming assistant row so the mirror doesn't leave a
+            // partial bubble open. The host layer above adds any
+            // "Stopped." overlay via `appendError`.
+            finishStreamingAssistant(at: date)
         }
     }
 
