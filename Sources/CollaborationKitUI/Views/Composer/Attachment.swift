@@ -34,6 +34,28 @@ struct Attachment: Identifiable {
         #endif
         self.filename = url.lastPathComponent
     }
+
+    /// Creates an attachment from raw image data supplied by the pasteboard
+    /// or a drop provider. Uses the type identifier's preferred MIME type
+    /// when known and synthesizes a filename with the matching extension,
+    /// since pasted data doesn't carry one.
+    init?(pastedData data: Data, typeIdentifier: String) {
+        let type = UTType(typeIdentifier) ?? .image
+        let mediaType = type.preferredMIMEType ?? "image/png"
+        let ext = type.preferredFilenameExtension ?? "png"
+        #if canImport(AppKit)
+        guard let ns = NSImage(data: data) else { return nil }
+        self.content = ImageContent(mediaType: mediaType, data: data)
+        self.image = Image(nsImage: ns)
+        #elseif canImport(UIKit)
+        guard let ui = UIImage(data: data) else { return nil }
+        self.content = ImageContent(mediaType: mediaType, data: data)
+        self.image = Image(uiImage: ui)
+        #else
+        return nil
+        #endif
+        self.filename = "pasted.\(ext)"
+    }
 }
 
 /// Shared, observable holder for pending composer attachments.

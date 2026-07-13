@@ -1,5 +1,10 @@
 import CollaborationKit
 import SwiftUI
+import UniformTypeIdentifiers
+
+#if canImport(AppKit)
+import AppKit
+#endif
 
 /// The message composer: a prompt field, an optional attachment strip, and
 /// send / attach / stop buttons.
@@ -76,6 +81,7 @@ public struct ComposerView<Header: View>: View {
                 addAttachments(from: urls)
             }
         }
+        .modifier(ComposerPasteModifier(enabled: allowsImageAttachments, buffer: buffer))
         .onAppear { promptFocused = true }
     }
 
@@ -184,6 +190,73 @@ public struct ComposerView<Header: View>: View {
     private func addAttachments(from urls: [URL]) {
         buffer.add(urls: urls)
     }
+}
+
+/// Handles ⌘V into the composer by extracting image data or file URLs from
+/// the pasteboard and appending them to the composer's attachment buffer.
+/// macOS-only for now; iOS paste requires a different code path (see
+/// `pasteDestination`) and is deferred.
+private struct ComposerPasteModifier: ViewModifier {
+    var enabled: Bool
+    var buffer: ComposerAttachmentBuffer
+
+    func body(content: Content) -> some View {
+        #if canImport(AppKit)
+        if enabled {
+            content
+                // File URL pastes (Finder copy) — pasteDestination competes
+                // with the focused TextField at a higher level than
+                // onPasteCommand, so URL pastes route here instead of being
+                // pasted as text into the field.
+                .pasteDestination(for: URL.self) { urls in
+                    buffer.add(urls: urls)
+                }
+                // Raw image data (screenshots, cross-app image copies).
+                // No competing text representation, so onPasteCommand at
+                // container scope is enough.
+                .onPasteCommand(of: [.image]) { providers in
+                    Task { @MainActor in
+                        await handleImages(providers: providers)
+                    }
+                }
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
+    }
+
+    #if canImport(AppKit)
+    private func handleImages(providers: [NSItemProvider]) async {
+        for provider in providers {
+            if let attachment = await Self.loadImageAttachment(from: provider) {
+                buffer.attachments.append(attachment)
+            }
+        }
+    }
+
+    private static func loadImageAttachment(from provider: NSItemProvider) async -> Attachment? {
+        // Try common image UTIs in preference order. TIFF is what the
+        // system pasteboard offers for cross-app screenshots on macOS.
+        for typeIdentifier in [UTType.png.identifier, UTType.jpeg.identifier, UTType.tiff.identifier, UTType.image.identifier] {
+            guard provider.hasItemConformingToTypeIdentifier(typeIdentifier) else { continue }
+            if let data = await loadData(from: provider, typeIdentifier: typeIdentifier),
+               let attachment = Attachment(pastedData: data, typeIdentifier: typeIdentifier) {
+                return attachment
+            }
+        }
+        return nil
+    }
+
+    private static func loadData(from provider: NSItemProvider, typeIdentifier: String) async -> Data? {
+        await withCheckedContinuation { continuation in
+            provider.loadDataRepresentation(forTypeIdentifier: typeIdentifier) { data, _ in
+                continuation.resume(returning: data)
+            }
+        }
+    }
+    #endif
 }
 
 /// Applies either the plain or the glowing prompt border, so ``ComposerView``
