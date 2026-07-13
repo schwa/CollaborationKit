@@ -160,7 +160,9 @@ extension CollaborationToolsMacro {
 
             default:
                 if scalar.value < 0x20 {
-                    out += String(format: "\\u{%04x}", scalar.value)
+                    let hex = String(scalar.value, radix: 16)
+                    let padded = String(repeating: "0", count: max(0, 4 - hex.count)) + hex
+                    out += "\\u{\(padded)}"
                 } else {
                     out.unicodeScalars.append(scalar)
                 }
