@@ -43,7 +43,7 @@ final class DemoNotes {
         change(&notes[index])
     }
 
-    @CollaborationTool("List every note, oldest first, as a JSON array.")
+    @CollaborationTool("List every note, oldest first, as an array.")
     func list() async -> [Note] {
         notes
     }

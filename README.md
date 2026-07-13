@@ -93,11 +93,11 @@ If you're building a custom UI or a headless tool, subscribe to
 the events for you.
 
 ```swift
-for await event in session.events {
+for await event in await session.events {
     switch event {
     case .textDelta(let chunk): print(chunk, terminator: "")
     case .toolCall(let call): print("\n→ \(call.name)")
-    case .usage(let u): print("\ntokens: \(u.total)")
+    case .usage(let u): print("\ntokens: \(u.totalTokens)")
     default: break
     }
 }
@@ -185,7 +185,7 @@ inside that folder and run.
 |-----------------------|------------------------------------------|
 | Anthropic (API key)   | `AnthropicProvider(config: .init(apiKey:))` |
 | Claude Subscription   | `AnthropicProvider(config: .init(auth: .oauth { … }))` |
-| OpenAI                | `OpenAIProvider(config: .init(apiKey:))` |
+| OpenAI                | `OpenAIProvider(config: .init(apiKey:model:))` |
 | LM Studio / Ollama    | `OpenAIProvider(config: .lmStudio(model:))` |
 
 > OAuth caveat: subscription login uses the Claude Code OAuth client and is
