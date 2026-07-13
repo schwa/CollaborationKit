@@ -1729,3 +1729,18 @@ During an active conversation turn (assistant streaming, tools running, etc.) th
 Instead, allow typing at any time and queue up prompts. When the current turn finishes, dequeue and send the next one automatically.
 
 ---
+
+## 65: Empty-conversation placeholder shows hard-coded instructions that don't match most apps
+
++++
+status: new
+priority: medium
+kind: none
+created: 2026-07-13T05:44:57Z
++++
+
+The empty-conversation placeholder view renders a fixed instructional string. It's baked into CollaborationKit rather than provided by the host app, so it's wrong for the ~99% of integrations whose UI, tools, and workflow don't match what the placeholder describes.
+
+The placeholder text (and probably the whole placeholder view) needs to be host-configurable, with a sensible generic fallback — or removed entirely and left to the host.
+
+---
