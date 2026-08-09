@@ -141,9 +141,17 @@ public struct ComposerView: View {
                     .labelStyle(.titleAndIcon)
             }
 
+            if let cacheLabel = TokenUsageDisplay.cacheLabel(for: store.usage) {
+                Label(cacheLabel, systemImage: "bolt.horizontal")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .labelStyle(.titleAndIcon)
+                    .accessibilityLabel(TokenUsageDisplay.cacheAccessibilityLabel(for: store.usage) ?? cacheLabel)
+            }
+
             if let progress = store.compactionProgress {
                 Label(
-                    "\(formatCompactionCount(progress.current)) / \(formatCompactionCount(progress.limit))",
+                    "\(TokenUsageDisplay.compactCount(progress.current)) / \(TokenUsageDisplay.compactCount(progress.limit))",
                     systemImage: "arrow.down.right.and.arrow.up.left"
                 )
                 .font(.caption2)
@@ -238,16 +246,6 @@ public struct ComposerView: View {
 
     /// Compact humanized formatter for the compaction chip: "12.3k",
     /// "1.2M", or the raw integer under 1000.
-    private func formatCompactionCount(_ value: Int) -> String {
-        let n = Double(value)
-        if abs(n) >= 1_000_000 {
-            return String(format: "%.1fM", n / 1_000_000)
-        }
-        if abs(n) >= 1_000 {
-            return String(format: "%.1fk", n / 1_000)
-        }
-        return "\(value)"
-    }
 }
 
 /// Handles ⌘V into the composer by extracting image data or file URLs from

@@ -3080,17 +3080,20 @@ Same story for other local OpenAI-compatible servers (Ollama).
 ## 116: Surface cached tokens in the UI token-usage display
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:s, ui
 created: 2026-07-13T18:24:54Z
-updated: 2026-07-13T18:41:06Z
+updated: 2026-08-09T20:48:12Z
+closed: 2026-08-09T20:48:12Z
 +++
 
 TokenUsage carries `cacheReadInputTokens` (and `cacheCreationInputTokens`) for both Anthropic and OpenAI, but the UI token-usage indicator only shows the input/output totals. Users can't tell whether prompt caching is actually engaging on a given turn or across a session.
 
 Show the cache-read (and, where relevant, cache-write) counts alongside the existing token totals in whatever surface currently displays TokenUsage.
+
+- `2026-08-09T20:48:12Z`: Composer now shows a cache readout (cache reads, plus cache writes when the provider reports them) next to the token total.
 
 ---
 
