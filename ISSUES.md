@@ -3123,12 +3123,13 @@ Split out from #112, which added a batching-friendly demo workflow and system-pr
 ## 118: Approval closure has no session-scoped "always allow this tool" affordance
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:m, api
 created: 2026-07-13T18:40:19Z
-updated: 2026-07-13T18:41:06Z
+updated: 2026-08-09T20:56:28Z
+closed: 2026-08-09T20:56:28Z
 +++
 
 Today hosts wire tool approval by supplying an `async (ToolUse) -> ToolApprovalDecision` closure to `LLMSession.init`. The decision enum only has `.allow` and `.deny(reason:)`, so every invocation of an approval-gated tool re-enters the closure — hosts that want to remember "always allow this tool for the rest of the session" (as the demo does in ApprovalGate, see #107) have to maintain their own allowlist and short-circuit before returning.
@@ -3140,6 +3141,8 @@ Nothing in the library helps with that, so every host reinvents the same tiny st
 Add `.allowAlways` to `ToolApprovalDecision` and have `LLMSession` track the set of tool names the host has ever returned it for. Subsequent calls to a tool in that set skip the approval closure and resolve straight to allow. Scope is the session's lifetime (i.e. cleared when the session is discarded); no persistence.
 
 Follow-up from #107, which added the UX in the demo but left the library API unchanged.
+
+- `2026-08-09T20:56:28Z`: Added ToolApprovalDecision.allowAlways plus LLMSession.alwaysAllowedToolNames / forgetAlwaysAllowedTools(); the demo's ApprovalGate now drops its own allowlist and just returns .allowAlways.
 
 ---
 

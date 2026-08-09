@@ -50,6 +50,11 @@ public actor LLMSession {
     private let toolSpecs: [ToolSpec]
     private let approval: @Sendable (ToolUse) async -> ToolApprovalDecision
 
+    /// Tools the host approved with ``ToolApprovalDecision/allowAlways``.
+    /// Calls to these skip the approval closure for the rest of the
+    /// session's lifetime.
+    private var alwaysAllowedTools: Set<String> = []
+
     /// The strategy consulted at the top of every model round-trip to trim
     /// the conversation history before it is sent to the provider. Exposed
     /// so hosts (e.g. ``CollaborationKitUI/ConversationStore``) can ask the
@@ -75,7 +80,9 @@ public actor LLMSession {
     ///   - approval: An async gate consulted before each tool invocation.
     ///     Return ``ToolApprovalDecision/deny(reason:)`` to block a call —
     ///     the model receives an `is_error` tool result carrying the reason
-    ///     and can adapt. Defaults to allow-all.
+    ///     and can adapt. Return ``ToolApprovalDecision/allowAlways`` to
+    ///     stop being asked about that tool for the rest of the session.
+    ///     Defaults to allow-all.
     ///   - maxIterations: A cap on model/tool round-trips per turn.
     ///   - compactionStrategy: The strategy consulted at the top of every
     ///     model round-trip to trim the conversation history before it is
@@ -143,6 +150,22 @@ public actor LLMSession {
     public func restoreHistory(_ messages: [Message]) {
         history = messages
         yieldHistory()
+    }
+
+    /// Names of the tools the approval closure has waved through for the
+    /// rest of the session by returning
+    /// ``ToolApprovalDecision/allowAlways``.
+    ///
+    /// Hosts can show this in a UI ("always allowed: write, edit") without
+    /// tracking the set themselves.
+    public var alwaysAllowedToolNames: Set<String> {
+        alwaysAllowedTools
+    }
+
+    /// Forgets every ``ToolApprovalDecision/allowAlways`` grant, so the
+    /// approval closure is consulted again for those tools.
+    public func forgetAlwaysAllowedTools() {
+        alwaysAllowedTools.removeAll()
     }
 
     private var accumulatedUsage = TokenUsage()
@@ -447,10 +470,13 @@ public actor LLMSession {
         // otherwise fire for every read/list/search call the model made.
         // A denial is reported to the model as an error result so it can
         // pivot to a different plan on the next turn.
-        if tool.requiresApproval {
+        if tool.requiresApproval, !alwaysAllowedTools.contains(use.name) {
             switch await approval(use) {
             case .allow:
                 break
+
+            case .allowAlways:
+                alwaysAllowedTools.insert(use.name)
 
             case .deny(let reason):
                 let message = reason.isEmpty ? "Denied by the host." : "Denied: \(reason)"
@@ -475,6 +501,13 @@ public actor LLMSession {
 public enum ToolApprovalDecision: Sendable, Equatable {
     /// Allow the call to run.
     case allow
+    /// Allow the call to run, and every later call to the same tool in this
+    /// session without consulting the approval closure again.
+    ///
+    /// Scoped to the session object: discarding the session forgets the
+    /// allowance. Nothing is persisted. Clear it early with
+    /// ``LLMSession/forgetAlwaysAllowedTools()``.
+    case allowAlways
     /// Deny the call. The model receives an `is_error` tool result carrying
     /// `reason`. Empty reason falls back to "Denied by the host."
     case deny(reason: String)

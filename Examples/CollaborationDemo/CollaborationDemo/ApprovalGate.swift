@@ -23,20 +23,15 @@ final class ApprovalGate {
     /// automatically.
     var pending: PendingApproval?
 
-    /// Tool names the user has chosen to always allow for the remainder
-    /// of this gate's lifetime. Requests for a tool in this set skip the
-    /// alert and resolve straight to `.allow`. Reset by discarding the
-    /// `ApprovalGate` (typically when a new conversation starts).
-    private var alwaysAllowedTools: Set<String> = []
-
     /// Called by the session's approval closure. Suspends until ``resolve(_:)``
     /// runs. Multiple concurrent requests aren't expected (the session
     /// serialises tool calls); if one arrives while another is pending it
     /// pre-empts the earlier one with a deny so state stays coherent.
+    ///
+    /// "Always allow" needs no bookkeeping here: ``allowAlways()`` answers
+    /// with ``ToolApprovalDecision/allowAlways`` and the session stops
+    /// asking about that tool.
     func request(_ use: ToolUse) async -> ToolApprovalDecision {
-        if alwaysAllowedTools.contains(use.name) {
-            return .allow
-        }
         if let existing = pending {
             existing.continuation.resume(returning: .deny(reason: "Superseded by a new approval request."))
             pending = nil
@@ -66,13 +61,10 @@ final class ApprovalGate {
         pending = nil
     }
 
-    /// Resolves the pending call with `.allow` and remembers the tool's
-    /// name so future calls to the same tool bypass the prompt for the
-    /// rest of this gate's lifetime.
+    /// Resolves the pending call with ``ToolApprovalDecision/allowAlways``,
+    /// so the session runs future calls to the same tool without asking
+    /// again for the rest of its lifetime.
     func allowAlways() {
-        guard let current = pending else { return }
-        alwaysAllowedTools.insert(current.use.name)
-        current.continuation.resume(returning: .allow)
-        pending = nil
+        resolve(.allowAlways)
     }
 }
