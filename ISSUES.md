@@ -2694,6 +2694,14 @@ Want _some_ way to batch:
 
 Exact design is open — the goal is fewer round-trips for embarrassingly-parallel tool work.
 
+- `2026-08-09T20:57:20Z`: Investigated. The round-trip/token half of this is already in place: LLMSession collects every tool_use from one assistant turn and AnthropicWire.expand emits all of the results as a single following user message of tool_result blocks (see AnthropicWireTests), and OpenAI already sets parallelToolCalls. So no batching work is left on the wire.
+
+What's actually left is #106 (fan the batch out concurrently instead of awaiting each tool in emission order), which is blocked on the tool-safety design you deferred.
+
+Punting: I don't want to pick the public safety surface unilaterally. My recommendation, if you want it: keep serial dispatch as the default, add 'var allowsParallelExecution: Bool { false }' to Tool, run approvals serially in emission order first, then fan out only the opted-in calls in a task group. Zero behaviour change for existing tools.
+
+Question: do you want that shape (then I'd close this as covered and do the work under #106), or do you prefer exclusion keys / a session-level switch?
+
 ---
 
 ## 99: Tool rows sometimes don't show a duration
