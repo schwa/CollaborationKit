@@ -2927,18 +2927,21 @@ Investigate a better presentation for the approval confirm UI (tool name + human
 ## 109: Queued prompts aren't shown in the transcript and can't be cancelled individually
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:m
 created: 2026-07-13T17:33:35Z
-updated: 2026-07-13T17:37:13Z
+updated: 2026-08-09T20:53:30Z
+closed: 2026-08-09T20:53:30Z
 +++
 
 When the user submits a prompt while a turn is running, `ConversationStore` queues it (`pendingPromptCount` reflects this) but the transcript doesn't render the queued prompts. There's no per-prompt affordance to cancel a single queued prompt before it sends — only `clearPendingPrompts()`, which drops the whole queue.
 
 ## Proposed fix (per user)
 Render queued prompts inline in the transcript with a cancel (×) button on each row.
+
+- `2026-08-09T20:53:30Z`: Queued prompts now render as dashed 'Queued' rows at the end of the transcript, each with its own cancel button, backed by ConversationStore.queuedPrompts / cancelPendingPrompt(_:).
 
 ---
 

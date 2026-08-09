@@ -35,6 +35,13 @@ public final class ConversationStore {
     /// UIs can surface this so users know the queue depth.
     public var pendingPromptCount: Int { pendingPrompts.count }
 
+    /// The queued prompts, in the order they'll run. Empty unless a turn is
+    /// in flight. Rendered by ``TranscriptView`` as pending rows, each with
+    /// its own cancel affordance (see ``cancelPendingPrompt(_:)``).
+    public var queuedPrompts: [QueuedPrompt] {
+        pendingPrompts.map { QueuedPrompt(id: $0.id, text: $0.text, images: $0.images) }
+    }
+
     /// Cumulative token usage across the session.
     public private(set) var usage = TokenUsage()
 
@@ -90,8 +97,9 @@ public final class ConversationStore {
     private var rollbackSnapshots: [Message.ID: (messageCount: Int, snapshot: RollbackSnapshot)] = [:]
 
     /// FIFO queue of prompts submitted while a turn was already running.
-    /// Drained automatically after each turn completes.
-    @ObservationIgnored
+    /// Drained automatically after each turn completes. Observed, so the
+    /// transcript's pending rows and the composer's queue badge update as
+    /// prompts are queued, cancelled, and drained.
     private var pendingPrompts: [PendingPrompt] = []
 
     /// Optional host hook consulted by ``send(_:images:snapshot:)`` when the
@@ -118,9 +126,27 @@ public final class ConversationStore {
     public var onTurnEnded: (@MainActor (TurnOutcome) -> Void)?
 
     private struct PendingPrompt {
+        var id = QueuedPrompt.ID()
         var text: String
         var images: [ImageContent]
         var snapshot: RollbackSnapshot?
+    }
+
+    /// A prompt waiting behind the in-flight turn.
+    ///
+    /// The read-only face of the store's queue: enough to render the row
+    /// and to cancel it, without exposing the rollback snapshot the store
+    /// captured alongside it.
+    public struct QueuedPrompt: Identifiable, Sendable, Equatable {
+        public let id: UUID
+        public var text: String
+        public var images: [ImageContent]
+
+        init(id: UUID, text: String, images: [ImageContent]) {
+            self.id = id
+            self.text = text
+            self.images = images
+        }
     }
 
     @preconcurrency
@@ -206,6 +232,16 @@ public final class ConversationStore {
     /// affecting the in-flight turn itself.
     public func clearPendingPrompts() {
         pendingPrompts.removeAll()
+    }
+
+    /// Drops a single queued prompt, leaving the rest of the queue and the
+    /// in-flight turn alone. Unknown ids are ignored — a prompt that
+    /// started running between render and tap is no longer cancellable
+    /// this way (use ``stop()``).
+    ///
+    /// - Parameter id: The ``QueuedPrompt/id`` to drop.
+    public func cancelPendingPrompt(_ id: QueuedPrompt.ID) {
+        pendingPrompts.removeAll { $0.id == id }
     }
 
     private func run(_ userMessage: Message) async {

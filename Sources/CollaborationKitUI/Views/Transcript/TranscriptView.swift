@@ -5,8 +5,9 @@ import SwiftUI
 ///
 /// Renders every ``ConversationItem`` via ``ConversationRowView``. Auto-scrolls
 /// to the bottom as new items arrive, as the last item's content streams, and
-/// while a turn is generating. Shows an "empty" state before the first turn
-/// and a "Working…" row during generation.
+/// while a turn is generating. Shows an "empty" state before the first turn,
+/// a "Working…" row during generation, and a pending row per queued prompt
+/// (each cancellable on its own).
 public struct TranscriptView: View {
     /// The store whose ``ConversationStore/items`` are rendered.
     public var store: ConversationStore
@@ -51,6 +52,11 @@ public struct TranscriptView: View {
                     if store.isGenerating {
                         thinkingRow
                     }
+                    ForEach(store.queuedPrompts) { queued in
+                        QueuedPromptRowView(prompt: queued) {
+                            store.cancelPendingPrompt(queued.id)
+                        }
+                    }
                     // Stable sentinel at the bottom; always the scroll target
                     // so streaming content (which changes row ids/heights)
                     // still pins to the end.
@@ -71,6 +77,7 @@ public struct TranscriptView: View {
     private var scrollSignal: ScrollSignal {
         ScrollSignal(
             itemCount: store.items.count,
+            queuedCount: store.pendingPromptCount,
             isGenerating: store.isGenerating,
             lastContentLength: lastItemContentLength
         )
@@ -78,6 +85,7 @@ public struct TranscriptView: View {
 
     private struct ScrollSignal: Equatable {
         var itemCount: Int
+        var queuedCount: Int
         var isGenerating: Bool
         var lastContentLength: Int
     }

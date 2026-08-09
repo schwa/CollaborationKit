@@ -77,6 +77,44 @@ struct QueuedPromptsTests {
         #expect(store.items.count == 1)
     }
 
+    @Test("queuedPrompts exposes the queue in run order")
+    func queuedPromptsAreExposedInOrder() {
+        let store = ConversationStore(session: LLMSession(provider: NullProvider()))
+        store.send("first")
+        store.send("second")
+        store.send("third")
+        #expect(store.queuedPrompts.map(\.text) == ["second", "third"])
+    }
+
+    @Test("cancelPendingPrompt() drops one prompt and leaves the rest queued")
+    func cancelPendingPromptDropsOne() async {
+        let store = ConversationStore(session: LLMSession(provider: NullProvider()))
+        store.send("first")
+        store.send("second")
+        store.send("third")
+
+        let second = store.queuedPrompts[0]
+        store.cancelPendingPrompt(second.id)
+        #expect(store.queuedPrompts.map(\.text) == ["third"])
+        #expect(store.isGenerating)
+
+        await drainQueue(store)
+        let userTexts = store.items.compactMap { item -> String? in
+            if case .user(let text, _) = item.kind { return text }
+            return nil
+        }
+        #expect(userTexts == ["first", "third"])
+    }
+
+    @Test("cancelPendingPrompt() ignores unknown ids")
+    func cancelPendingPromptIgnoresUnknownIDs() {
+        let store = ConversationStore(session: LLMSession(provider: NullProvider()))
+        store.send("first")
+        store.send("second")
+        store.cancelPendingPrompt(UUID())
+        #expect(store.pendingPromptCount == 1)
+    }
+
     @Test("empty prompts are still dropped even while a turn is running")
     func emptyPromptsAreDropped() {
         let store = ConversationStore(session: LLMSession(provider: NullProvider()))
