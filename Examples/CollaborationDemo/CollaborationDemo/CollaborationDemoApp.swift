@@ -15,6 +15,12 @@ struct CollaborationDemoApp: App {
             ContentView()
                 .environment(credentials)
         }
+        .commands {
+            CommandGroup(after: .textEditing) {
+                StopGenerationCommand()
+                RollBackLastTurnCommand()
+            }
+        }
         #if os(macOS)
         Settings {
             VStack(spacing: 0) {
@@ -28,6 +34,29 @@ struct CollaborationDemoApp: App {
             .frame(minWidth: 520, minHeight: 420)
         }
         #endif
+    }
+
+    /// Menu items driven by the focused scene's chat session. Both read
+    /// focused values published by `.collaborationSessionCommands(store:)`
+    /// and disable themselves when the action isn't available.
+    private struct StopGenerationCommand: View {
+        @FocusedValue(\.stopGeneration) private var stop
+
+        var body: some View {
+            Button("Stop Generating") { stop?() }
+                .disabled(stop == nil)
+                .keyboardShortcut(".", modifiers: .command)
+        }
+    }
+
+    private struct RollBackLastTurnCommand: View {
+        @FocusedValue(\.rollBackLastTurn) private var rollBack
+
+        var body: some View {
+            Button("Roll Back Last Turn") { rollBack?() }
+                .disabled(rollBack == nil)
+                .keyboardShortcut("z", modifiers: [.command, .shift])
+        }
     }
 
     private var settingsFooterText: String {

@@ -54,7 +54,7 @@ closed: 2026-07-13T02:27:16Z
 
 No retry anywhere. A transient 429 or 5xx (e.g. Anthropic 529 overloaded) kills the whole turn. pi's reference OAuth code retried token exchange on 429/5xx with backoff and honored Retry-After / x-should-retry. Add bounded retry (a few attempts, exponential backoff, respect Retry-After) to: the Anthropic OAuth token exchange/refresh, and the streaming message call for both providers. Must not retry non-idempotent partial streams blindly — only retry before the first byte is yielded.
 
-- `2026-07-13T02:27:16Z`: Landed. New Sources/CollaborationKit/Core/Retry.swift with:
+\- `2026-07-13T02:27:16Z`: Landed. New Sources/CollaborationKit/Core/Retry.swift with:
 
 - RetryPolicy (maxAttempts / baseDelay / maxDelay) with a sensible default (3 attempts, 0.5s→1s→2s capped at 8s) and .none for opt-out.
 - RetryReason classifier for standard transient statuses (408, 425, 429, 500, 502, 503, 504, 529) and URLError transport failures.
@@ -387,8 +387,8 @@ Design work: pick one of
 
 Related: RFC 0002 (CollaborationKitUI).
 
-- `2026-07-13T02:10:52Z`: Punt from autonomous run: this is a design decision, not an implementation task. Issue itself lists three viable directions (common protocol; deprecate file store; formalize split) with different trade-offs for CLI vs UI vs host use cases. Autonomous run isn't comfortable picking a direction unilaterally — needs a product call on which option to pursue. In the meantime the two stores co-exist fine and every credential UI path today goes through the Keychain one.
-- `2026-07-13T03:10:40Z`: Landed. Core no longer ships credential persistence:
+\- `2026-07-13T02:10:52Z`: Punt from autonomous run: this is a design decision, not an implementation task. Issue itself lists three viable directions (common protocol; deprecate file store; formalize split) with different trade-offs for CLI vs UI vs host use cases. Autonomous run isn't comfortable picking a direction unilaterally — needs a product call on which option to pursue. In the meantime the two stores co-exist fine and every credential UI path today goes through the Keychain one.
+\- `2026-07-13T03:10:40Z`: Landed. Core no longer ships credential persistence:
 
 - Deleted Sources/CollaborationKit/Credentials.swift (file-based CredentialStore).
 - Deleted Sources/CollaborationKit/Anthropic/OAuthTokenProvider.swift (the actor that persisted refreshes to disk).
@@ -518,7 +518,7 @@ Missing per RFC 0003 open question 5:
 - Per-attribute override to force a specific tool name.
 - Documented guidance for hosts that merge tools from multiple stores.
 
-- `2026-07-13T02:22:54Z`: Landed. Two knobs, both opt-in and non-breaking:
+\- `2026-07-13T02:22:54Z`: Landed. Two knobs, both opt-in and non-breaking:
 
 - `@CollaborationTools(prefix: "Notes")` — every derived tool becomes `Notes_<method>`.
 - `@CollaborationTool("desc", name: "custom.name")` — per-tool override wins over both the prefix and the bare method name.
@@ -572,7 +572,7 @@ Missing per RFC 0003 open question 6:
 - SwiftData bridge marks derived mutating tools (create/update/delete) automatically; AppIntents bridge marks intent execution similarly.
 - Metadata exposed on AnyTool (or a companion struct) so a host UI can find it without re-inspecting Swift types.
 
-- `2026-07-13T03:14:44Z`: Landed. Per-tool approval metadata:
+\- `2026-07-13T03:14:44Z`: Landed. Per-tool approval metadata:
 
 - Tool protocol gains `var requiresApproval: Bool { get }` with a default of `false`.
 - AnyTool now stores requiresApproval, propagating from the underlying Tool at erasure time.
@@ -736,7 +736,7 @@ Work:
 
 Related: RFC 0002, #13.
 
-- `2026-07-13T02:46:09Z`: Landed. Package.swift now declares .iOS(.v17). Changes:
+\- `2026-07-13T02:46:09Z`: Landed. Package.swift now declares .iOS(.v17). Changes:
 
 - CredentialStore.init falls back to Application Support / collaborationkit/ on iOS (homeDirectoryForCurrentUser is unavailable there).
 - collab-cli sources gated with #if os(macOS); on iOS the executable target compiles to a stub whose main() fatalErrors so linkage stays valid.
@@ -790,7 +790,7 @@ Concretely:
 
 Related: RFC 0002, #13.
 
-- `2026-07-13T02:55:40Z`: First pass landed. Changes:
+\- `2026-07-13T02:55:40Z`: First pass landed. Changes:
 
 - ConversationRowView: combined element with a role-specific accessibilityLabel (User message / Assistant reply / Tool <name>[, errored] / Error) and an accessibilityValue that reads the content, image count for user rows, tool summary + result-or-pending, and the round-trip latency when known.
 - ComposerView: explicit accessibilityLabel and accessibilityHint on Attach / Send / Stop buttons (labels replace SF-symbol-derived defaults; hints describe the action).
@@ -836,8 +836,8 @@ closed: 2026-07-13T02:49:53Z
 
 Add a mechanism for the host to approve (or deny) filesystem path access by built-in file tools (read/write/edit).
 
-- `2026-07-13T01:50:12Z`: Related to #31 (general tool-approval mechanism). Filesystem-path gating for read/write/edit is arguably a specialization: consider implementing it as a built-in participant in whatever host-approval hook #31 lands.
-- `2026-07-13T02:49:53Z`: Landed as PathPolicy in Sources/CollaborationKit/FileTools/PathPolicy.swift. The built-in file tools (ReadTool/WriteTool/EditTool) don't take path parameters — they're bound to a TextDocument at construction, so their filesystem reach is already the document the caller passed in. This issue's premise applies to *custom* file tools hosts build themselves: PathPolicy is the helper for that case.
+\- `2026-07-13T01:50:12Z`: Related to #31 (general tool-approval mechanism). Filesystem-path gating for read/write/edit is arguably a specialization: consider implementing it as a built-in participant in whatever host-approval hook #31 lands.
+\- `2026-07-13T02:49:53Z`: Landed as PathPolicy in Sources/CollaborationKit/FileTools/PathPolicy.swift. The built-in file tools (ReadTool/WriteTool/EditTool) don't take path parameters — they're bound to a TextDocument at construction, so their filesystem reach is already the document the caller passed in. This issue's premise applies to *custom* file tools hosts build themselves: PathPolicy is the helper for that case.
 
 API:
 - PathPolicy(allowedRoots: [URL], allowsSymlinkEscape: Bool = false)
@@ -926,7 +926,7 @@ Design:
 Blocks: any Phosphor migration onto CollaborationKitUI.
 Related: RFC 0002, #13.
 
-- `2026-07-13T02:54:13Z`: Landed. New public SessionExport value type (Codable + Sendable) in Sources/CollaborationKitUI/Transcript/. Shadow shape captures messages, transcript items, usage, lastError, plus caller-supplied model id and free-form userInfo dictionary for host-specific payload (e.g. Phosphor's shader source). Domain types (Message / ConversationItem / TokenUsage) stay Codable-free.
+\- `2026-07-13T02:54:13Z`: Landed. New public SessionExport value type (Codable + Sendable) in Sources/CollaborationKitUI/Transcript/. Shadow shape captures messages, transcript items, usage, lastError, plus caller-supplied model id and free-form userInfo dictionary for host-specific payload (e.g. Phosphor's shader source). Domain types (Message / ConversationItem / TokenUsage) stay Codable-free.
 
 ConversationStore.buildExport(model:userInfo:) gathers the snapshot; SessionExport.jsonData() / jsonString() / decode(_:) handle serialisation with ISO8601 dates and sorted keys. Hosts wanting a Transferable/FileDocument wrap the Data themselves.
 
@@ -963,12 +963,13 @@ Related: RFC 0002, #13.
 ## 37: CollaborationKitUI: menu-command / focused-scene-value hooks
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:s
 created: 2026-07-13T01:40:35Z
-updated: 2026-07-13T15:13:29Z
+updated: 2026-08-09T20:47:03Z
+closed: 2026-08-09T20:47:03Z
 +++
 
 Phosphor exposes actions (export debug info, stop generation, roll back) to the app menu via focusedSceneValue with typed FocusedValueKey values, so the File / Edit menus can trigger them contextually.
@@ -980,7 +981,7 @@ Design:
 
 Related: RFC 0002, #13, #26 (rollback), and the export issue above.
 
-- `2026-07-13T15:17:09Z`: Investigated. `exportDebugLog` is already wired via `focusedSceneValue` (see `SessionDebugExport.swift`) — so the remaining scope is `stopGeneration` and `rollBack`.
+\- `2026-07-13T15:17:09Z`: Investigated. `exportDebugLog` is already wired via `focusedSceneValue` (see `SessionDebugExport.swift`) — so the remaining scope is `stopGeneration` and `rollBack`.
 
 Punting: rollback (#26) hasn't landed, so the full set can't be delivered together. Adding just `stopGeneration` also raises API-shape questions I don't want to decide unilaterally:
 
@@ -989,6 +990,8 @@ Punting: rollback (#26) hasn't landed, so the full set can't be delivered togeth
 3. Should the focused value carry the `ConversationStore` itself (letting host menus reach anything) instead of typed action values?
 
 Can you steer on (1)–(3), or should this wait until #26 lands so the whole surface goes in at once?
+
+- `2026-08-09T20:47:03Z`: Implemented following the exportDebugLog precedent: narrow single-action focused values (stopGeneration, rollBackLastTurn) installed by an explicit .collaborationSessionCommands(store:) modifier, plus demo-app menu commands.
 
 ---
 
@@ -1117,7 +1120,7 @@ Update the demo to use `Note.ID` on `create` / `delete` and `[Note]` on `list` o
 
 Related: RFC 0003, #14, #24 (enums/tuples/generics), #25 (custom escape hatch).
 
-- `2026-07-13T02:06:39Z`: Landed via a default extension on CollaborationSchemaConvertible for RawRepresentable types whose RawValue conforms to a new CollaborationRawValue protocol (String/Int/Double/Float/Bool ship with it). A caller-declared typed id is now:
+\- `2026-07-13T02:06:39Z`: Landed via a default extension on CollaborationSchemaConvertible for RawRepresentable types whose RawValue conforms to a new CollaborationRawValue protocol (String/Int/Double/Float/Bool ship with it). A caller-declared typed id is now:
 
     struct NoteID: RawRepresentable, Codable, CollaborationSchemaConvertible, Hashable {
         let rawValue: String
@@ -1287,7 +1290,7 @@ Demo:
 
 Related: RFC 0002, #13, #27.
 
-- `2026-07-13T03:34:01Z`: Landed. All items addressed:
+\- `2026-07-13T03:34:01Z`: Landed. All items addressed:
 
 Real bugs:
 - CollaborationCredentials.selectedModel is now a stored, Observation-tracked var; `selectModel(_:)` updates it and `refresh()` re-reads from UserDefaults on backend switch.
@@ -1378,7 +1381,7 @@ Review against the swift-concurrency-pro skill (Swift 6.2, strict concurrency). 
 - FileDocument / InMemoryDocument / CLICredentialStore use `@unchecked Sendable` legitimately (NSLock or documented-thread-safe base).
 - Retry loops respect cancellation via Task.sleep.
 
-- `2026-07-13T03:45:16Z`: Landed the four items:
+\- `2026-07-13T03:45:16Z`: Landed the four items:
 
 - LLMSession actor reentrancy: guard `send` with an `isRunning` flag; concurrent send() calls now throw `SessionError.turnAlreadyInProgress` instead of interleaving onto the shared event stream. New regression test uses a gated provider to exercise the race.
 - Retry.swift: `Task.sleep(nanoseconds:)` → `Task.sleep(for: .seconds(delay))`.
@@ -1442,7 +1445,7 @@ closed: 2026-07-13T03:59:58Z
 
 Ranking: highest AI-navigability payoff among the three architecture candidates. See the improve-codebase-architecture review.
 
-- `2026-07-13T03:59:58Z`: Landed. New `Backend` value type in Sources/CollaborationKitUI/Backend.swift owns id, displayName, defaultModel, hasCredentials closure, makeProvider closure, modelFilter closure. Three built-in backends exposed as static factories: Backend.claudeSubscription, .anthropicAPI, .openAI (and Backend.allBuiltin).
+\- `2026-07-13T03:59:58Z`: Landed. New `Backend` value type in Sources/CollaborationKitUI/Backend.swift owns id, displayName, defaultModel, hasCredentials closure, makeProvider closure, modelFilter closure. Three built-in backends exposed as static factories: Backend.claudeSubscription, .anthropicAPI, .openAI (and Backend.allBuiltin).
 
 Migration:
 - Deleted CollaborationBackend enum + the KeychainCredentialStore extensions.
@@ -1494,7 +1497,7 @@ Then a single `HTTPStreamingProvider<Wire: WireProvider>: ModelProvider, ModelLi
 
 Ranking: biggest raw duplication kill among the three candidates.
 
-- `2026-07-13T04:04:04Z`: Landed. New `WireProvider` protocol in Sources/CollaborationKit/Core/WireProvider.swift refines ModelProvider + ModelLister with five wire-specific hooks (makeChatRequest, makeAccumulator, httpError, makeModelsRequest, decodeModels) plus urlSession + retryPolicy. Default implementations of send() and listModels() route through StreamingTransport once.
+\- `2026-07-13T04:04:04Z`: Landed. New `WireProvider` protocol in Sources/CollaborationKit/Core/WireProvider.swift refines ModelProvider + ModelLister with five wire-specific hooks (makeChatRequest, makeAccumulator, httpError, makeModelsRequest, decodeModels) plus urlSession + retryPolicy. Default implementations of send() and listModels() route through StreamingTransport once.
 
 AnthropicProvider and OpenAIProvider now conform to WireProvider — the ~120 lines of send/listModels body from each shrunk to the wire-specific hooks. Total savings: about 100 lines of duplicated plumbing.
 
@@ -1536,7 +1539,7 @@ closed: 2026-07-13T04:10:47Z
 
 Ranking: lowest urgency of the three architecture candidates but real testability payoff.
 
-- `2026-07-13T04:10:47Z`: Landed. ConversationStore (was 442 lines) split into three types:
+\- `2026-07-13T04:10:47Z`: Landed. ConversationStore (was 442 lines) split into three types:
 
 - **MessageMirror** (Sources/CollaborationKitUI/Transcript/MessageMirror.swift): pure Sendable value type. Consumes SessionEvents and maintains messages, streamingAssistantText, errorOverlays, and presentation metadata. No SwiftUI, no @MainActor, no observation. Unit-testable with plain assertions.
 - **TranscriptProjection** (Sources/CollaborationKitUI/Transcript/TranscriptProjection.swift): pure enum with a static project(_:) function turning MessageMirror into ([ConversationItem], Set<ItemID>). Computes latency during projection from the previous row's end timestamp; no side-table needed for latency anymore.
@@ -1570,7 +1573,7 @@ Expected: methods annotated in extensions are picked up the same way as methods 
 
 Actual: TBD — needs reproduction to confirm whether the peer macro is silently ignored, the member macro doesn't see extension members, or it fails to compile.
 
-- `2026-07-13T04:13:43Z`: Investigated. Root cause is a Swift macro limitation, not our bug — @attached(member) macros only see the primary type's member block, not extensions. There's no clean workaround:
+\- `2026-07-13T04:13:43Z`: Investigated. Root cause is a Swift macro limitation, not our bug — @attached(member) macros only see the primary type's member block, not extensions. There's no clean workaround:
 
 - Peer macros can't add conformances to the enclosing type (rules out runtime discovery via a protocol registry).
 - Mirror can't enumerate nested types (rules out reflection-based collection).
@@ -1820,8 +1823,8 @@ Pasting an image (or any file) into the composer's text field does nothing. User
 
 The composer should accept pasted images and file attachments from the clipboard, surface them as attachment chips in the composer, and include them in the outgoing message.
 
-- `2026-07-13T06:19:05Z`: Related: #67 (drag attachments on composer) and #36 (image drop on transcript).
-- `2026-07-13T14:38:02Z`: Autonomous run 2: attempted onPasteCommand(of: [.image, .fileURL]) on the container, then moved to the TextField, then tried .pasteDestination(for: URL.self) + .onPasteCommand(of: [.image]) on the container. In all cases the focused TextField still wins for URL/text pastes and the attachment strip stays empty. Paste code left in place as scaffolding.
+\- `2026-07-13T06:19:05Z`: Related: #67 (drag attachments on composer) and #36 (image drop on transcript).
+\- `2026-07-13T14:38:02Z`: Autonomous run 2: attempted onPasteCommand(of: [.image, .fileURL]) on the container, then moved to the TextField, then tried .pasteDestination(for: URL.self) + .onPasteCommand(of: [.image]) on the container. In all cases the focused TextField still wins for URL/text pastes and the attachment strip stays empty. Paste code left in place as scaffolding.
 
 Next step likely needs a lower-level intercept — a custom NSTextView subclass that overrides paste:, or wrapping the composer in an NSViewRepresentable with pasteboardTypes. Not autonomous-friendly.
 
@@ -2055,8 +2058,8 @@ Areas to look at:
 
 For each site, note whether a typed wrapper (e.g. a `RawRepresentable` key type, dedicated enum, or `KeyPath`-based API) would prevent typos, collisions, or drift between read/write sites.
 
-- `2026-07-13T15:24:38Z`: Audit posted; applied the one small fix it recommended (deduping built-in Backend id/displayName strings into a private `Builtin` enum in Backend.swift).
-- `2026-07-13T15:24:42Z`: # Stringy-key audit (issue #77)
+\- `2026-07-13T15:24:38Z`: Audit posted; applied the one small fix it recommended (deduping built-in Backend id/displayName strings into a private `Builtin` enum in Backend.swift).
+\- `2026-07-13T15:24:42Z`: # Stringy-key audit (issue #77)
 
 Scanned: `UserDefaults` call sites, Keychain `kSecAttr*` usage, `[String: Any]` payloads, `CodingKeys`, backend/provider identifiers, and other lookup-key strings across `Sources/`.
 
@@ -2459,7 +2462,7 @@ Related to the other Phosphor-adoption children — resolving those may add new 
 
 Child of the Phosphor adoption umbrella.
 
-- `2026-07-13T17:09:45Z`: Audit written up in rfcs/phosphor-adoption-audit.md (change kxvlonqm). Follow-ups filed:
+\- `2026-07-13T17:09:45Z`: Audit written up in rfcs/phosphor-adoption-audit.md (change kxvlonqm). Follow-ups filed:
 
 - #103 — CollaborationChatView missing-credentials placeholder is hard-coded.
 - #104 — ConversationStore has no rehydrate-from-SessionExport path (child of #73).
@@ -2522,7 +2525,7 @@ New:
 
 - The bulk of the migration is UI-facing; the Core-side APIs Phosphor uses (Message, ImageContent, LLMSession, ToolSpec, ProviderStreamEvent, TokenUsage, RollbackSnapshot) are already stable enough. #90 will confirm.
 
-- `2026-07-13T17:09:59Z`: Progress update (change kxvlonqm):
+\- `2026-07-13T17:09:59Z`: Progress update (change kxvlonqm):
 
 Phosphor-labeled children resolved:
 - #87 ✅ transcript-row result-visibility hook

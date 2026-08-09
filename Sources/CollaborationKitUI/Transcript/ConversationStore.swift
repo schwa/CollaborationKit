@@ -296,6 +296,20 @@ public final class ConversationStore {
         return rollbackSnapshots[uuid] != nil
     }
 
+    /// The most recent user prompt that can be rolled back to, if any.
+    ///
+    /// Menu commands (`Edit → Roll Back Last Turn`) act on the last turn
+    /// rather than a selected row, so they need this rather than a per-row
+    /// ``canRollBack(to:)`` check. `nil` while a turn is in flight or when
+    /// no prompt carries a snapshot.
+    public var lastRollbackTarget: ItemID? {
+        guard !isGenerating else { return nil }
+        return items.reversed().first { item in
+            guard case .user = item.kind else { return false }
+            return canRollBack(to: item.id)
+        }?.id
+    }
+
     /// Rolls the whole session back to just before the user prompt at `id`:
     /// applies the host's restore closure, truncates the mirror + session
     /// history to the recorded pre-turn count, drops error overlays and

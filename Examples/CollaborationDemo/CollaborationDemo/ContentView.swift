@@ -148,6 +148,7 @@ struct ContentView: View {
                         "CollaborationDemo-\(selectedTab.exportSlug)-\(Int(Date().timeIntervalSince1970)).json"
                     }
                 )
+                .collaborationSessionCommands(store: store)
         } else if let buildError {
             ContentUnavailableView("Couldn't Start Chat", systemImage: "exclamationmark.triangle", description: Text(buildError))
         } else {
