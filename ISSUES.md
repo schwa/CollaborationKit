@@ -2891,6 +2891,12 @@ Sharp edges to design around:
 
 Deferred from the initial #98 pass because parallel-by-default was judged too dangerous for tools whose safety story we don't own.
 
+- `2026-08-09T21:02:26Z`: Blocked on the same open decision as #98 (commented there): the tool-safety surface. The mechanical part (fan the batch out with a TaskGroup, keep approvals serialized in emission order, results already key by ToolUse.id so completion-order events are fine) is straightforward once the safety knob is chosen.
+
+My recommendation: 'var allowsParallelExecution: Bool { false }' on Tool — serial stays the default, so nothing existing changes behaviour, and tools opt in when their author knows they're safe. Exclusion keys can be layered on later without a source break if that turns out to be too coarse.
+
+Say the word and I'll implement it that way.
+
 ---
 
 ## 107: Approval prompt has no "always allow this tool" option
