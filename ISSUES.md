@@ -1335,6 +1335,8 @@ Scope to explore:
 - Interaction with the existing tool loop and system prompt.
 - Whether `CollaborationKitUI` needs a picker / indicator.
 
+- `2026-08-09T20:58:51Z`: Reference design worth reading before starting: apple/foundation-models-utilities' Skills module (audited in #86, see Documentation/foundation-models-utilities-audit.md). It answers most of the open questions in this issue — skills are surfaced to the model as tools; a prompt-based skill's body is delivered as the tool's output (preserving the KV cache) while an instructions-based skill is spliced into the instructions entry (higher obedience, cache invalidation) and can optionally be deactivated by the model later; activations are tracked in an Observable collection a UI can bind to.
+
 ---
 
 ## 50: Swift concurrency review: LLMSession actor reentrancy + smaller fixes
@@ -2308,12 +2310,13 @@ Switch the default trigger to be token-based (e.g. compact when cumulative or la
 ## 86: Investigate apple/foundation-models-utilities for reuse in CollaborationKit
 
 +++
-status: open
+status: closed
 priority: medium
 kind: task
 labels: effort:m
 created: 2026-07-13T15:46:36Z
-updated: 2026-07-13T16:42:21Z
+updated: 2026-08-09T20:59:08Z
+closed: 2026-08-09T20:59:08Z
 +++
 
 Apple published https://github.com/apple/foundation-models-utilities — a set of utilities for the Foundation Models framework.
@@ -2325,6 +2328,8 @@ Tasks:
 - Compare against our current FoundationModels usage in CollaborationKit.
 - Identify concrete adoption opportunities (what to delete, what to wrap, what to depend on).
 - Decide: vendor, depend as SPM package, or copy patterns.
+
+- `2026-08-09T20:59:08Z`: Audited; findings written up in Documentation/foundation-models-utilities-audit.md. Decision: don't depend (their floor is macOS/iOS 27 vs our 14/17, and everything is expressed in FoundationModels types we don't use yet), don't vendor — borrow patterns. Filed #120 and #121 for the two history-management ideas worth having, and left a pointer to their Skills design on #49.
 
 ---
 
@@ -2694,7 +2699,7 @@ Want _some_ way to batch:
 
 Exact design is open — the goal is fewer round-trips for embarrassingly-parallel tool work.
 
-- `2026-08-09T20:57:20Z`: Investigated. The round-trip/token half of this is already in place: LLMSession collects every tool_use from one assistant turn and AnthropicWire.expand emits all of the results as a single following user message of tool_result blocks (see AnthropicWireTests), and OpenAI already sets parallelToolCalls. So no batching work is left on the wire.
+\- `2026-08-09T20:57:20Z`: Investigated. The round-trip/token half of this is already in place: LLMSession collects every tool_use from one assistant turn and AnthropicWire.expand emits all of the results as a single following user message of tool_result blocks (see AnthropicWireTests), and OpenAI already sets parallelToolCalls. So no batching work is left on the wire.
 
 What's actually left is #106 (fan the batch out concurrently instead of awaiting each tool in emission order), which is blocked on the tool-safety design you deferred.
 
@@ -3190,5 +3195,46 @@ Per assistant turn:
 
 - CollaborationKit #35 (SessionDebugExport) captures the *whole* session; this is the per-turn slice.
 - CollaborationKit #26 (rollback) already retains the pre-turn [Message] count; the request-body snapshot is a natural companion.
+
+---
+
+## 120: CompactionStrategy: drop completed tool calls
+
++++
+status: new
+priority: medium
+kind: feature
+labels: effort:m
+created: 2026-08-09T20:58:56Z
++++
+
+Add a CompactionStrategy that drops the *results* of completed tool calls from older turns while keeping the calls themselves, so a tool-heavy session sheds its bulkiest content before it starts dropping conversational turns.
+
+Inspired by apple/foundation-models-utilities' droppingCompletedToolCalls() modifier (see Documentation/foundation-models-utilities-audit.md, #86).
+
+Notes:
+- Keep the tool_use block so the transcript still reads coherently; replace or elide the result payload.
+- Both wire encoders must stay valid: Anthropic pairs each tool_use with a tool_result in the following user turn, so an elided result still needs a placeholder block.
+- Should compose with KeepRecentCompactionStrategy rather than replace it.
+
+---
+
+## 121: CompactionStrategy: summarize the dropped prefix instead of discarding it
+
++++
+status: new
+priority: medium
+kind: feature
+labels: effort:l
+created: 2026-08-09T20:59:03Z
++++
+
+KeepRecentCompactionStrategy throws away everything outside the retained window. Add a strategy that first summarizes the dropped prefix (via a caller-supplied summarizer — potentially a smaller/cheaper model) and injects the summary as a single leading message, so long sessions keep their thread.
+
+Inspired by apple/foundation-models-utilities' summarizeHistory(entryThreshold:model:) modifier (see Documentation/foundation-models-utilities-audit.md, #86).
+
+Notes:
+- CompactionStrategy is currently synchronous; summarization needs an async seam.
+- Depends on / composes with #120.
 
 ---
