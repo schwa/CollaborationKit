@@ -76,22 +76,19 @@ struct ContentView: View {
                 Label("Assistant", systemImage: "bubble.left.and.text.bubble.right")
             }
         }
-        .alert(
-            "Allow tool call?",
-            isPresented: Binding(
-                get: { approvals.pending != nil },
-                set: { presented in
-                    // Dismissing without picking a button = deny.
-                    if !presented { approvals.resolve(.deny) }
-                }
-            ),
-            presenting: approvals.pending
-        ) { pending in
-            Button("Allow") { approvals.resolve(.allow) }
-            Button("Always Allow “\(pending.use.name)”") { approvals.allowAlways() }
-            Button("Deny", role: .destructive) { approvals.resolve(.deny) }
-        } message: { pending in
-            Text("The assistant wants to run “\(pending.use.name)” with input:\n\n\(prettyInput(pending.use.input))")
+        .sheet(item: Binding(
+            get: { approvals.pending },
+            set: { pending in
+                // Dismissing without picking a button = deny.
+                if pending == nil { approvals.resolve(.deny) }
+            }
+        )) { pending in
+            ToolApprovalSheet(
+                use: pending.use,
+                onAllow: { approvals.resolve(.allow) },
+                onAllowAlways: { approvals.allowAlways() },
+                onDeny: { approvals.resolve(.deny) }
+            )
         }
         .sheet(item: $editing) { editing in
             if let index = notes.notes.firstIndex(where: { $0.id == editing.id }) {
@@ -260,22 +257,6 @@ private extension ContentView.DemoTab {
             "Ask for a few edits at once — e.g. “append a header, insert a summary at the top, and replace every ‘TODO’ with ‘Follow-up’”."
         }
     }
-}
-
-// MARK: - Approval formatting
-
-/// Pretty-prints a tool's JSON input for the approval alert. Uses
-/// JSONEncoder with pretty printing when possible; falls back to the
-/// default reflection description if encoding fails (shouldn't happen
-/// for well-formed JSONValues, but the alert must never crash).
-private func prettyInput(_ input: JSONValue) -> String {
-    let encoder = JSONEncoder()
-    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-    guard let data = try? encoder.encode(input),
-          let string = String(data: data, encoding: .utf8) else {
-        return String(describing: input)
-    }
-    return string
 }
 
 #Preview {

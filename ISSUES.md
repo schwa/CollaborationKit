@@ -2914,12 +2914,13 @@ When a tool marked `requiresApproval: true` runs, the user gets an Allow/Deny pr
 ## 108: Tool-approval confirm UI is ugly
 
 +++
-status: open
+status: closed
 priority: low
 kind: enhancement
 labels: ui, demo, effort:s
 created: 2026-07-13T17:32:04Z
-updated: 2026-07-13T17:37:17Z
+updated: 2026-08-09T21:00:31Z
+closed: 2026-08-09T21:00:31Z
 +++
 
 The tool-call approval dialog in the CollaborationDemo (SwiftUI `.alert` driven by `ApprovalGate`, wired up in `ContentView.swift` around line 90) looks bad.
@@ -2934,6 +2935,7 @@ Observed problems (see `Documentation/Screenshots/approval-alert-ugly.png`):
 Investigate a better presentation for the approval confirm UI (tool name + human-readable summary of arguments, proper code formatting for the payload, clearer Allow/Deny affordances).
 
 - `2026-07-13T17:37:17Z`: Related: #107 ("always allow this tool" option).
+- `2026-08-09T21:00:32Z`: Replaced the stock .alert with a ToolApprovalSheet: tool name in the header, one labelled row per argument with values rendered unescaped in monospaced text, payload area scrolls instead of stretching the dialog, and Deny / Always Allow / Allow laid out on one row with Allow as the default action. No regression test — this is a demo-only SwiftUI presentation change and the demo app has no test target.
 
 ---
 
