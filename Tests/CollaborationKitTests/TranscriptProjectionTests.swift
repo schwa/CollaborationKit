@@ -70,6 +70,58 @@ struct TranscriptProjectionTests {
         }
     }
 
+    @Test("a lone tool call carries no batch metadata")
+    func singleToolCallIsNotBatched() {
+        var mirror = MessageMirror()
+        let use = ToolUse(id: "t1", name: "list", input: .object([:]))
+        mirror.handle(.historyChanged([Message(role: .assistant, content: [.toolCall(ToolCall(use: use))])]))
+
+        let (items, _) = TranscriptProjection.project(mirror)
+        #expect(items.allSatisfy { $0.batch == nil })
+    }
+
+    @Test("tool calls emitted in one assistant message are stamped as a batch")
+    func batchedToolCallsAreNumbered() {
+        var mirror = MessageMirror()
+        let uses = (1...3).map { ToolUse(id: "t\($0)", name: "read", input: .object([:])) }
+        let assistant = Message(
+            role: .assistant,
+            content: [.text("Reading them.")] + uses.map { .toolCall(ToolCall(use: $0)) }
+        )
+        mirror.handle(.historyChanged([assistant]))
+
+        let (items, _) = TranscriptProjection.project(mirror)
+        let toolRows = items.filter { if case .tool = $0.kind { true } else { false } }
+        #expect(toolRows.count == 3)
+        #expect(toolRows.map(\.batch) == [
+            ConversationItem.Batch(index: 0, count: 3),
+            ConversationItem.Batch(index: 1, count: 3),
+            ConversationItem.Batch(index: 2, count: 3)
+        ])
+        #expect(toolRows.first?.batch?.isFirst == true)
+        #expect(toolRows.last?.batch?.isLast == true)
+        // The prose row in the same message is not part of the batch.
+        #expect(items.first?.batch == nil)
+    }
+
+    @Test("batches don't span assistant messages")
+    func batchesDoNotSpanMessages() {
+        var mirror = MessageMirror()
+        let first = Message(
+            role: .assistant,
+            content: [.toolCall(ToolCall(use: ToolUse(id: "a", name: "read", input: .object([:]))))]
+        )
+        let second = Message(
+            role: .assistant,
+            content: [.toolCall(ToolCall(use: ToolUse(id: "b", name: "read", input: .object([:]))))]
+        )
+        mirror.handle(.historyChanged([first, second]))
+
+        let (items, _) = TranscriptProjection.project(mirror)
+        #expect(items.count == 2)
+        #expect(items.allSatisfy { $0.batch == nil })
+    }
+
     @Test
     func latencyIsGapBetweenConsecutiveItems() {
         var mirror = MessageMirror()

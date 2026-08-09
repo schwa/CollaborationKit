@@ -57,10 +57,31 @@ public struct ConversationRowView: View {
             RoundedRectangle(cornerRadius: 10)
                 .strokeBorder(borderColor, lineWidth: 1)
         }
+        .overlay(alignment: .leading) { batchRail }
+        .padding(.leading, item.batch == nil ? 0 : 10)
         .textSelection(.enabled)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabelText)
         .accessibilityValue(accessibilityValueText)
+    }
+
+    /// A rail down the leading edge tying together the tool rows the model
+    /// emitted in one message. Rounded at the ends of the batch and square
+    /// where the run continues, so a batch reads as one bracketed group.
+    @ViewBuilder private var batchRail: some View {
+        if let batch = item.batch {
+            UnevenRoundedRectangle(
+                topLeadingRadius: batch.isFirst ? 2 : 0,
+                bottomLeadingRadius: batch.isLast ? 2 : 0,
+                bottomTrailingRadius: batch.isLast ? 2 : 0,
+                topTrailingRadius: batch.isFirst ? 2 : 0
+            )
+            .fill(accent.opacity(0.45))
+            .frame(width: 3)
+            .padding(.vertical, batch.isFirst || batch.isLast ? 4 : 0)
+            .offset(x: -10)
+            .accessibilityHidden(true)
+        }
     }
 
     // MARK: - Accessibility labels
@@ -75,7 +96,9 @@ public struct ConversationRowView: View {
             return "Assistant reply"
 
         case let .tool(name, _, _, isError):
-            return isError ? "Tool \(name), errored" : "Tool \(name)"
+            let base = isError ? "Tool \(name), errored" : "Tool \(name)"
+            guard let batch = item.batch else { return base }
+            return "\(base), \(batch.index + 1) of \(batch.count) in this batch"
 
         case .error:
             return "Error"
@@ -120,6 +143,15 @@ public struct ConversationRowView: View {
                 .foregroundStyle(accent)
                 .textCase(.uppercase)
                 .tracking(0.4)
+            if let batch = item.batch {
+                Text("\(batch.index + 1)/\(batch.count)")
+                    .font(.caption2.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(accent)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(accent.opacity(0.12), in: .capsule)
+                    .accessibilityHidden(true)
+            }
             Spacer(minLength: 4)
             durationLabel
         }

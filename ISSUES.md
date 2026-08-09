@@ -3121,17 +3121,20 @@ Show the cache-read (and, where relevant, cache-write) counts alongside the exis
 ## 117: Transcript doesn't visually indicate when tool calls came in the same batch
 
 +++
-status: open
+status: closed
 priority: low
 kind: enhancement
 labels: effort:m, ui
 created: 2026-07-13T18:34:13Z
-updated: 2026-07-13T18:41:06Z
+updated: 2026-08-09T21:02:19Z
+closed: 2026-08-09T21:02:19Z
 +++
 
 When the assistant emits multiple tool_use blocks in a single turn, TranscriptView renders them as an unstyled vertical run of tool rows. There is no visual affordance (rule, grouping, badge, indent) that tells the user those calls arrived together as a batch.
 
 Split out from #112, which added a batching-friendly demo workflow and system-prompt hints but deferred the projection/UI change.
+
+- `2026-08-09T21:02:19Z`: Tool rows emitted in one assistant message are now stamped with batch position in the projection, and the transcript draws a bracketed rail down the leading edge of the run plus an i/n badge in each row header. Screen readers get 'Tool read, 2 of 3 in this batch'.
 
 ---
 

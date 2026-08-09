@@ -122,12 +122,18 @@ public enum TranscriptProjection {
             rows.append(row)
             previousEnd = row.endTimestamp
         }
-        for block in message.content {
-            guard case .toolCall(let call) = block else { continue }
+        // A batch is only interesting when the model emitted more than one
+        // call in the same message; a lone call gets no batch metadata so
+        // the UI has nothing to draw.
+        let calls = message.content.compactMap { block -> ToolCall? in
+            guard case .toolCall(let call) = block else { return nil }
+            return call
+        }
+        for (offset, call) in calls.enumerated() {
             let id = ItemID.tool(call.use.id)
             livingIDs.insert(id)
             let summary = presentation[id]?.summary ?? call.use.name
-            let row = makeRow(
+            var row = makeRow(
                 id: id,
                 fallbackTimestamp: message.timestamp,
                 kind: .tool(
@@ -139,6 +145,9 @@ public enum TranscriptProjection {
                 presentation: presentation[id],
                 priorEnd: previousEnd
             )
+            if calls.count > 1 {
+                row.batch = ConversationItem.Batch(index: offset, count: calls.count)
+            }
             rows.append(row)
             previousEnd = row.endTimestamp
         }

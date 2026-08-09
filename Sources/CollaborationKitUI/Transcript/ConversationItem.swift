@@ -109,6 +109,29 @@ public struct ConversationItem: Identifiable, Sendable, Equatable, Codable {
     /// reflects how long the user waited — unlike ``duration``, which only
     /// times the visible block.
     public var latency: TimeInterval?
+    /// Where this row sits in a batch of tool calls the model emitted in a
+    /// single assistant message. `nil` for every non-tool row and for a
+    /// tool call that arrived on its own.
+    public var batch: Batch?
+
+    /// A tool row's position within one assistant message's batch of tool
+    /// calls. Lets the transcript group the run visually instead of
+    /// rendering it as an undifferentiated column of rows.
+    public struct Batch: Sendable, Equatable, Codable {
+        /// Zero-based position within the batch.
+        public var index: Int
+        /// How many tool calls the assistant emitted in that message.
+        public var count: Int
+        /// True for the first row of the batch.
+        public var isFirst: Bool { index == 0 }
+        /// True for the last row of the batch.
+        public var isLast: Bool { index == count - 1 }
+
+        public init(index: Int, count: Int) {
+            self.index = index
+            self.count = count
+        }
+    }
 }
 
 extension ConversationItem.Kind: Codable {
