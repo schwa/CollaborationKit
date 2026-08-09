@@ -65,11 +65,12 @@ public final class ConversationStore {
     private var eventTask: Task<Void, Never>?
     private var sendTask: Task<Void, Never>?
 
-    /// In-flight session-history truncation started by ``rollBack(through:)``.
-    /// Awaited by ``run(_:)`` before the next send so a prompt issued right
-    /// after a rollback can't reach the session before the truncation does.
+    /// In-flight session-history rewrite started by ``rollBack(through:)``
+    /// or ``restore(from:)``. Awaited by ``run(_:)`` before the next send so
+    /// a prompt issued right after one of those can't reach the session
+    /// before the rewrite does.
     @ObservationIgnored
-    private var truncationTask: Task<Void, Never>?
+    private var historySyncTask: Task<Void, Never>?
 
     /// Set when the pump sees the current turn's `.turnEnded` sentinel.
     @ObservationIgnored
@@ -208,9 +209,10 @@ public final class ConversationStore {
     }
 
     private func run(_ userMessage: Message) async {
-        // A rollback may still be truncating the session's history; let it
-        // land before this turn's history is sent to the provider.
-        await truncationTask?.value
+        // A rollback or restore may still be rewriting the session's
+        // history; let it land before this turn's history is sent to the
+        // provider.
+        await historySyncTask?.value
         turnEnded = false
         defer {
             isGenerating = false
@@ -333,8 +335,8 @@ public final class ConversationStore {
         mirror.truncate(keepingMessages: keep)
         // Tracked so the next turn's `run(_:)` awaits it — a send issued
         // right after this call must not race the truncation to the actor.
-        let previous = truncationTask
-        truncationTask = Task { [session] in
+        let previous = historySyncTask
+        historySyncTask = Task { [session] in
             await previous?.value
             await session.truncateHistory(keeping: keep)
         }
@@ -344,6 +346,49 @@ public final class ConversationStore {
         rollbackSnapshots = rollbackSnapshots.filter { _, entry in entry.messageCount < keep }
 
         lastError = nil
+        reproject()
+    }
+
+    // MARK: - Restore
+
+    /// Restores this store — and its underlying ``LLMSession`` — to the
+    /// state captured in `export`.
+    ///
+    /// Adopts the exported history, transcript timing, cumulative usage, and
+    /// last harness error, then reprojects. The session's history is rewritten
+    /// asynchronously; the next ``send(_:images:snapshot:)`` waits for that to
+    /// land, so callers can restore and immediately send.
+    ///
+    /// Two things deliberately do not survive a round trip:
+    ///
+    /// - Rollback snapshots. They hold host closures that can't be
+    ///   serialized, so restored turns have no rollback points until the
+    ///   host sends new prompts. Existing snapshots are dropped.
+    /// - ``SessionExport/model``, ``SessionExport/system``, and
+    ///   ``SessionExport/userInfo``. Those describe how the host built the
+    ///   session; the host reads them from the export and constructs the
+    ///   ``LLMSession`` accordingly *before* restoring.
+    ///
+    /// A no-op while a turn is in flight — call ``stop()`` first.
+    ///
+    /// - Parameter export: A snapshot from ``buildExport(model:userInfo:)``.
+    public func restore(from export: SessionExport) {
+        guard !isGenerating else { return }
+
+        mirror = .restored(messages: export.messages, transcript: export.transcript)
+        usage = export.usage
+        lastError = export.lastError
+        rollbackSnapshots.removeAll()
+
+        // Chained behind any in-flight rewrite for the same reason
+        // rollBack(through:) chains: the session must see these in order.
+        let restored = export.messages
+        let previous = historySyncTask
+        historySyncTask = Task { [session] in
+            await previous?.value
+            await session.restoreHistory(restored)
+        }
+
         reproject()
     }
 

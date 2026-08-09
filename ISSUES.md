@@ -2798,13 +2798,14 @@ Purpose: show off tool-driven document editing and the store/mirror handling a f
 ## 104: ConversationStore: rehydrate from a persisted SessionExport / MessageMirror
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: phosphor-adoption, api, effort:m
 depends: 73
 created: 2026-07-13T17:09:09Z
-updated: 2026-07-13T17:37:13Z
+updated: 2026-08-09T20:51:30Z
+closed: 2026-08-09T20:51:30Z
 +++
 
 `ConversationStore.buildExport(model:userInfo:)` produces a `SessionExport` today, but there is no corresponding initializer or method that restores a store from one. A host that persists a conversation across launches (see #73) has no way to bring a store back into the same state it left.
@@ -2820,6 +2821,8 @@ Impact:
 - Any host addressing #73 will hit this the moment they try to reopen a saved document.
 
 Surfaced by the #90 public-API audit for Phosphor adoption. Child of #73.
+
+- `2026-08-09T20:51:31Z`: Added ConversationStore.restore(from:), MessageMirror.restored(messages:transcript:) and LLMSession.restoreHistory(_:) so a persisted SessionExport can be rehydrated. Rollback snapshots deliberately don't survive (host closures aren't serialisable).
 
 ---
 

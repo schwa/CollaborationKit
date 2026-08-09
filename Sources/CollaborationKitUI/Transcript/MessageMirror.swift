@@ -60,6 +60,48 @@ public struct MessageMirror: Sendable {
         }
     }
 
+    /// Rebuilds a mirror from persisted state.
+    ///
+    /// The message history is adopted as-is; the transcript rows are used
+    /// only for the presentation metadata the history can't carry (row
+    /// timestamps, durations, tool argument summaries) and for error
+    /// overlays, which are re-appended in transcript order so their
+    /// sequence numbers stay dense.
+    ///
+    /// A streaming row in `transcript` (an export taken mid-turn) is
+    /// dropped: the restored session has no turn in flight.
+    ///
+    /// - Parameters:
+    ///   - messages: The finalized history, oldest first.
+    ///   - transcript: Previously projected rows for the same history.
+    public static func restored(messages: [Message], transcript: [ConversationItem] = []) -> Self {
+        var mirror = Self()
+        mirror.messages = messages
+        for item in transcript {
+            switch (item.id, item.kind) {
+            case (.streamingAssistant, _):
+                continue
+
+            case (_, .error(let message)):
+                mirror.appendError(message, at: item.timestamp)
+
+            case (_, .tool(_, let summary, _, _)):
+                mirror.presentation[item.id] = Presentation(
+                    timestamp: item.timestamp,
+                    duration: item.duration,
+                    summary: summary
+                )
+
+            default:
+                mirror.presentation[item.id] = Presentation(
+                    timestamp: item.timestamp,
+                    duration: item.duration
+                )
+            }
+        }
+        return mirror
+    }
+
     // MARK: - Mutations
 
     /// Records a user turn: appends the user message and stamps its

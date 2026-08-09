@@ -126,6 +126,25 @@ public actor LLMSession {
         yieldHistory()
     }
 
+    /// Replaces the conversation history with a previously persisted one.
+    ///
+    /// Use this to reopen a saved session: the next ``send(_:)`` continues
+    /// as though the restored turns had happened in this process. Emits a
+    /// ``SessionEvent/historyChanged(_:)`` so any mirror stays in step.
+    ///
+    /// Accumulated usage is *not* restored — ``totalUsage`` reports what this
+    /// session object has seen, and a host that persists usage should carry
+    /// it in its own snapshot (``SessionExport`` does).
+    ///
+    /// Call between turns. Restoring mid-turn leaves the in-flight request
+    /// running against a history it no longer matches.
+    ///
+    /// - Parameter messages: The history to adopt, oldest first.
+    public func restoreHistory(_ messages: [Message]) {
+        history = messages
+        yieldHistory()
+    }
+
     private var accumulatedUsage = TokenUsage()
     private var isRunning = false
     /// Assistant prose accumulated across every round-trip of the current

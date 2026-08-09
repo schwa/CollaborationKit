@@ -80,6 +80,9 @@ extension SessionExport: Transferable {
 }
 
 // MARK: - Building the export from a ConversationStore
+//
+// The matching `ConversationStore.restore(from:)` lives in
+// ConversationStore.swift, where it can reach the store's private state.
 
 extension ConversationStore {
     /// Gathers a serialisable snapshot of the current session: transcript,
