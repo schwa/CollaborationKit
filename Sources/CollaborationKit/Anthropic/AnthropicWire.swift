@@ -23,7 +23,7 @@ enum ClaudeCodeIdentity {
     ].joined(separator: ",")
 
     /// The `user-agent` value Claude Code sends on OAuth-authenticated calls.
-    static let userAgent = "claude-code/2.1.97"
+    static let userAgent = "claude-code/2.1.311"
 
     /// The `x-app` value Claude Code sends on OAuth-authenticated calls.
     static let app = "cli"
