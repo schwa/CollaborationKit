@@ -3253,10 +3253,12 @@ Notes:
 ## 122: ModelPickerSection replaces and saves a model that is not in the fetched list
 
 +++
-status: new
+status: closed
 priority: medium
 kind: bug
 created: 2026-11-17T18:29:42Z
+updated: 2026-11-17T19:32:22Z
+closed: 2026-11-17T19:32:22Z
 +++
 
 Reported from IssuesUI (issues-ui #70): the model has to be picked again each time.

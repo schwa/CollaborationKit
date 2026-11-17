@@ -46,6 +46,9 @@ public struct ModelPickerSection: View {
                         // Picker still binds to a non-empty tag.
                         Text(credentials.backend.defaultModel).tag(selection)
                     } else {
+                        if !selection.isEmpty, !models.contains(where: { $0.id == selection }) {
+                            Text("\(selection) (not available)").tag(selection)
+                        }
                         ForEach(models) { model in
                             Text(model.displayName ?? model.id).tag(model.id)
                         }
@@ -86,7 +89,7 @@ public struct ModelPickerSection: View {
             models = fetched
                 .filter { filter($0.id.lowercased()) }
                 .sorted { ($0.displayName ?? $0.id) < ($1.displayName ?? $1.id) }
-            if !models.contains(where: { $0.id == selection }) {
+            if selection.isEmpty {
                 selection = models.first?.id ?? backend.defaultModel
             }
             phase = .loaded
