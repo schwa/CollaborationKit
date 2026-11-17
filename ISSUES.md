@@ -2891,7 +2891,7 @@ Sharp edges to design around:
 
 Deferred from the initial #98 pass because parallel-by-default was judged too dangerous for tools whose safety story we don't own.
 
-- `2026-08-09T21:02:26Z`: Blocked on the same open decision as #98 (commented there): the tool-safety surface. The mechanical part (fan the batch out with a TaskGroup, keep approvals serialized in emission order, results already key by ToolUse.id so completion-order events are fine) is straightforward once the safety knob is chosen.
+\- `2026-08-09T21:02:26Z`: Blocked on the same open decision as #98 (commented there): the tool-safety surface. The mechanical part (fan the batch out with a TaskGroup, keep approvals serialized in emission order, results already key by ToolUse.id so completion-order events are fine) is straightforward once the safety knob is chosen.
 
 My recommendation: 'var allowsParallelExecution: Bool { false }' on Tool — serial stays the default, so nothing existing changes behaviour, and tools opt in when their author knows they're safe. Exclusion keys can be layered on later without a source break if that turns out to be too coarse.
 
@@ -3247,5 +3247,47 @@ Inspired by apple/foundation-models-utilities' summarizeHistory(entryThreshold:m
 Notes:
 - CompactionStrategy is currently synchronous; summarization needs an async seam.
 - Depends on / composes with #120.
+
+---
+
+## 122: ModelPickerSection replaces and saves a model that is not in the fetched list
+
++++
+status: new
+priority: medium
+kind: bug
+created: 2026-11-17T18:29:42Z
++++
+
+Reported from IssuesUI (issues-ui #70): the model has to be picked again each time.
+
+When the model list loads, ModelPickerSection.loadModels sets the selection to the first listed model (or the backend default) if the saved model id is not in the fetched, filtered list. The onChange handler then saves that choice with selectModel, so the saved model is replaced without the user picking anything.
+
+Seen with: backend claudeSubscription, saved model `claude-opus-5` (UserDefaults `collaborationkit.model.claudeSubscription`). Not confirmed whether `claude-opus-5` is missing from the fetched list.
+
+Steps:
+1. Save a model id that the backend list does not return (or that modelFilter removes).
+2. Open the settings view with ModelPickerSection.
+
+Expected: the saved model stays selected, or the user is told it is not available.
+Actual: the first listed model is selected and saved.
+
+---
+
+## 123: Claude Subscription shows as signed out at app launch despite a valid session
+
++++
+status: new
+priority: medium
+kind: bug
+labels: needs-repro
+created: 2026-11-17T18:29:42Z
++++
+
+Reported from IssuesUI (issues-ui #70): "Agent seems to be disabled at launch despite having valid session."
+
+IssuesUI shows the "Sign In to Use the Assistant" state at launch when CollaborationCredentials.hasCredentials is false. For claudeSubscription, that is `store.anthropicOAuthCredentials() != nil`, read once in CollaborationCredentials.init and on refresh().
+
+Backend at the time: claudeSubscription (UserDefaults `issuesUI.assistantBackend`). Not reproduced; it is not known whether the Keychain read returns nil, fails (readFailure), or the state is right and the UI is stale.
 
 ---
